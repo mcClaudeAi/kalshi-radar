@@ -9,6 +9,9 @@ and turn it on yourself.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mcClaudeAi/kalshi-radar)
 
+**New here?** The guided setup page walks you through every step, with screenshots and a checklist that remembers where you left off:
+**[get-kalshi-radar.mc-radar.workers.dev](https://get-kalshi-radar.mc-radar.workers.dev)**
+
 ## What you need
 
 - A free **Cloudflare** account

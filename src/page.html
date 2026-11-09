@@ -818,6 +818,9 @@ html,body,button,a,[data-tab],.nv,.kp,.kx-seg button,.ck-coin,.bnav button{touch
   .kx-g32{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
 }
 @media(min-width:2200px){.kx-home{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+/* MC 2026-11-08 between 1680 and 2200 the Home columns are only ~850px, so the six stat tiles go 3 + 3 and scanner tiles size to fit */
+@media(min-width:1680px){.kx-home .kx-scan{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}}
+@media(min-width:1680px) and (max-width:2199px){.kx-home .kx-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* MC 2026-11-08 plug-and-play edition: setup and sign-in screens, Connections tab */
 body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 #kgate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;overflow:auto}
