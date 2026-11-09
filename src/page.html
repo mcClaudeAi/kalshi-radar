@@ -886,7 +886,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 <nav class="bnav" id="bnav" aria-label="Sections"></nav>
 <div class="drawer" id="drawer"><div class="bk" data-close></div><div class="pn" id="pane"></div></div>
 <div class="modal" id="modal" role="dialog" aria-modal="true"><div class="bk"></div><div class="box" id="mbox"></div></div>
-<div class="pal" id="pal" role="dialog" aria-modal="true" aria-label="Search and commands"><div class="bk" data-palx></div><div class="box"><input id="palq" placeholder="Find a coin or wallet, or type a command…" autocomplete="off"><div class="res" id="palres"></div><div class="ft"><span><span class="kbd">↑</span> <span class="kbd">↓</span> move</span><span><span class="kbd">Enter</span> run</span><span><span class="kbd">Esc</span> close</span></div></div></div>
+<div class="pal" id="pal" role="dialog" aria-modal="true" aria-label="Search and commands"><div class="bk" data-palx></div><div class="box"><input id="palq" placeholder="Find a coin, a page or an action…" autocomplete="off"><div class="res" id="palres"></div><div class="ft"><span><span class="kbd">↑</span> <span class="kbd">↓</span> move</span><span><span class="kbd">Enter</span> run</span><span><span class="kbd">Esc</span> close</span></div></div></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script>
 'use strict';
@@ -1384,17 +1384,15 @@ async function kolDelFlow(addr,name){const ok=await confirmBox({title:`Remove ${
 // ---------- command palette ----------
 function palItems(){const D=ST.D||{},out=[];
   for(const [k,l,i] of NAVI)out.push({g:KXTABS.includes(k)?'Go to':'Archive',ico:i,t:l,s:KXTABS.includes(k)?'':'memecoin bot',hide:KXTABS.includes(k)?0:1,run:()=>go(k)});
-  for(const o of (D.open||[]))out.push({g:'Open copies',ico:'open',t:o.sym||sh(o.mint),s:`${o.live?'LIVE · ':''}${pc(o.pnl)}`,k:(o.sym||'')+' '+o.mint,run:()=>coinPane(o.mint)});
-  for(const r of (D.recent||[]).slice(0,5))out.push({g:'Just sold',ico:'trades',t:r.sym||sh(r.mint),s:`${pc(r.pnl)} · sold`,k:(r.sym||'')+' '+r.mint,run:()=>coinPane(r.mint,r.id||undefined)});
-  for(const c of (D.closed||[]).slice(-40).reverse())out.push({g:'Recent trades',ico:'trades',t:c.sym||sh(c.mint),s:`${usd(c.pnl)} · ${WHY[c.why]||'Other'}`,k:(c.sym||'')+' '+c.mint+' '+c.w,hide:1,run:()=>coinPane(c.mint,c.id||undefined)});
-  for(const o of liveOpen())out.push({g:'Actions',ico:'sell',t:`Sell all of ${o.sym}`,s:'live',k:'sell '+(o.sym||''),run:()=>sellFlow(o.mint,100)});
-  for(const o of (D.open||[]).filter(x=>!x.live))out.push({g:'Actions',ico:'sell',t:`Sell all of ${o.sym}`,s:'paper',k:'sell '+(o.sym||''),hide:1,run:()=>sellFlow(o.mint,100)});
-  const L=D.live||{},klv=D.kalshi?.live?.live;if(klv)out.push({g:'Actions',ico:klv.on?'pause':'play',t:klv.on?'Turn Kalshi live off':'Turn Kalshi live on',run:()=>klv.on?kxLiveOff():go('klive')});if(D.mode==='live'&&!D.copyOff)out.push({g:'Actions',ico:L.paused?'play':'pause',t:L.paused?'Resume live buys':'Pause live buys',run:()=>pauseFlow(!L.paused)});
+  // MC 2026-11-08 search is Kalshi only now: coins open in the Cockpit, playbooks and live from Actions. Was: memecoin copies,
+  // sells and wallet lookups, which only belong to the archived bot (still reachable from the Archive pages themselves).
+  const KC=(D.kalshi?.coinsAll)||['BTC','ETH','SOL','XRP','DOGE','HYPE','BNB','ZEC','NEAR'],kopen=((typeof KX!=='undefined'&&KX.live?.open)||[]);
+  for(const c of KC){const o=kopen.find(x=>x.coin===c);out.push({g:'Coins',ico:'gauge',t:c,s:o?'open trade · Cockpit':'Cockpit',k:c+' coin cockpit',hide:o?0:1,run:()=>{try{localStorage.setItem('cr-ckcoin',c)}catch{}if(typeof CK!=='undefined')CK.coin=c;go('kcock')}})}
+  const klv=D.kalshi?.live?.live;if(klv)out.push({g:'Actions',ico:klv.on?'pause':'play',t:klv.on?'Turn Kalshi live off':'Turn Kalshi live on',run:()=>klv.on?kxLiveOff():go('klive')});
+  if(typeof kxPbPick==='function'){out.push({g:'Actions',ico:'tests',t:'Change the paper playbook',k:'playbook lab rule kelly',run:()=>kxPbPick('paper')});out.push({g:'Actions',ico:'tests',t:'Change the live playbook',k:'playbook lab rule kelly',run:()=>kxPbPick('live')})}
   out.push({g:'Actions',ico:'lock',t:ST.me.control?'Lock this device':'Unlock controls',run:()=>ST.me.control?lockDevice(false):unlockFlow()});
   out.push({g:'Actions',ico:'controls',t:'Kalshi live account',run:()=>go('klive')});out.push({g:'Actions',ico:'controls',t:'Kalshi paper settings',run:()=>go('kset')});
   out.push({g:'Actions',ico:'overview',t:'Switch light or dark',run:()=>$('#theme').click()});
-  out.push({g:'Actions',ico:'overview',t:SND.on?'Turn sounds off':'Turn sounds on',s:'buys and winning sells',run:()=>{sndToggle();render()}});
-  for(const w of [...(D.proven||[]),...(D.trial||[])])out.push({g:'Wallets',ico:'wallets',t:sh(w.addr),s:`${(D.proven||[]).includes(w)?'Proven':'Trial'} · ${usd(w.net)}`,k:w.addr,hide:1,run:()=>walletPane(w.addr)});
   return out}
 function openPal(){$('#pal').classList.add('on');const i=$('#palq');i.value='';ST.palSel=0;palRender();setTimeout(()=>i.focus(),20)}
 function closePal(){$('#pal').classList.remove('on')}
@@ -1936,6 +1934,7 @@ async function kxPbApply(book,id){const K=ST.D?.kalshi,l=kxLabOf(K,id),lv=K?.liv
   const rowsS=[['Playbook',`<span style="color:${l.color}">${esc(l.name)}</span>`],['From','the next 10-minute mark'],['History','unchanged; only new trades follow it']];
   if(book==='live')rowsS.unshift(['Money','<span class="neg">Real · your Kalshi account</span>']);
   if(id==='pct'&&book==='live')rowsS.push(['Size','5% of Kalshi cash, $5 to $25, never above the saved size']);
+  if(id==='kelly')rowsS.push(['Size',book==='live'?'quarter Kelly of Kalshi cash, $5 to $25, never above the saved size':'quarter Kelly of the paper bank, split across the window, $5 to 5% of the bank']);
   const ok=await confirmBox({title:book==='live'?`Run ${l.name} live?`:`Run ${l.name} on paper?`,summary:rowsS,warn:book==='live'?`Live orders will follow this lab${lv?.on?' starting at the next mark':' once live is turned on'}. Labs that skip trades can also skip wins; judge it over a few hundred trades.`:'',confirm:book==='live'?'Switch live':'Switch paper',danger:book==='live',hold:book==='live'});
   if(ok)cmd('kalshiStrat',{book,id},`Kalshi ${book} playbook`)}
 function kxWhy(t,c){const S=t.side.toUpperCase(),O=t.side==='yes'?'NO':'YES',other=t.side==='yes'?t.na:t.ya,L=[];
@@ -2663,7 +2662,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.3',KR_DATE='Nov 8, 2026';
+const KR_VERSION='1.0.4',KR_DATE='Nov 8, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within a day, or run "Update from Kalshi Radar" in your GitHub repo's Actions tab.`:`released ${KR_DATE} · up to date`}catch{}}

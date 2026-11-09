@@ -39,10 +39,21 @@ function labDefs(K) {
     { id: 'six', name: '6 or more coins', desc: 'Only trades windows where at least 6 of the 9 coins qualify. Those windows won 96% in the replay with half the drawdown.', color: '#35E0A1', filter: t => t.win >= 6 },
     { id: 'vol', name: 'Margin vs volatility', desc: 'Skips when the coin is less than one expected 10-minute move past its target, judged by its last hour on Coinbase.', color: '#FF7AD9', filter: t => t.z == null ? null : t.z >= 1 },
     { id: 'pct', name: 'Size follows the bank', desc: `Stakes 5% of the bank instead of a fixed $${K.sizeUsd}, so bets shrink after losses and grow after wins.`, color: '#9B8CFF', filter: () => true, size: b => Math.max(5, Math.round(b * 0.05)) },
+    // MC 2026-11-08 Kelly lab. Win chance per price band (90-91, 92-93, 94-95, 96-99c) comes only from trades already settled
+    // before the entry, shrunk toward break-even by 40 make-believe break-even trades, so a thin or lucky band can't size up.
+    // Kelly fraction f = (q - c) / (1 - c) with c = price plus fee per contract. Stake is a quarter of f times the bank, split
+    // across the coins bought in the same window (they win and lose together), at most 5% of the bank, at least $5.
+    // f at or below zero means no edge at that price, so it skips. Tried full Kelly first: 10%+ stakes at 92c, one bad window
+    // would take a third of the bank.
+    { id: 'kelly', name: 'Kelly sizing', desc: 'Sizes each bet by the Kelly criterion from the win rate already seen at that price, at a quarter of Kelly, split across the coins in the window. Skips prices with no proven edge.', color: '#E5E7EB', filter: t => t.kf == null ? null : t.kf > 0, size: (b, t) => Math.max(5, Math.min(b * 0.05, b * 0.25 * (t?.kf || 0) / Math.max(1, t?.win || 1))) },
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#C8F56A', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
 }
 const LAB_IDS = labDefs(PAPER_DEF).map(l => l.id);
+const KB = p => p < 0.92 ? 0 : p < 0.94 ? 1 : p < 0.96 ? 2 : 3, K_PRIOR = 40;
+const kNew = () => [[0, 0], [0, 0], [0, 0], [0, 0]];
+const kAdd = (S, px, won) => { const b = S[KB(px)]; b[0]++; if (won) b[1]++; };
+const kOf = (S, px) => { const b = S[KB(px)], c = px + 0.07 * px * (1 - px), q = (b[1] + K_PRIOR * c) / (b[0] + K_PRIOR); return { kq: +q.toFixed(4), kf: +((q - c) / (1 - c)).toFixed(4), kn: b[0] }; };
 // A playbook log is [{at, id, by}] in time order; the entry in force at a moment is the last one at or before it, else the rule.
 const stratAt = (log, ms) => { let id = 'rule'; for (const e of log || []) { if (e.at <= ms) id = e.id; else break; } return id; };
 const stratSince = (log, ms) => { let at = null; for (const e of log || []) { if (e.at <= ms) at = e.at; else break; } return at; };
@@ -196,7 +207,7 @@ export function createKalshi(state, env, keep) {
     const floor = c.minBank ?? HARD.minBank; if (bal < floor) return skip(`cash $${bal.toFixed(2)} is under the $${floor} floor`);
     st.stopped = null;
     // MC 2026-11-08 a sizing playbook (5% of the Kalshi cash) stays inside the $5 to $25 live band and the saved size is its ceiling
-    const sizeUsd = lab?.size ? Math.min(c.sizeUsd, HARD.maxSize, Math.max(5, lab.size(bal))) : c.sizeUsd;
+    const sizeUsd = lab?.size ? Math.min(c.sizeUsd, HARD.maxSize, Math.max(5, lab.size(bal, { kf: r.kf, win: r.win }))) : c.sizeUsd;
     if ((st.shard[XI] ?? 0) < sizeUsd + 1) { st.xferAt = 0; await fund(c); }
     const maxPx = Math.min(0.99, +(r.ask + 0.01).toFixed(4)), n = Math.floor(sizeUsd / maxPx);
     if (n < 1) return;
@@ -273,10 +284,12 @@ export function createKalshi(state, env, keep) {
     const c = ctl();
     if (c.enabled && hits.length) {
       const sid = stratAt(c.strat, now), lab = labDefs(cfgP).find(l => l.id === sid);
+      let kS = null; if (sid === 'kelly') { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
       for (const r of hits) {
-        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, z: r.vol?.z ?? null });
+        if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hits.length; }
+        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, z: r.vol?.z ?? null, kf: r.kf ?? null });
         if (f === true) { try { await onRule(r, lab); } catch (e) { fail('order error: ' + e.message); } }
-        else skipLive(r, `${lab.name}: ${f === null ? 'no volatility reading' : 'filtered out'}`);
+        else skipLive(r, `${lab.name}: ${f === null ? 'no volatility reading' : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
     }
     } finally { entryBusy = false; }
@@ -378,18 +391,22 @@ export function createKalshi(state, env, keep) {
     // everything before that stays as the plain rule, so the history never gets rewritten by a switch.
     for (const r of rows) if (r.ask >= K.minAsk && r.result !== 'void') winN[r.close] = (winN[r.close] || 0) + 1;
     let bal = K.startUsd, peak = bal, maxDd = 0, open = 0, balU = K.startUsd; const eq = [[rows[0]?.at || Date.now(), bal]];
+    const kS = kNew(), kQ = []; let kI = 0;
     for (const r of rows) {
       if (!(r.ask >= K.minAsk) || r.result === 'void') continue;
       const w = r.close; perWin[w] = (perWin[w] || 0) + 1;
       const dk = etDay(r.close), halted = K.dailyLossUsd > 0 && (dayNet[dk] || 0) <= -K.dailyLossUsd;
       const c30 = K.coldDays > 0 ? net30(coin(r.series), r.at) : { x: 0, k: 0 }, cold = K.coldDays > 0 && c30.x < 0;
       const px = r.avgN || r.ask, sid = stratAt(K.strat, r.at), lab = sid === 'rule' ? null : labs0.find(l => l.id === sid);
-      const f = lab ? lab.filter({ px, win: winN[w], z: r.vol?.z ?? null }) : true, strat = f !== true ? sid : null;
-      const sizeUsd = lab?.size ? lab.size(bal) : K.sizeUsd;
+      while (kI < kQ.length && kQ[kI].close <= r.at) { kAdd(kS, kQ[kI].px, kQ[kI].won); kI++; }
+      const ko = kOf(kS, px);
+      const f = lab ? lab.filter({ px, win: winN[w], z: r.vol?.z ?? null, kf: ko.kf }) : true, strat = f !== true ? sid : null;
+      const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }) : K.sizeUsd;
       const capped = perWin[w] > K.maxPerWindow || halted || cold || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
-      const t = { t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? 'no volatility reading' : lab.name) : null, book: sid,
+      const t = { t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? 'no volatility reading' : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         tk: r.ticker, left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
-        title: r.title || null, sub: r.sub || null, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, vpx: r.vol?.px ?? null };
+        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, vpx: r.vol?.px ?? null };
+      if (r.result) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
       if (r.result) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
       if (!capped && r.result) { t.pnl = +((r.won ? n : 0) - cost).toFixed(2); bal += t.pnl; dayNet[dk] = (dayNet[dk] || 0) + t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); }
       if (r.result) balU += (r.won ? n : 0) - cost;
@@ -450,7 +467,7 @@ export function createKalshi(state, env, keep) {
         const f = baseline ? true : lab.filter(t); if (f == null) continue;
         const dk = etDay(t.close);
         if (K.dailyLossUsd > 0 && (day[dk] || 0) <= -K.dailyLossUsd) continue;
-        const size = lab.size && !baseline ? lab.size(bank) : K.sizeUsd, k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = (t.won ? k : 0) - cost;
+        const size = lab.size && !baseline ? lab.size(bank, t) : K.sizeUsd, k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = (t.won ? k : 0) - cost;
         if (!f) { sk++; skNet += t.rulePnl ?? t.pnl ?? 0; continue; }
         n++; if (t.won) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);
         if (dk === todayK) { td.n++; if (t.won) td.won++; td.net += pnl; }
