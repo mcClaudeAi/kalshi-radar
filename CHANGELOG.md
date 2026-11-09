@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.5 (Nov 9, 2026)
+- Live board charts no longer get stuck showing only the last minute or two on phones. A Coinbase request that never answered (phone asleep or switching networks) used to block the price history for the rest of the window; now it gives up after 7 seconds, retries, and refreshes when you come back to the page.
+
 ## 1.0.4 (Nov 8, 2026)
 - New lab, Kelly sizing: sizes each bet by the Kelly criterion from the win rate already seen at that price (a quarter of Kelly, split across the coins in the window, $5 to 5% of the bank) and skips prices with no proven edge. Usable as the paper or live playbook; live stays within $5 to $25.
 - Search finds coins (opens them in the Cockpit), pages and actions like changing a playbook. No more wallet search.

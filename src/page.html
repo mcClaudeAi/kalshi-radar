@@ -1687,18 +1687,25 @@ const kxTs=t=>{if(!t)return Date.now();const m=Date.parse(String(t).replace(/(\.
 function kxPush(c,t,p){if(!isFinite(t))t=Date.now();const o=KX.px[c]=KX.px[c]||{last:null,t:0,ticks:[]};o.last=p;o.t=t;const s=Math.floor(t/1000),L=o.ticks;if(L.length&&L[L.length-1][0]>=s){L[L.length-1][1]=p}else L.push([s,p]);const cut=s-1500;while(L.length&&L[0][0]<cut)L.shift()}
 async function kxRest(){if(!KX.on||KX.wsOk)return;for(const c of Object.keys(KXPID)){try{const r=await fetch(`https://api.exchange.coinbase.com/products/${KXPID[c]}/ticker`);const j=await r.json();if(+j.price>0)kxPush(c,j.time?kxTs(j.time):Date.now(),+j.price)}catch{}}}
 // 1-minute closes from Coinbase for the part of a window that was before this page opened (cached per coin and window)
-async function kxCandles(c,fromMs,toMs){const key=c+':'+Math.floor(fromMs/60000);if(KX.cand[key])return KX.cand[key];if(KX.candReq[key])return null;KX.candReq[key]=1;
-  try{const r=await fetch(`https://api.exchange.coinbase.com/products/${KXPID[c]}/candles?granularity=60&start=${new Date(fromMs-60000).toISOString()}&end=${new Date(Math.min(toMs,Date.now())).toISOString()}`);const j=await r.json();const pts=(Array.isArray(j)?j:[]).map(x=>[+x[0]+60,+x[4]]).filter(x=>x[1]>0).sort((a,b)=>a[0]-b[0]);if(pts.length)KX.cand[key]=pts;return pts}catch{return null}finally{delete KX.candReq[key]}}
+// MC 2026-11-09 the phone chart came back as a short stub again: a Coinbase request that never answers (phone asleep, network
+// switching) left the backfill queue busy for good, and a failed backfill was cached as an empty result for the whole window.
+// Now every Coinbase call gives up after 7 seconds, a failed or empty backfill is retried 15 seconds later, a stuck queue is
+// reset after 40 seconds, and coming back to the page clears anything that failed.
+const kxGet=async(u,ms=7000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);try{return await fetch(u,{signal:ac.signal,cache:'no-store'})}finally{clearTimeout(tm)}};
+KX.trRetry=KX.trRetry||{};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;for(const k of Object.keys(KX.tr||{}))if(!KX.tr[k].pts.length)delete KX.tr[k];KX.trRetry={};KX.trReq={};KX.trQ=[];KX.trBusy=false;KX.candReq={}});
+async function kxCandles(c,fromMs,toMs){const key=c+':'+Math.floor(fromMs/60000);if(KX.cand[key])return KX.cand[key];if(KX.candReq[key]||((KX.candRetry||={})[key]||0)>Date.now())return null;KX.candReq[key]=1;KX.candRetry[key]=Date.now()+15000;
+  try{const r=await kxGet(`https://api.exchange.coinbase.com/products/${KXPID[c]}/candles?granularity=60&start=${new Date(fromMs-60000).toISOString()}&end=${new Date(Math.min(toMs,Date.now())).toISOString()}`);const j=await r.json();const pts=(Array.isArray(j)?j:[]).map(x=>[+x[0]+60,+x[4]]).filter(x=>x[1]>0).sort((a,b)=>a[0]-b[0]);if(pts.length)KX.cand[key]=pts;return pts}catch{return null}finally{delete KX.candReq[key]}}
 // MC 2026-11-08 tick-level backfill. The minute candles only gave one point a minute for the part of the window before this page
 // opened, which drew as a jagged 8-point line. Coinbase's public trades feed gives every print, so we page back through it (up to 4
 // pages of 1000, oldest first stop) and keep one sample a second. Requests go through a small queue so 9 coins opening at once
 // don't trip the 10-a-second public limit. Candles stay as the fallback for anything older than the trades reach.
-async function kxTrades(c,fromMs){const key=c+':'+Math.floor(fromMs/60000);if(KX.tr[key]||KX.trReq[key])return;KX.trReq[key]=1;KX.trQ.push({c,fromMs,key});kxTrPump()}
-async function kxTrPump(){if(KX.trBusy)return;KX.trBusy=true;try{while(KX.trQ.length){const {c,fromMs,key}=KX.trQ.shift();const out=new Map();let after=null,reached=Infinity;
-  for(let pg=0;pg<4;pg++){try{const r=await fetch(`https://api.exchange.coinbase.com/products/${KXPID[c]}/trades?limit=1000${after?'&after='+after:''}`);if(!r.ok)break;const j=await r.json();if(!Array.isArray(j)||!j.length)break;
+async function kxTrades(c,fromMs){const key=c+':'+Math.floor(fromMs/60000);if(KX.trBusy&&Date.now()-(KX.trBusyAt||0)>40000){KX.trBusy=false;KX.trReq={};KX.trQ=[]}if(KX.tr[key]||KX.trReq[key]||(KX.trRetry[key]||0)>Date.now())return;KX.trReq[key]=1;KX.trQ.push({c,fromMs,key});kxTrPump()}
+async function kxTrPump(){if(KX.trBusy)return;KX.trBusy=true;KX.trBusyAt=Date.now();try{while(KX.trQ.length){const {c,fromMs,key}=KX.trQ.shift();KX.trBusyAt=Date.now();const out=new Map();let after=null,reached=Infinity,okPg=0;
+  for(let pg=0;pg<4;pg++){try{const r=await kxGet(`https://api.exchange.coinbase.com/products/${KXPID[c]}/trades?limit=1000${after?'&after='+after:''}`);if(!r.ok)break;const j=await r.json();if(!Array.isArray(j)||!j.length)break;okPg++;
     for(const t of j){const ms=kxTs(t.time),sec=Math.floor(ms/1000),px=+t.price;if(!(px>0))continue;if(pg===0&&ms>Date.now()-300000&&!(KX.flowSeed||(KX.flowSeed={}))[c+sec+t.trade_id]){KX.flowSeed[c+sec+t.trade_id]=1;ckFlow(c,sec,t.side,+t.size)}if(ms<reached)reached=ms;if(ms>=fromMs-60000&&!out.has(sec))out.set(sec,px)}
     after=Math.min(...j.map(t=>+t.trade_id));if(reached<fromMs-60000||j.length<1000)break;await new Promise(r=>setTimeout(r,140))}catch{break}}
-  const pts=[...out.entries()].sort((a,b)=>a[0]-b[0]);KX.tr[key]={pts,from:isFinite(reached)?reached/1000:Infinity};delete KX.trReq[key];await new Promise(r=>setTimeout(r,120))}}finally{KX.trBusy=false}}
+  const pts=[...out.entries()].sort((a,b)=>a[0]-b[0]);if(okPg&&pts.length)KX.tr[key]={pts,from:isFinite(reached)?reached/1000:Infinity};else KX.trRetry[key]=Date.now()+15000;delete KX.trReq[key];await new Promise(r=>setTimeout(r,120))}}finally{KX.trBusy=false}}
 function kxSeries(c,openMs){const key=c+':'+Math.floor(openMs/60000),o=KX.px[c],ticks=o?o.ticks:[],first=ticks.length?ticks[0][0]:Infinity,lo=openMs/1000-60;
   const tr=KX.tr[key];if(!tr)kxTrades(c,openMs);const trPts=tr?tr.pts.filter(p=>p[0]>=lo&&p[0]<first):[],trFrom=tr&&tr.pts.length?Math.min(tr.from,tr.pts[0][0]):first;
   const cand=(KX.cand[key]||[]).filter(p=>p[0]<trFrom&&p[0]>=lo);if(!KX.cand[key]&&trFrom>lo+90)kxCandles(c,openMs,Date.now());
@@ -2662,7 +2669,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.4',KR_DATE='Nov 8, 2026';
+const KR_VERSION='1.0.5',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within a day, or run "Update from Kalshi Radar" in your GitHub repo's Actions tab.`:`released ${KR_DATE} · up to date`}catch{}}
