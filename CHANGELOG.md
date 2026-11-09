@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.10 (Nov 9, 2026)
+- Updates now arrive within the hour instead of once a day. New setups get this automatically. If you turned on automatic updates before today, go to Connections and press Make hourly (a one-line change in GitHub).
+
 ## 1.0.9 (Nov 9, 2026)
 - Your mix is now a builder: combine any of the filters (coins on the same side, price cap, volatility check) with any sizing (fixed, size follows the bank at a % you pick, or quarter Kelly). For example skip 95¢ and up plus size follows the bank: set coins to 1, cap to 95, sizing to % of the bank. All in Paper settings.
 

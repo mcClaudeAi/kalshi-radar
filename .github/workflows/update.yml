@@ -1,4 +1,4 @@
-# Keeps this copy of Kalshi Radar up to date. Once a day it downloads the latest stable release from
+# Keeps this copy of Kalshi Radar up to date. Every hour it checks for a new stable release at
 # github.com/mcClaudeAi/kalshi-radar and commits any changes here; Cloudflare then redeploys your dashboard on its own.
 # Only the app code (src/, README, VERSION, CHANGELOG) is replaced. Your trades, settings, passcode and Kalshi key live in your
 # Cloudflare storage and are never touched. Your wrangler.toml (worker name) is left alone.
@@ -6,7 +6,7 @@
 name: Update from Kalshi Radar
 on:
   schedule:
-    - cron: '17 9 * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
