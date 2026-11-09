@@ -1,0 +1,33 @@
+# Keeps this copy of Kalshi Radar up to date. Once a day it downloads the latest stable release from
+# github.com/mcClaudeAi/kalshi-radar and commits any changes here; Cloudflare then redeploys your dashboard on its own.
+# Only the app code (src/, README, VERSION, CHANGELOG) is replaced. Your trades, settings, passcode and Kalshi key live in your
+# Cloudflare storage and are never touched. Your wrangler.toml (worker name) is left alone.
+# Don't want automatic updates? Actions tab > "Update from Kalshi Radar" > ... > Disable workflow. You can still run it by hand.
+name: Update from Kalshi Radar
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: update
+jobs:
+  update:
+    if: github.repository != 'mcClaudeAi/kalshi-radar'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the latest stable release
+        run: |
+          set -euo pipefail
+          curl -fsSL https://codeload.github.com/mcClaudeAi/kalshi-radar/tar.gz/refs/heads/stable -o up.tgz
+          mkdir up && tar -xzf up.tgz -C up --strip-components=1
+          have=$(cat VERSION 2>/dev/null || echo 0.0.0); want=$(cat up/VERSION)
+          echo "installed $have, latest $want"
+          rm -rf src && cp -r up/src src
+          cp up/VERSION up/CHANGELOG.md up/README.md up/package.json .
+          rm -rf up up.tgz
+          git config user.name "Kalshi Radar updater"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "already up to date"; else git commit -m "Update to Kalshi Radar $want" && git push; fi

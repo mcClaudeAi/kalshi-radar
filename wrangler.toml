@@ -1,0 +1,25 @@
+# Kalshi Radar: the whole app is one Worker and one Durable Object (SQLite storage, works on Cloudflare's free plan).
+name = "kalshi-radar"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "Store"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Store"]
+
+# every minute: scan the markets, settle trades, keep the live account in step. The exact 10-minutes-left marks run on an alarm.
+[triggers]
+crons = ["* * * * *"]
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+# Optional secrets (Cloudflare dashboard > your worker > Settings > Variables and Secrets):
+#   ENC_KEY         extra key used to encrypt the saved Kalshi key. If you set it later, connect the Kalshi key again.
+#   RESET_PASSCODE  12+ characters. Type it on the sign-in screen to reset a forgotten passcode, then delete the secret.
