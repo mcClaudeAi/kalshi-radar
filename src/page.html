@@ -851,7 +851,22 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kc-rows>div{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.kc-rows>div:last-child{border-bottom:0}
 .kc-rows b{color:var(--ink);font-size:14px}.kc-rows span{grid-row:2;color:var(--faint);font-size:12px}.kc-rows .btn{grid-row:1/3;grid-column:2;align-self:center}
 .kc-dev{padding:10px 0;border-bottom:1px solid var(--line)}.kc-dev:last-child{border-bottom:0}.kc-dev b{display:block;color:var(--ink);font-size:13.5px}.kc-dev b small{color:var(--kx);font-weight:600;margin-left:6px}.kc-dev span{color:var(--faint);font-size:12px}
-</style></head>
+</style><style id="mfix">/* MC 2026-11-08 phone pass: text wraps instead of clipping, nothing scrolls sideways, hero chart sits back so the numbers read.
+   Header stats were a sideways strip that cut off Win rate; now a 2x2 grid. Playbook subtitles had an ellipsis; now wrap.
+   Labs were a sideways carousel; now stack. Cockpit coin picker wraps into rows. Tried just dimming the hero chart to .5,
+   still busy behind the balance, so it also fades out at the top where the text sits. */
+.kx-pbt span{white-space:normal;overflow:visible;text-overflow:clip}
+.kx-hero2 .kx-hd{text-shadow:0 1px 12px color-mix(in srgb,var(--bg) 85%,transparent)}
+@media(max-width:700px){
+ .kstrip{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}
+ .kstrip .kp{min-width:0;flex:initial}.kstrip .kp b,.kstrip .kp span{white-space:normal;overflow-wrap:anywhere}
+ .kx-hero2 .kx-heq{opacity:.32;height:100%;mask-image:linear-gradient(180deg,transparent 0%,#000 55%,transparent 100%);-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 55%,transparent 100%)}
+ .kx-lgrid{display:grid!important;grid-template-columns:1fr;overflow:visible;margin:18px 0 0;padding:0}
+ .kx-lab{flex:initial}.kx-lab p{min-height:0}
+ .ck-coins{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}.ck-coins .ck-coin{min-width:0}
+}
+</style>
+</head>
 <body>
 <div class="app">
  <aside class="side" aria-label="Sections"><div class="brand"><span class="lg" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lgssw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4fd1ff" stop-opacity="0"/><stop offset="1" stop-color="#4fd1ff" stop-opacity=".6"/></linearGradient><linearGradient id="lgscv" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fd1ff" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff"/></linearGradient><clipPath id="lgscl"><circle cx="16" cy="16" r="13.2"/></clipPath></defs><g clip-path="url(#lgscl)"><circle cx="16" cy="16" r="12.5" class="lg-r"/><circle cx="16" cy="16" r="8.5" class="lg-r"/><circle cx="16" cy="16" r="4.5" class="lg-r"/><path d="M16 3v26M3 16h26" class="lg-x"/><path class="lg-sw" d="M16 16L16 2.5A13.5 13.5 0 0 1 27.7 9.25Z" fill="url(#lgssw)"/><path class="lg-cv" d="M4.5 22.5C8 22.5 9.5 16 13 17s5-7 8.5-7.5S24 8.5 25.5 8" stroke="url(#lgscv)"/></g><circle class="lg-pl" cx="25.5" cy="8" r="2"/><circle class="lg-dt" cx="25.5" cy="8" r="1.7"/></svg></span>Kalshi Radar <span class="pill" id="mode" style="margin-left:auto">paper</span></div><nav id="nav"></nav><div class="foot" id="sfoot"></div></aside>
@@ -2648,7 +2663,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.2',KR_DATE='Nov 8, 2026';
+const KR_VERSION='1.0.3',KR_DATE='Nov 8, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within a day, or run "Update from Kalshi Radar" in your GitHub repo's Actions tab.`:`released ${KR_DATE} · up to date`}catch{}}

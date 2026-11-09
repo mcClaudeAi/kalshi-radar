@@ -1,5 +1,10 @@
 # What's new
 
+## 1.0.3 (Nov 8, 2026)
+- Phones: text wraps instead of getting cut off, the top stats sit in a 2x2 grid, Labs stack instead of scrolling sideways, and the Cockpit coin picker wraps into rows.
+- Home on phones: the bank chart sits further back so the balance and stats are easier to read.
+- Wide monitors between laptop and ultrawide: Home stat tiles and scanner fit without crowding.
+
 ## 1.0.2 (Nov 8, 2026)
 - Connections has a one-click Turn on button for automatic updates (Cloudflare's deploy leaves the updater out).
 
