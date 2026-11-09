@@ -2,6 +2,9 @@
 name = "kalshi-radar"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"
+# the dashboard lives at <name>.<your-subdomain>.workers.dev; no separate preview links per code change
+workers_dev = true
+preview_urls = false
 
 [[durable_objects.bindings]]
 name = "STORE"
