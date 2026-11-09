@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.13 (Nov 9, 2026)
+- Settings now says which box has a problem instead of saving nothing. Typing a range like 3-5 into a number box tells you to put the low end in "at least" and the high end in "at most".
+
 ## 1.0.12 (Nov 9, 2026)
 - Your mix: coins on the same side now has an upper limit as well as a lower one, so a range like 3 to 5 can be tested. 9 means no upper limit.
 
