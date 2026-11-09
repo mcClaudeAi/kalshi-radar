@@ -805,6 +805,19 @@ html,body,button,a,[data-tab],.nv,.kp,.kx-seg button,.ck-coin,.bnav button{touch
 .kp-btn{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid color-mix(in srgb,var(--kx) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--kx) 30%,transparent),color-mix(in srgb,var(--kx) 10%,transparent));color:#fff;font-size:15px;cursor:pointer;box-shadow:0 0 18px color-mix(in srgb,var(--kx) 30%,transparent)}
 .kp-btn.on{background:var(--kx);color:#04121a}
 @media(max-width:520px){.kp-ctl .kx-seg button{padding:7px 8px}}
+
+/* MC 2026-11-08 use the whole screen on wide monitors: no 1320px cap, Home splits into two columns (account and live board on the
+   left, scanner on the right), Analytics puts equity, daily and calendar side by side, and the cockpit sizes to the window height */
+.an-top3{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-areas:"e e" "d c";gap:0 14px}.an-e{grid-area:e}.an-d{grid-area:d}.an-c{grid-area:c}
+@media(max-width:900px){.an-top3{grid-template-columns:1fr;grid-template-areas:"e" "d" "c"}}
+.ck{max-width:min(100%,calc((100vh - 120px) * 2.15));margin-left:auto;margin-right:auto}
+@media(min-width:1680px){
+  main.wrap{max-width:none;padding:20px 28px 32px}
+  .kx-home{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:18px;align-items:start}.kx-home .kx-hr>.card{margin-top:0!important}
+  .an-top3{grid-template-columns:minmax(0,2fr) minmax(0,1.25fr) minmax(0,1fr);grid-template-areas:"e d c"}.an-top3 .an-card{margin-top:14px}.an-eqc{height:270px}
+  .kx-g32{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+}
+@media(min-width:2200px){.kx-home{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 /* MC 2026-11-08 plug-and-play edition: setup and sign-in screens, Connections tab */
 body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 #kgate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;overflow:auto}
@@ -1421,9 +1434,9 @@ function kxAnalyticsV(D){const K=D.kalshi;if(!K)return `<div class="card"><div c
     <div class="an-wr"><i style="width:${(S.wr*100).toFixed(1)}%"></i>${beP!=null?`<em style="left:${(beP*100).toFixed(1)}%"></em>`:''}</div></div>
    <div class="an-kg">${k('Win rate',pct(S.wr),beP!=null?`needs ${pct(beP)} to break even`:'',wrC)}${k('Per trade',usd(S.exp),'average result',cls(S.exp))}${k('Avg win',usd(S.avgW),`${n0(S.wins)} wins`,'pos')}${k('Avg loss',usd(S.avgL),`${n0(S.losses)} losses`,'neg')}
     ${k('Profit factor',S.pf==null?'–':S.pf.toFixed(2),'won $ per $1 lost',S.pf==null?'':S.pf>=1?'pos':'neg')}${k('Max drawdown',usd(S.dd),'peak to trough',S.dd<0?'neg':'')}${k('Streak',S.cur>0?`${S.cur}W`:`${-S.cur}L`,`longest ${S.lw} wins, ${S.ll} losses`,S.cur>0?'pos':'neg')}${k('Green days',`${S.green}/${S.dayList.length}`,`${S.perfect} without a loss`)}</div></section>`;
-  const eq=`<div class="card an-card"><h3>Equity<span class="r">cumulative P&amp;L with drawdown underneath · hover for detail</span></h3><div class="an-eqc" id="aneq"></div></div>`;
+  const eq=`<div class="card an-card an-e"><h3>Equity<span class="r">cumulative P&amp;L with drawdown underneath · hover for detail</span></h3><div class="an-eqc" id="aneq"></div></div>`;
   const best=S.best?`<div class="an-bw"><div><span>Best day</span><b class="pos">${usd(S.best[1].net)}</b><small>${new Date(S.best[0]+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${S.best[1].n} trades</small></div><div><span>Worst day</span><b class="neg">${usd(S.worst[1].net)}</b><small>${new Date(S.worst[0]+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${S.worst[1].n} trades</small></div></div>`:'';
-  const daily=`<div class="grid kx-g32 an-row"><div class="card an-card"><h3>Daily P&amp;L<span class="r">${Math.min(31,S.dayList.length)} most recent days</span></h3><div class="chart" id="andaily"></div></div><div class="card an-card"><h3>Calendar<span class="r">ET days</span></h3>${kxCal(S.days)}${best}</div></div>`;
+  const daily=`<div class="card an-card an-d"><h3>Daily P&amp;L<span class="r">${Math.min(31,S.dayList.length)} most recent days</span></h3><div class="chart" id="andaily"></div></div><div class="card an-card an-c"><h3>Calendar<span class="r">ET days</span></h3>${kxCal(S.days)}${best}</div>`;
   const coinKeys=Object.keys(S.coins).sort((a,b)=>S.coins[b].net-S.coins[a].net);
   const brk=`<div class="grid g3 an-row"><div class="card an-card"><h3>By hour of day<span class="r">ET, net P&amp;L</span></h3>${kxHeat({byHour:S.hours})}<div class="note">Hover a cell for trades and win rate.</div></div>
     <div class="card an-card"><h3>By coin</h3>${kxBrk('',S.coins,coinKeys)}</div>
@@ -1432,7 +1445,7 @@ function kxAnalyticsV(D){const K=D.kalshi;if(!K)return `<div class="card"><div c
   if(seg==='paper')extra=`<div class="grid g2 an-row"><div class="card an-card"><h3>Rolling win rate<span class="r">last 100 trades against break-even, all time</span></h3><div class="chart" id="anroll"></div></div><div class="card an-card"><h3>When several coins line up<span class="r">all time</span></h3>${kxBrk('Coins on the same side in the window',K.bySame||{},['1','2','3','4+'])}<div class="note">Big losing windows are the ones where most of crypto moves against the leader at once.</div></div></div>`;
   else{const rc=(lv?.recent||[]).filter(x=>!x.skipped),f=rc.filter(x=>x.fill>0),slip=f.filter(x=>x.px!=null&&x.paperPx),avgS=slip.length?slip.reduce((a,x)=>a+(x.px-x.paperPx)*100,0)/slip.length:null,want=rc.reduce((a,x)=>a+(x.want||0),0),got=rc.reduce((a,x)=>a+(x.fill||0),0),sk=(lv?.recent||[]).filter(x=>x.skipped).length,ref=rc.filter(x=>x.err).length;
     extra=`<div class="card an-card an-row"><h3>Execution<span class="r">last ${n0((lv?.recent||[]).length)} live orders</span></h3><div class="an-ex">${k('Filled',want?pct(got/want):'–',`${n0(got)} of ${n0(want)} contracts`)}${k('Price vs paper',avgS==null?'–':(avgS>0?'+':'')+avgS.toFixed(2)+'¢',avgS==null?'':avgS>0?'paid more than the paper book':'paid less than the paper book',avgS==null?'':avgS>0.05?'neg':'pos')}${k('No fill',n0(rc.filter(x=>!x.fill&&!x.err).length),'book moved before the order')}${k('Skipped',n0(sk),'playbook, bench or daily stop')}${k('Refused',n0(ref),'Kalshi said no')}</div></div>`}
-  return head+hero+eq+daily+brk+extra}
+  return head+hero+`<div class="an-top3">${eq}${daily}</div>`+brk+extra}
 function kxCal(days){const keys=Object.keys(days).sort();if(!keys.length)return '<div class="empty">No days yet.</div>';
   const last=new Date(keys.at(-1)+'T12:00:00Z'),first=new Date(keys[0]+'T12:00:00Z'),start=new Date(Math.max(first,last-34*86400000));while(start.getUTCDay()!==1)start.setUTCDate(start.getUTCDate()-1);
   const mx=Math.max(1,...Object.values(days).map(x=>Math.abs(x.net)));let h=`<div class="an-cal">${KX_WD.map(d=>`<span class="an-cw">${d[0]}</span>`).join('')}`;
@@ -2050,7 +2063,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
   if(view==='klabs')return P.labs;
   if(view==='klive')return kxSecHead('Live account','Real money on your Kalshi account, placed by the cloud tracker. Paper keeps running either way.')+`<div class="grid kx-g32">${kxLiveCard().replace('style="margin-top:14px"','')}<div>${P.check}</div></div>`;
   if(view==='kset')return kxSecHead('Settings','Paper rule settings. Live limits live on the Live account tab.')+`<div class="kx-setw">${P.settings}</div>`;
-  return P.hero+`<div style="margin-top:16px">${pb}</div>`+P.board+P.scan}
+  return `<div class="kx-home"><div class="kx-hl">${P.hero}<div style="margin-top:16px">${pb}</div>${P.board}</div><div class="kx-hr">${P.scan}</div></div>`}
 function paperV(D){const T=D.totals||{},td=T.today||{},al=T.all||{},ti=D.tiers||{},ta=ti.all||{},tt=ti.today||{};
   const wr=(w,n)=>n?Math.round(w/n*100)+'%':'–';const op=(D.open||[]).filter(x=>!x.live);
   const upl=op.reduce((a,x)=>a+(x.spent||0)*(x.pnl||0)/100*(x.left??1),0),inPlay=op.reduce((a,x)=>a+(x.spent||0)*(x.left??1),0);
