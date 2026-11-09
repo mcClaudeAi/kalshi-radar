@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.2 (Nov 8, 2026)
+- Connections has a one-click Turn on button for automatic updates (Cloudflare's deploy leaves the updater out).
+
 ## 1.0.1 (Nov 8, 2026)
 - Wide monitors use the whole screen: Home splits into two columns, Analytics puts equity, daily results and the calendar side by side.
 - Trade replay: play button, speed choice (15, 30 or 60 seconds for the whole window) and a slider to scrub.

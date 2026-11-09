@@ -34,6 +34,13 @@ Cloudflare's free plan is enough.
 
 That's it. Paper trades start at the next 10-minutes-left mark (:05, :20, :35 or :50 past the hour, Eastern time).
 
+## Turn on automatic updates (one time)
+
+Cloudflare's copy of the code leaves out the updater, so add it once: in your dashboard open **Connections**, click **Turn on**
+next to Automatic updates, type your repo's name (shown in your GitHub, like `your-name/kalshi-radar`) and press **Commit changes**
+on the GitHub page that opens. After that your dashboard installs new versions on its own once a day. Your trades, settings and
+key are never touched by an update. To stop updates later, disable the "Update from Kalshi Radar" workflow in your repo's Actions tab.
+
 ## Connecting Kalshi
 
 1. On kalshi.com, open your account settings, find the API keys section and create a key. Kalshi shows a **Key ID** and downloads
