@@ -1,5 +1,10 @@
 # What's new
 
+## 1.0.7 (Nov 9, 2026)
+- New playbook, Your mix: run two filters at once. Set how many coins must lead the same direction (1 to 9) and a price cap (95 skips 95¢ and up, 100 is no cap) in Paper settings, then pick Your mix as the paper or live playbook.
+- Trading schedule: in Paper settings, tap any ET hour to switch it off. Trades that would start in that hour are skipped, paper and live. Each hour shows what the plain rule made in it so far.
+- Analytics, "When several coins line up": exact counts 1 through 9 instead of 4+, plus a table of win rate and net for N or more coins on the same side, with and without the 95¢ cap.
+
 ## 1.0.6 (Nov 9, 2026)
 - Win chance on open trades shows again on phones. Right after the phone wakes, the window only has minute-by-minute prices until the full history loads, and that used to leave a dash. It now works from whatever prices are there and sizes moves correctly for the gaps between them.
 
