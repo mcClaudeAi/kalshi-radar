@@ -26,12 +26,18 @@ const SERIES = ['KXBTC15M', 'KXETH15M', 'KXSOL15M', 'KXXRP15M', 'KXDOGE15M', 'KX
 const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
 const HARD = { maxSize: 25, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
-const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixMaxPx: 0.95, skipHours: [] };
+const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [] };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
 const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixMaxPx: [0.91, 1] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
+function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
+  if ((K.mixSame ?? 3) > 1) p.push(`at least ${K.mixSame ?? 3} coins lead the same direction`);
+  if ((K.mixMaxPx ?? 0.95) < 1) p.push(`under ${Math.round((K.mixMaxPx ?? 0.95) * 100)}¢`);
+  if (K.mixVol) p.push('at least one expected move past the target');
+  const size = sz === 'pct' ? `${K.mixPct ?? 5}% of the bank a trade` : sz === 'kelly' ? 'quarter Kelly sizing' : `$${K.sizeUsd} a trade`;
+  return `${p.length ? 'Only trades ' + p.join(', ') : 'Every rule trade'}; ${size}. Built in Paper settings.`; }
 function labDefs(K) {
   return [
     { id: 'rule', name: 'The rule', desc: `Every 90¢+ leader at 10 minutes left, $${K.sizeUsd} a trade.`, color: '#4FD1FF', filter: () => true },
@@ -48,7 +54,14 @@ function labDefs(K) {
     // MC 2026-11-09 Your mix: two filters at once, both set in Paper settings. Coins on the same side counts the coins in the
     // window whose leader is on this trade's side (YES or NO), not every coin that qualified, since a window split 3 YES and
     // 3 NO is not the same bet as 6 all one way. 100c as the price cap means no cap.
-    { id: 'mix', name: 'Your mix', desc: `Only trades when at least ${K.mixSame ?? 3} coin${(K.mixSame ?? 3) === 1 ? '' : 's'} lead the same direction in the window${(K.mixMaxPx ?? 0.95) < 1 ? `, and only under ${Math.round((K.mixMaxPx ?? 0.95) * 100)}¢` : ''}. Set both in Paper settings.`, color: '#FFD166', filter: t => t.px < (K.mixMaxPx ?? 0.95) && (t.same ?? 0) >= (K.mixSame ?? 3) },
+    // MC 2026-11-09 Your mix grew into a builder: any of the filters (same-side coins, price cap, volatility check) plus a
+    // sizing choice (fixed, % of bank, quarter Kelly), so two playbooks can run as one. Was only same-side plus price cap,
+    // which couldn't pair skip-95 with size-follows-the-bank. 1 coin and 100c turn those two filters off.
+    { id: 'mix', name: 'Your mix', desc: mixDesc(K), color: '#FFD166',
+      filter: t => { const sz = K.mixSize || 'fixed'; if (!(t.px < (K.mixMaxPx ?? 0.95)) || (t.same ?? 0) < (K.mixSame ?? 3)) return false;
+        if (K.mixVol && t.z == null) return null; if (K.mixVol && t.z < 1) return false;
+        if (sz === 'kelly') return t.kf == null ? null : t.kf > 0; return true; },
+      size: (K.mixSize || 'fixed') === 'fixed' ? undefined : (K.mixSize === 'kelly' ? (b, t) => Math.max(5, Math.min(b * 0.05, b * 0.25 * (t?.kf || 0) / Math.max(1, t?.win || 1))) : b => Math.max(5, Math.round(b * (K.mixPct ?? 5) / 100))) },
     { id: 'kelly', name: 'Kelly sizing', desc: 'Sizes each bet by the Kelly criterion from the win rate already seen at that price, at a quarter of Kelly, split across the coins in the window. Skips prices with no proven edge.', color: '#E5E7EB', filter: t => t.kf == null ? null : t.kf > 0, size: (b, t) => Math.max(5, Math.min(b * 0.05, b * 0.25 * (t?.kf || 0) / Math.max(1, t?.win || 1))) },
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#C8F56A', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
@@ -289,7 +302,7 @@ export function createKalshi(state, env, keep) {
     const c = ctl();
     if (c.enabled && hits.length) {
       const sid = stratAt(c.strat, now), lab = labDefs(cfgP).find(l => l.id === sid);
-      let kS = null; if (sid === 'kelly') { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
+      let kS = null; if (sid === 'kelly' || (sid === 'mix' && cfgP.mixSize === 'kelly')) { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
       // MC 2026-11-09 schedule: hours (ET, by entry time) picked as off in Paper settings are skipped live too
       const offNow = (cfgP.skipHours || []).includes(etHour(now));
       for (const r of hits) {
@@ -503,6 +516,7 @@ export function createKalshi(state, env, keep) {
       const out = {}, ch = [];
       for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }
       if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, cur = cfgP.coins || null; if (JSON.stringify(v) !== JSON.stringify(cur)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
+      if (['fixed', 'pct', 'kelly'].includes(a.mixSize) && a.mixSize !== (cfgP.mixSize || 'fixed')) { out.mixSize = a.mixSize; ch.push(`mix sizing ${a.mixSize}`); }
       if (Array.isArray(a.skipHours)) { const v = [...new Set(a.skipHours.map(Number).filter(h => Number.isInteger(h) && h >= 0 && h < 24))].sort((x, y) => x - y); if (v.length === 24) return { ok: false, msg: 'Leave at least one hour on.' }; if (JSON.stringify(v) !== JSON.stringify(cfgP.skipHours || [])) { out.skipHours = v; ch.push(`off hours ${v.length ? v.join(', ') : 'none'}`); } }
       if (!ch.length) return { ok: false, msg: 'Nothing changed.' };
       cfgP = { ...cfgP, ...out }; await kv.put('kcfg', cfgP); viewDirty = true; await publish(true);
