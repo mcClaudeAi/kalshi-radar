@@ -1673,10 +1673,15 @@ function kxWs(){if(KX.ws||!KX.on)return;try{const ws=new WebSocket('wss://ws-fee
 // 60-second average at the close ends on our side of the target. Inside the last minute, the part of the average already locked in
 // is used as is. It is a model, not a promise; Kalshi's own price is shown next to it to compare.
 const kxPhi=z=>{const t=1/(1+.3275911*Math.abs(z)),y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-z*z/2);return z>=0?.5+y/2:.5-y/2};
-function kxWinP(c,W,side){if(!W||W.strike==null)return null;const now=Date.now(),S=kxSeries(c,W.open),px=KX.px[c]?.last??S.at(-1)?.[1];if(px==null||S.length<20)return null;
-  const tail=S.filter(p=>p[0]>=now/1000-900),d=[];for(let i=0;i<tail.length;i++){const j=tail.findIndex((q,k)=>k>i&&q[0]>=tail[i][0]+10);if(j<0)break;d.push(tail[j][1]-tail[i][1]);i+=Math.max(0,j-i-1)}
-  if(d.length<6)return null;const m=d.reduce((a,b)=>a+b,0)/d.length,s10=Math.sqrt(d.reduce((a,b)=>a+(b-m)**2,0)/(d.length-1));
-  const sig=Math.max(s10*Math.sqrt(6)*1.2,px*.0002),tau=(W.close-now)/60000,tgt=W.strike;let mean,sd;
+// MC 2026-11-09 win chance showed a dash on the phone. After the phone wakes, the window is mostly 1-minute Coinbase candles
+// until the trade backfill lands, so the series had fewer than 20 points and the 10-second move list came up short. Tried just
+// lowering the 20; that still misread the size of a move, because 60-second gaps were scored as 10-second ones. Now every gap is
+// scaled to a per-minute move by its own length, and if there is still too little to measure, a typical crypto minute (0.06%)
+// stands in, so the number always shows.
+function kxWinP(c,W,side){if(!W||W.strike==null||W.close==null)return null;const now=Date.now(),S=W.open!=null?kxSeries(c,W.open):(KX.px[c]?.ticks||[]),px=KX.px[c]?.last??S.at(-1)?.[1];if(px==null)return null;
+  const tail=S.filter(p=>p[0]>=now/1000-900),d=[];for(let i=0;i<tail.length;i++){const j=tail.findIndex((q,k)=>k>i&&q[0]>=tail[i][0]+10);if(j<0)break;const dt=tail[j][0]-tail[i][0];if(dt<=180)d.push((tail[j][1]-tail[i][1])/Math.sqrt(dt/60));i+=Math.max(0,j-i-1)}
+  let sig=px*.0006;if(d.length>=4){const m=d.reduce((a,b)=>a+b,0)/d.length;sig=Math.max(Math.sqrt(d.reduce((a,b)=>a+(b-m)**2,0)/(d.length-1))*1.2,px*.0002)}
+  const tau=(W.close-now)/60000,tgt=W.strike;let mean,sd;
   if(tau<=0){const a=kxAvg60(c,W.close);if(a==null)return null;const w=side==='yes'?a>=tgt:a<tgt;return {p:w?.995:.005,done:true}}
   if(tau>=1){mean=px;sd=sig*Math.sqrt(tau-2/3)}else{const lo=Math.floor((W.close-60000)/1000),r=S.filter(p=>p[0]>=lo),mr=r.length?r.reduce((a,p)=>a+p[1],0)/r.length:px,e=1-tau;mean=e*mr+tau*px;sd=sig*Math.sqrt(tau**3/3)}
   const py=kxPhi((mean-tgt)/Math.max(sd,1e-12)),p=side==='yes'?py:1-py;return {p:Math.min(.995,Math.max(.005,p)),sd,mean}}
@@ -2669,7 +2674,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.5',KR_DATE='Nov 9, 2026';
+const KR_VERSION='1.0.6',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within a day, or run "Update from Kalshi Radar" in your GitHub repo's Actions tab.`:`released ${KR_DATE} · up to date`}catch{}}

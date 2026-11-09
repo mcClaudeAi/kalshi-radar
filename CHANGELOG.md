@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.6 (Nov 9, 2026)
+- Win chance on open trades shows again on phones. Right after the phone wakes, the window only has minute-by-minute prices until the full history loads, and that used to leave a dash. It now works from whatever prices are there and sizes moves correctly for the gaps between them.
+
 ## 1.0.5 (Nov 9, 2026)
 - Live board charts no longer get stuck showing only the last minute or two on phones. A Coinbase request that never answered (phone asleep or switching networks) used to block the price history for the rest of the window; now it gives up after 7 seconds, retries, and refreshes when you come back to the page.
 
