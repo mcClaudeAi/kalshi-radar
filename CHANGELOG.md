@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.8 (Nov 9, 2026)
+- Updates from the dashboard: when a new version is out, a bar shows on every page with Update now. It opens the updater in your GitHub (one Run workflow tap), then this page watches for the new version and offers a reload. Your GitHub repo name is remembered on that device.
+
 ## 1.0.7 (Nov 9, 2026)
 - New playbook, Your mix: run two filters at once. Set how many coins must lead the same direction (1 to 9) and a price cap (95 skips 95¢ and up, 100 is no cap) in Paper settings, then pick Your mix as the paper or live playbook.
 - Trading schedule: in Paper settings, tap any ET hour to switch it off. Trades that would start in that hour are skipped, paper and live. Each hour shows what the plain rule made in it so far.
