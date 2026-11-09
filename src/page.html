@@ -2636,7 +2636,7 @@ function kxConnV(D){after.kconn=()=>{kxConnLoad(true);kxVerCheck();getJ('/api/de
 function kxStartLoops(){}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.0',KR_DATE='Nov 8, 2026';
+const KR_VERSION='1.0.1',KR_DATE='Nov 8, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within a day, or run "Update from Kalshi Radar" in your GitHub repo's Actions tab.`:`released ${KR_DATE} · up to date`}catch{}}
