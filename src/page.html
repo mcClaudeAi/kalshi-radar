@@ -853,7 +853,88 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kc-dev{padding:10px 0;border-bottom:1px solid var(--line)}.kc-dev:last-child{border-bottom:0}.kc-dev b{display:block;color:var(--ink);font-size:13.5px}.kc-dev b small{color:var(--kx);font-weight:600;margin-left:6px}.kc-dev span{color:var(--faint);font-size:12px}
 .krbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:10px 16px 0;padding:10px 14px;border-radius:14px;background:color-mix(in srgb,var(--kx) 12%,var(--s1));border:1px solid color-mix(in srgb,var(--kx) 45%,transparent);color:var(--ink2);font-size:13px}
 .krbar span{flex:1 1 200px;min-width:0}.krbar b{color:var(--ink)}.krbar a{color:var(--kx);font-size:13px}
-</style><style id="mfix">
+</style><style id="kxv2">
+/* MC 2026-11-09 home redesign. Everything had the same weight (six equal tiles, nine equal scanner cards, flat boxes), so nothing
+   led the eye and a live system looked static. Now: a status strip, two big numbers, a compact stat row, glass cards with a top
+   highlight and a faint grid, mono numerals, the scanner as a sorted board with a target gauge, a window timeline where the
+   empty live board used to sit, a settled-trade ticker, a countdown ring that pulses near the mark, and price flashes on tick. */
+.kx-ml{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.kx-bal,.kx-big2 b,.kx-st b,.kx-next b,.kx-sbp b,.kx-sbc span,.kx-sbl b,.kx-tk b,.kx-tl b,.kx-tlx span,.kx-strip b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.kx-home2 .card,.kx-home2 .kx-hero2,.kx-home2 .kx-pbt,.kx-strip{box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 -1px 0 rgba(0,0,0,.2) inset,0 24px 60px -30px rgba(0,0,0,.7)}
+.kx-home2 .card::before,.kx-home2 .kx-hero2::before,.kx-strip::before{content:"";position:absolute;left:10%;right:10%;top:0;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--kx) 50%,transparent),transparent);pointer-events:none;z-index:2}
+.kx-home2 .card{position:relative}
+.kx-hero2 .kx-grid{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.55;background-image:linear-gradient(color-mix(in srgb,var(--line) 85%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--line) 85%,transparent) 1px,transparent 1px);background-size:36px 36px;mask-image:radial-gradient(90% 90% at 75% 30%,#000 10%,transparent 95%);-webkit-mask-image:radial-gradient(90% 90% at 75% 30%,#000 10%,transparent 95%)}
+.kx-hero2 .kx-heq{opacity:.75;height:min(100%,230px);mask-image:linear-gradient(90deg,transparent 0%,#000 38%),linear-gradient(180deg,#000 70%,transparent 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 38%),linear-gradient(180deg,#000 70%,transparent 100%);mask-composite:intersect;-webkit-mask-composite:source-in}
+/* status strip */
+.kx-strip{position:relative;display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;padding:9px 14px;border-radius:14px;border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 85%,transparent);margin-bottom:14px;font-size:12px;color:var(--mute)}
+.kx-strip .kx-ss{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.kx-strip .kx-ss b{color:var(--ink);font-weight:600;font-size:12px}
+.kx-strip .kx-ss i{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}.kx-strip .kx-ss.on i{background:var(--kx);box-shadow:0 0 0 3px color-mix(in srgb,var(--kx) 22%,transparent)}.kx-strip .kx-ss.live i{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
+.kx-strip .kx-ssb{display:inline-flex;align-items:center;gap:8px}.kx-strip .kx-ssb .kx-bar{width:70px;margin:0}
+.kx-strip .kx-sp{margin-left:auto}.kx-strip .kx-feeds{gap:6px}.kx-strip .kx-chip{padding:3px 9px;font-size:11px}
+.kx-chip i{animation:kxbreathe 2.4s ease-in-out infinite}.kx-chip.kxoff i{animation:none}
+@keyframes kxbreathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,currentColor 35%,transparent)}50%{box-shadow:0 0 0 4px transparent}}
+/* hero */
+.kx-hero2{min-height:0;padding:24px 26px 20px}
+.kx-big{display:flex;gap:36px;align-items:flex-end;flex-wrap:wrap;margin-top:6px}
+.kx-bal{margin-top:4px;font-weight:600;letter-spacing:-.03em;text-shadow:0 0 50px color-mix(in srgb,var(--hero,var(--kx)) 45%,transparent)}
+.kx-big2 b{display:block;font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1;margin-top:6px}.kx-big2 small{display:block;font-size:12px;color:var(--mute);margin-top:5px}
+.kx-sub{margin-top:12px}
+.kx-st{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
+.kx-st>div{min-width:0;padding-right:14px;border-right:1px solid var(--line)}.kx-st>div:last-child{border-right:0;padding-right:0}
+.kx-st b{display:block;font-size:19px;font-weight:600;color:var(--ink);margin-top:4px;line-height:1.1}.kx-st b.pos{color:var(--good)}.kx-st b.neg{color:var(--bad)}.kx-st b em{font-style:normal;font-size:12px;color:var(--mute);font-family:"Sora",sans-serif}
+.kx-st small{display:block;font-size:11.5px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kx-st .kx-sp{height:20px;margin-top:5px}.kx-st .kx-sp svg{width:100%;height:20px;display:block}.kx-st .kx-bar{margin-top:7px}
+/* countdown ring */
+.kx-next{display:flex;align-items:center;gap:14px;text-align:left;min-width:0;padding:12px 16px 12px 12px}
+.kx-ring{position:relative;width:64px;height:64px;flex:none}.kx-ring svg{width:64px;height:64px;transform:rotate(-90deg)}
+.kx-ring circle{fill:none;stroke-width:4}.kx-ring .bg{stroke:color-mix(in srgb,var(--line2) 70%,transparent)}.kx-ring .fg{stroke:var(--kx);stroke-linecap:round;stroke-dasharray:176;transition:stroke-dashoffset .5s linear;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--kx) 70%,transparent))}
+.kx-ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;font-weight:600;margin:0;color:var(--ink)}
+.kx-next.soon .kx-ring{animation:kxpulse 1s ease-in-out infinite}.kx-next.soon .kx-ring .fg{stroke:var(--good)}.kx-next.soon .kx-ring b{color:var(--good)}
+@keyframes kxpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.kx-next small{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}.kx-next span{margin-top:3px;font-size:12px;color:var(--mute)}
+/* scanner board */
+.kx-sbw{display:flex;flex-direction:column;gap:6px}
+.kx-sb{display:grid;grid-template-columns:70px 128px 90px minmax(96px,.9fr) minmax(0,1.2fr);gap:12px;align-items:center;padding:9px 12px 9px 14px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--s2) 72%,transparent);min-width:0;transition:border-color .3s,box-shadow .3s}
+.kx-sb.q{border-color:color-mix(in srgb,var(--kx) 45%,var(--line));box-shadow:inset 3px 0 0 var(--kx),0 0 28px -10px color-mix(in srgb,var(--kx) 70%,transparent)}
+.kx-sb.own{border-color:color-mix(in srgb,var(--good) 45%,var(--line));box-shadow:inset 3px 0 0 var(--good)}
+.kx-sb.past{opacity:.72}
+.kx-sbc b{display:block;font-size:14px;font-weight:700;letter-spacing:.02em}.kx-sbc span{display:block;font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap}
+.kx-sbl{display:flex;align-items:center;gap:6px;font-size:12.5px;flex-wrap:wrap;min-width:0}.kx-sbl b{font-size:13px}.kx-sbl b.pos{color:var(--good)}.kx-sbl b.neg{color:var(--bad)}
+.kx-sbs svg{width:100%;height:24px;display:block}
+.kx-sbp{min-width:0}.kx-sbp b{display:block;font-size:13.5px;font-weight:600;transition:color .4s;border-radius:4px;padding:0 3px;margin-left:-3px}.kx-sbp b.up{animation:kxup .7s ease-out}.kx-sbp b.dn{animation:kxdn .7s ease-out}
+@keyframes kxup{0%{background:color-mix(in srgb,var(--good) 35%,transparent);color:var(--good)}100%{background:transparent}}
+@keyframes kxdn{0%{background:color-mix(in srgb,var(--bad) 35%,transparent);color:var(--bad)}100%{background:transparent}}
+.kx-sbp span{display:block;font-size:11px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kx-sbp span.pos{color:var(--good)}.kx-sbp span.neg{color:var(--bad)}
+.kx-sbg{position:relative;height:30px;min-width:0}
+.kx-sbg .t{position:absolute;left:0;right:0;top:16px;height:8px;border-radius:3px;background:color-mix(in srgb,var(--line) 85%,transparent)}
+.kx-sbg .t i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--good);box-shadow:0 0 10px -2px var(--good);transition:left .4s,width .4s}.kx-sbg .t i.neg{background:var(--bad);box-shadow:0 0 10px -2px var(--bad)}
+.kx-sbg .t::after{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--mute)}
+.kx-sbg em{position:absolute;font-style:normal;font-size:9.5px;letter-spacing:.06em;color:var(--faint);top:0;white-space:nowrap;font-family:var(--mono)}.kx-sbg em.c{color:var(--mute)}.kx-sbg em.l{left:0}.kx-sbg em.c{left:50%;transform:translateX(-50%)}.kx-sbg em.r{right:0}
+.kx-sbh{display:grid;grid-template-columns:70px 128px 90px minmax(96px,.9fr) minmax(0,1.2fr);gap:12px;padding:0 12px 6px 14px}.kx-sbh span{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+/* window timeline */
+.kx-none{display:block!important}.kx-tl{padding:4px 2px 2px}
+.kx-tlh{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;font-size:12px;color:var(--mute)}
+.kx-tlt{position:relative;height:10px;margin:16px 0 8px;border-radius:5px;background:color-mix(in srgb,var(--line) 85%,transparent);overflow:visible}
+.kx-tlt .a{position:absolute;left:0;top:0;bottom:0;border-radius:5px 0 0 5px;background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 15%,transparent),color-mix(in srgb,var(--kx) 40%,transparent))}
+.kx-tlt .b{position:absolute;top:0;bottom:0;right:0;border-radius:0 5px 5px 0;background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.kx-tlt .m{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--kx);box-shadow:0 0 8px var(--kx)}
+.kx-tlt .cur{position:absolute;top:-7px;width:3px;height:24px;background:var(--ink);border-radius:2px;box-shadow:0 0 10px color-mix(in srgb,var(--ink) 60%,transparent);transition:left .5s linear}
+.kx-tlt .cur b{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--ink);white-space:nowrap}
+.kx-tlx{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);position:relative;height:16px}.kx-tlx span{position:absolute;top:0;white-space:nowrap}.kx-tlx span.c{transform:translateX(-50%)}.kx-tlx span.r{right:0}.kx-tlx span b{color:var(--mute);font-weight:500}
+.kx-tlq{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.kx-tlq span{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}.kx-tlq span.q{color:var(--kx);border-color:color-mix(in srgb,var(--kx) 45%,var(--line));background:color-mix(in srgb,var(--kx) 10%,transparent)}
+/* trade ticker */
+.kx-tk{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-top:16px;padding:2px 0 4px;mask-image:linear-gradient(90deg,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent)}.kx-tk::-webkit-scrollbar{display:none}
+.kx-tk>div{flex:none;display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:10px;border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 85%,transparent);font-size:12px;color:var(--mute);white-space:nowrap}
+.kx-tk>div.w{border-left:2px solid var(--good)}.kx-tk>div.l{border-left:2px solid var(--bad)}.kx-tk>div.o{border-left:2px solid var(--kx)}
+.kx-tk b{font-size:12.5px;color:var(--ink);font-weight:600}.kx-tk b.pos{color:var(--good)}.kx-tk b.neg{color:var(--bad)}.kx-tk .kx-tkl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;padding-right:4px;border-right:1px solid var(--line);margin-right:2px}
+@media(max-width:1100px){.kx-st{grid-template-columns:repeat(3,minmax(0,1fr))}.kx-st>div:nth-child(3){border-right:0}}
+@media(max-width:900px){.kx-sb,.kx-sbh{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.kx-sbh{display:none}.kx-sb{grid-template-areas:"c l" "p s" "g g";row-gap:6px}.kx-sbc{grid-area:c}.kx-sbl{grid-area:l;justify-content:flex-end}.kx-sbs{grid-area:s}.kx-sbp{grid-area:p}.kx-sbg{grid-area:g;margin:6px 0 2px}}
+@media(max-width:700px){.kx-hero2{padding:18px 16px 16px}.kx-big{gap:22px}.kx-bal{font-size:40px}.kx-big2 b{font-size:24px}.kx-st{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.kx-st>div{border-right:0;padding-right:0}.kx-st>div:nth-child(odd){border-right:1px solid var(--line);padding-right:12px}
+ .kx-next{padding:10px 12px}.kx-ring{width:54px;height:54px}.kx-ring svg{width:54px;height:54px}.kx-ring b{font-size:12px}.kx-strip{padding:8px 12px;gap:6px 10px}.kx-strip .kx-sp{margin-left:0;width:100%}
+ .kx-tlt .cur b{display:none}.kx-tlx span:first-child{display:none}.kx-hero2 .kx-heq{opacity:.2!important}.kx-hero2 .kx-grid{opacity:.3}}
+@media(min-width:1680px){.kx-home2 .kx-home{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+</style>
+<style id="mfix">
 .fld select{width:100%;height:42px;border-radius:12px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);font:600 14px inherit;padding:0 10px}
 .kx-hrpick{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 .kx-hp{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--mute);font:inherit;cursor:pointer;min-width:0}
@@ -1792,19 +1873,29 @@ function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,open=kxO
       <div class="kx-pm"><span>Target<b>${kxFmt(o.strike,o.strike)}</b></span><span>Now<b data-k="px">–</b></span><span>Margin<b data-k="mg">–</b></span><span>60s avg<b data-k="avg">–</b></span><span class="kx-wp">Win chance<b data-k="wp">–</b><small data-k="wpk"></small></span></div>
       <div class="kx-cvw"><canvas class="kx-cv"></canvas></div>
       <div class="kx-pf"><span>Kalshi now <b data-k="kp">${o.ya!=null?(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢':'–'}</b></span><span class="kx-spw" data-k="sp">${kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}</span><span class="kx-pay">pays $${o.n}.00 · <span class="pos">+$${(o.n-o.cost).toFixed(2)}</span> if ${o.side.toUpperCase()}, <span class="neg">-$${Number(o.cost).toFixed(2)}</span> if not</span></div></div>`).join('')
-    :`<div class="kx-none"><div class="kx-nx" id="kxnext"></div><div class="note">Nothing open. The cloud tracker takes a market at the 10-minute mark when its leader costs ${Math.round((c.minAsk||.9)*100)}¢ or more. The scanner below shows what each coin looks like right now.</div></div>`}
+    :`<div class="kx-none"><div class="kx-tl" id="kxtl"></div><div class="note" style="margin-top:12px">Nothing open. The tracker takes a market at the trade check when its leader costs ${Math.round((c.minAsk||.9)*100)}¢ or more.</div></div>`}
   else if(open.length){for(const o of open){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const kp=card.querySelector('[data-k=kp]');if(kp&&o.ya!=null)kp.textContent=(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢';const sp=card.querySelector('[data-k=sp]');if(sp)sp.innerHTML=kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}}
   kxScan();kxFrame(true)}
-function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{},minAsk=c.minAsk||.9,sc=(L?.scan||[]).slice().sort((a,b)=>a.coin<b.coin?-1:1);
+function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{},minAsk=c.minAsk||.9;
+  // MC 2026-11-09 board rows sorted by leader price so what is about to qualify floats to the top; alphabetical was the old order
+  const sc=(L?.scan||[]).slice().sort((a,b)=>((b.lask??-1)-(a.lask??-1))||(a.coin<b.coin?-1:1));
   if(!sc.length){el.innerHTML='<div class="empty">Waiting for the tracker\'s first scan…</div>';return}
   const sig=sc.map(s=>s.tk).join(',');
-  if(el.dataset.sig!==sig){el.dataset.sig=sig;el.innerHTML=sc.map(s=>`<div class="kx-sc" data-coin="${esc(s.coin)}" data-tk="${esc(s.tk)}"><div class="kx-sch"><b>${esc(s.coin)}</b><span data-k="t">–</span></div><div class="kx-scl" data-k="lead"></div><div class="kx-scp"><b data-k="px">–</b><span data-k="mg">–</span></div><div class="kx-scs" data-k="sp"></div><div class="kx-sct"><span>target ${kxFmt(s.strike,s.strike)}</span><span>closes ${tm(s.close/1000)}</span></div></div>`).join('')}
+  if(el.dataset.sig!==sig){el.dataset.sig=sig;el.innerHTML=sc.map(s=>`<div class="kx-sb" data-coin="${esc(s.coin)}" data-tk="${esc(s.tk)}"><div class="kx-sbc"><b>${esc(s.coin)}</b><span data-k="t">–</span></div><div class="kx-sbl" data-k="lead"></div><div class="kx-sbs" data-k="sp"></div><div class="kx-sbp"><b data-k="px">–</b><span data-k="mg">–</span></div><div class="kx-sbg"><em class="l">-0.4%</em><em class="c">target ${kxFmt(s.strike,s.strike)}</em><em class="r">+0.4%</em><div class="t"><i data-k="g" style="left:50%;width:0"></i></div></div></div>`).join('')}
+  else{const want=sc.map(s=>s.tk);const have=[...el.children].map(x=>x.dataset.tk);if(want.join()!==have.join())for(const tk of want){const n=el.querySelector(`[data-tk="${CSS.escape(tk)}"]`);if(n)el.appendChild(n)}}
   for(const s of sc){const t=el.querySelector(`[data-tk="${CSS.escape(s.tk)}"]`);if(!t)continue;const lead=t.querySelector('[data-k=lead]');
     const q=s.lask!=null&&s.lask>=minAsk,mark=s.close-10*60000,past=Date.now()>=mark;
-    // MC 2026-11-03 once a coin is taken the card shows the side we hold, not whoever leads now (HYPE read "NO 90¢ taken" while we held YES)
     const own=s.taken==='rule'?kxOpen().find(o=>o.tk===s.tk):null;
+    t.classList.toggle('own',!!own);t.classList.toggle('q',!own&&q&&!past);t.classList.toggle('past',!own&&past);
     if(own){const nowP=own.side==='yes'?s.ya:(s.yb==null?null:+(1-s.yb).toFixed(4)),up=nowP!=null&&nowP>=.5;lead.innerHTML=`<span class="kx-side ${own.side}">${own.side.toUpperCase()}</span><span style="color:var(--mute)">bought ${Math.round(own.px*100)}¢</span><b class="${nowP==null?'':up?'pos':'neg'}">now ${nowP==null?'–':Math.round(nowP*100)+'¢'}</b><i class="kx-q on">ours</i>`;continue}
     lead.innerHTML=s.leader?`<span class="kx-side ${s.leader}">${s.leader.toUpperCase()}</span><b>${Math.round(s.lask*100)}¢</b>${past?(s.taken==='rule'?'<i class="kx-q on">taken</i>':s.taken==='skip'?'<i class="kx-q">under '+Math.round(minAsk*100)+'¢ at the mark</i>':'<i class="kx-q">mark passed</i>'):q?'<i class="kx-q on">would take</i>':'<i class="kx-q">under '+Math.round(minAsk*100)+'¢</i>'}`:'<span class="kx-q">no quote</span>'}}
+// MC 2026-11-09 window timeline for the empty live board: open, trade check, settle, with a moving cursor and who qualifies
+function kxTimeline(now){const el=$('#kxtl');if(!el)return;const sc=KX.live?.scan||[],K=ST.D?.kalshi||{},minAsk=K.cfg?.minAsk||.9;let w=sc.find(s=>s.close>now)||sc[0];if(!w){el.innerHTML='';return}
+  let open=w.open,close=w.close;if(now>=close&&w.next){open=w.next.open;close=w.next.close}const mark=close-10*60000,p=Math.min(1,Math.max(0,(now-open)/(close-open))),pm=(mark-open)/(close-open);
+  const q=sc.filter(s=>s.leader&&s.lask>=minAsk).map(s=>s.coin),n=sc.length;
+  if(!el.dataset.w||el.dataset.w!==String(close)){el.dataset.w=String(close);el.innerHTML=`<div class="kx-tlh"><span class="kx-ml">This window</span><span>${tm(open/1000)} to ${tm(close/1000)} ET · ${n} coin${n===1?'':'s'}</span></div><div class="kx-tlt"><i class="a"></i><i class="b" style="width:${((1-pm)*100).toFixed(1)}%"></i><i class="m" style="left:${(pm*100).toFixed(1)}%"></i><u class="cur"><b></b></u></div><div class="kx-tlx"><span>opens <b>${tm(open/1000)}</b></span><span class="c" style="left:${(pm*100).toFixed(1)}%">trade check <b>${tm(mark/1000)}</b></span><span class="r">settles <b>${tm(close/1000)}</b></span></div><div class="kx-tlq" data-k="q"></div>`}
+  const cur=el.querySelector('.cur'),a=el.querySelector('.a');cur.style.left=`calc(${(p*100).toFixed(2)}% - 1px)`;a.style.width=`${(p*100).toFixed(2)}%`;cur.querySelector('b').textContent=new Date(now).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit',second:'2-digit'});
+  const qe=el.querySelector('[data-k=q]'),txt=now<mark?(q.length?`<span class="q">${q.length} would qualify now: ${q.join(', ')}</span>`:`<span>none at ${Math.round(minAsk*100)}¢ yet</span>`):`<span>${sc.filter(s=>s.taken==='rule').length} taken this window</span>`;if(qe.innerHTML!==txt)qe.innerHTML=txt}
 function kxFrame(force){if(!KX.on)return;if($('#kxck'))ckPaint(force);const el=$('#kxboard');const now=Date.now(),K=ST.D?.kalshi||{};KX.frame++;
   if(el){for(const o of kxOpen()){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const cv=card.querySelector('canvas');const r=kxDraw(cv,o);
     const win=r.tgt==null||r.px==null?null:(o.side==='yes'?r.px>=r.tgt:r.px<r.tgt),mg=r.tgt&&r.px!=null?(r.px-r.tgt)/r.tgt*(o.side==='yes'?1:-1):null,edge=mg!=null&&Math.abs(mg)<.0003;
@@ -1816,10 +1907,16 @@ function kxFrame(force){if(!KX.on)return;if($('#kxck'))ckPaint(force);const el=$
     card.querySelector('[data-k=avg]').textContent=r.a60!=null?kxFmt(r.a60,r.tgt):'–';
     if(force||KX.frame%2===0){const w=kxWinP(o.coin,o,o.side),we=card.querySelector('[data-k=wp]'),wk=card.querySelector('[data-k=wpk]'),kp=o.side==='yes'?o.ya:(o.yb!=null?1-o.yb:null);if(we){we.textContent=w?kxWpct(w.p):'–';we.className=w?kxPcl(w.p):''}if(wk)wk.textContent=kp!=null&&!w?.done?`Kalshi ${Math.round(kp*100)}%`:''}}}
   const sel=$('#kxscan');if(sel&&(force||KX.frame%4===0)){for(const s of KX.live?.scan||[]){const t=sel.querySelector(`[data-tk="${CSS.escape(s.tk)}"]`);if(!t)continue;const p=KX.px[s.coin],px=p?.last??s.last??null;const mark=s.close-10*60000,left=mark-now;
-      t.querySelector('[data-k=t]').textContent=left>0?'mark in '+kxCd(left):s.close>now?'settles in '+kxCd(s.close-now)+' · next mark '+kxCd((s.next?s.next.close:s.close+15*60000)-10*60000-now):'settling';const pe=t.querySelector('[data-k=px]');pe.textContent=kxFmt(px,s.strike);
+      t.querySelector('[data-k=t]').textContent=left>0?'mark in '+kxCd(left):s.close>now?'settles '+kxCd(s.close-now):'settling';const pe=t.querySelector('[data-k=px]');const nt=kxFmt(px,s.strike);
+      if(pe.textContent!==nt){const was=parseFloat(pe.dataset.v||'');pe.textContent=nt;if(px!=null&&isFinite(was)&&was!==px){pe.classList.remove('up','dn');void pe.offsetWidth;pe.classList.add(px>was?'up':'dn')}}if(px!=null)pe.dataset.v=px;
+      const g=t.querySelector('[data-k=g]');if(g){const mgv=s.strike&&px!=null?(px-s.strike)/s.strike:0,f=Math.min(1,Math.abs(mgv)/.004)*50;g.className=mgv<0?'neg':'';g.style.left=mgv<0?(50-f)+'%':'50%';g.style.width=f+'%'}
       const mg=s.strike&&px!=null?(px-s.strike)/s.strike:null,me=t.querySelector('[data-k=mg]');me.textContent=mg==null?'':(mg>=0?'+':'')+(mg*100).toFixed(Math.abs(mg)<.001?3:2)+'% vs target';me.className=mg==null?'':mg>=0?'pos':'neg';
       const S=kxSeries(s.coin,s.open);t.querySelector('[data-k=sp]').innerHTML=kxSpark(S,120,26,mg==null?'var(--mute)':mg>=0?'var(--good)':'var(--bad)')}}
-  const nx=$('#kxnext');if(nx){const sc=(KX.live?.scan||[]).flatMap(s=>[{s,left:s.close-10*60000-now},{s:{...s,leader:null},left:(s.next?s.next.close:s.close+15*60000)-10*60000-now}]).filter(x=>x.left>0).sort((a,b)=>a.left-b.left)[0];nx.innerHTML=sc?`<small>Next trade check</small><b class="${sc.left<60000?'now':''}">${kxCd(sc.left)}</b><span>${esc(sc.s.coin)} first${sc.s.leader?`, leading ${sc.s.leader.toUpperCase()} at ${Math.round(sc.s.lask*100)}¢`:''}</span>`:'<small>Next trade check</small><b>–</b><span>at :05, :20, :35 and :50</span>'}}
+  kxTimeline(now);
+  const nx=$('#kxnext');if(nx){const sc=(KX.live?.scan||[]).flatMap(s=>[{s,left:s.close-10*60000-now},{s:{...s,leader:null},left:(s.next?s.next.close:s.close+15*60000)-10*60000-now}]).filter(x=>x.left>0).sort((a,b)=>a.left-b.left)[0];
+    // MC 2026-11-09 countdown ring: fills over the 15 minutes between trade checks, pulses in the last 30 seconds
+    const p=sc?1-Math.min(1,sc.left/(15*60000)):0,txt=sc?`${esc(sc.s.coin)} first${sc.s.leader?`, leading ${sc.s.leader.toUpperCase()} at ${Math.round(sc.s.lask*100)}¢`:''}`:'at :05, :20, :35 and :50';nx.classList.toggle('soon',!!sc&&sc.left<30000);
+    const fg=nx.querySelector('.fg'),b=nx.querySelector('.kx-ring b'),sp=nx.querySelector('span');if(fg){fg.style.strokeDashoffset=(176*(1-p)).toFixed(1);b.textContent=sc?kxCd(sc.left):'–';if(sp.textContent!==txt)sp.innerHTML=txt}}}
 function kxStart(){if(KX.on){kxBoard();return}KX.on=true;kxWs();KX.poll=setInterval(kxPoll,4000);KX.rest=setInterval(kxRest,3000);KX.anim=setInterval(()=>kxFrame(false),500);KX.hdrT=setInterval(kxHdr,1000);kxPoll()}
 function kxStop(){if(!KX.on)return;KX.on=false;clearInterval(KX.poll);clearInterval(KX.rest);clearInterval(KX.anim);clearInterval(KX.hdrT);try{KX.ws?.close()}catch{}KX.ws=null;KX.wsOk=false}
 // ----- settled trades: how it played out (coin price against the target from Coinbase candles, Kalshi's price path from the tracker) -----
@@ -2018,7 +2115,7 @@ function kxHeroLine(el,pts,start){if(!el)return;const W=el.clientWidth||900,H=el
   const X=t=>(t-x0)/(x1-x0)*W,Y=v=>H*.18+(1-(v-(lo-pad))/((hi+pad)-(lo-pad)))*H*.82;
   const d=pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' '),last=ys[ys.length-1],c=last>=start?'var(--good)':'var(--bad)';
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="kxhg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".28"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>
-   <path d="${d} L${W} ${H} L0 ${H}Z" fill="url(#kxhg)"/><line x1="0" x2="${W}" y1="${Y(start).toFixed(1)}" y2="${Y(start).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="4 6"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-opacity=".9" vector-effect="non-scaling-stroke"/></svg>`}
+   <path d="${d} L${W} ${H} L0 ${H}Z" fill="url(#kxhg)" opacity=".4"/><line x1="0" x2="${W}" y1="${Y(start).toFixed(1)}" y2="${Y(start).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="4 6"/><path d="${d}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke" style="filter:drop-shadow(0 0 6px ${c})"/><circle cx="${X(pts.at(-1)[0]).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="3" fill="${c}" style="filter:drop-shadow(0 0 6px ${c})"/></svg>`}
 function kxLabSpark(eq,colr,start){if(!eq||eq.length<2)return '<svg viewBox="0 0 120 44"></svg>';const ys=eq.map(p=>p[1]),lo=Math.min(start,...ys),hi=Math.max(start,...ys),W=120,H=44;
   const X=i=>i/(eq.length-1)*W,Y=v=>hi===lo?H/2:3+(1-(v-lo)/(hi-lo))*(H-6);const d=eq.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ');
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${Y(start).toFixed(1)}" y2="${Y(start).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="3 4"/><path d="${d}" fill="none" stroke="${colr}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`}
@@ -2082,18 +2179,24 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
   const fld=(k,lab,hint,val,step,pre)=>`<div class="fld"><label for="kxs-${k}">${lab}</label><div class="${pre?'ipx':''}">${pre?`<i>${pre}</i>`:''}<input id="kxs-${k}" type="number" inputmode="decimal" step="${step}" value="${val}" ${dis}></div><div class="hint">${hint}</div></div>`;
   const sec=(t,p)=>`<div class="kx-sh"><h2>${t}</h2>${p?`<p>${p}</p>`:''}</div>`;
   const liveTxt=lv?.on?`Live on, $${lv.size} a trade`:K.keys?'Live off':'Live not connected';
-  const P={hero:`<section class="kx-hero2" style="--hero:${K.net>=0?'var(--good)':'var(--bad)'}"><div class="kx-heq" id="kxheq"></div>
-   <div class="kx-hd"><div><div class="kx-eyebrow">Kalshi 15-minute crypto, running in the cloud</div><div class="kx-bal">${'$'+Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-     <div class="kx-sub"><b class="${cls(K.net)}">${usd(K.net)}</b> on $${Number(start).toLocaleString('en-US')} since ${K.since?dd(K.since):'the start'}. ${n0(K.n)} trades, ${K.n?Math.round(wr*1000)/10+'% won':'none settled yet'}${K.inPlay?`, $${Number(K.inPlay).toFixed(0)} in play right now`:''}.</div>
-     <div class="kx-chips"><span class="kx-mode on" title="Paper playbook">Paper · ${esc(kxLabOf(K,K.playbook?.id).name)}</span><span class="kx-mode ${lv?.on?'on':''}" title="Live playbook">${liveTxt}${lv?.playbook?.id&&lv.playbook.id!=='rule'?' · '+esc(kxLabOf(K,lv.playbook.id).name):''}</span><span id="kxfeeds" class="kx-feeds"></span></div></div>
-    <div class="kx-next" id="kxnext"><small>Next trade check</small><b>–</b><span>at :05, :20, :35 and :50</span></div></div>
-   <div class="kx-tiles">${tile('Today',`<span class="${cls(todayNet)}">${usd(todayNet)}</span>`,`${K.today?.n||0} trades, ${K.today?.won||0} won`)}${tile('Win rate',`${K.n?(wr*100).toFixed(1)+'%':'–'}`,`break-even ${(be*100).toFixed(1)}%, last 300 at ${K.wr300??'–'}%`,bar(K.n?(wr-be)/(1-be):0,wr>=be?'var(--good)':'var(--bad)'))}${tile('Average trade',`<span class="${cls(K.avg)}">${usd(K.avg)}</span>`,`${lost} loss${lost===1?'':'es'}, streak of ${n0(K.streak)}`)}${tile('Drawdown',`<span class="${K.dd?'neg':''}">${K.dd?'-$'+Number(K.dd).toFixed(0):'$0'}</span>`,`worst ever -$${Number(K.maxDd||0).toFixed(0)}, worst window ${K.worstWin} loss${K.worstWin===1?'':'es'}`)}${tile('Daily stop',`<span class="${stopPct>=1?'neg':''}">-$${stop}</span>`,stopPct>=1?'hit today, paused until midnight ET':`${Math.round(stopPct*100)}% of the way there today`,bar(stopPct,stopPct>.6?'var(--bad)':'var(--warn)'))}${tile('Ready for live',`${okN} <span style="font-size:15px;color:var(--mute)">of ${chk.length}</span>`,okN===chk.length?'every check passes':'see Live account',bar(chk.length?okN/chk.length:0,'var(--kx)'))}</div></section>
+  const roll=(K.roll||[]).slice(-60);
+  const P={hero:`<section class="kx-hero2" style="--hero:${K.net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
+   <div class="kx-hd"><div><div class="kx-eyebrow">Kalshi 15-minute crypto, running in the cloud</div>
+     <div class="kx-big"><div><div class="kx-ml">Paper bank</div><div class="kx-bal">${'$'+Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kx-big2"><div class="kx-ml">Today</div><b class="${cls(todayNet)}">${usd(todayNet)}</b><small>${K.today?.n||0} trades, ${K.today?.won||0} won${stopPct>=1?' · stop hit':''}</small></div></div>
+     <div class="kx-sub"><b class="${cls(K.net)}">${usd(K.net)}</b> on $${Number(start).toLocaleString('en-US')} since ${K.since?dd(K.since):'the start'}. ${n0(K.n)} trades, ${K.n?Math.round(wr*1000)/10+'% won':'none settled yet'}${K.inPlay?`, $${Number(K.inPlay).toFixed(0)} in play right now`:''}.</div></div>
+    <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
+   <div class="kx-st">
+    <div><div class="kx-ml">Win rate</div><b class="${K.n?(wr>=be?'pos':'neg'):''}">${K.n?(wr*100).toFixed(1)+'%':'–'} <em>need ${(be*100).toFixed(1)}</em></b><div class="kx-sp">${roll.length>2?kxSpark(roll.map((p,i)=>[i,p[1]]),120,20,wr>=be?'var(--good)':'var(--bad)'):''}</div><small>last 300 at ${K.wr300??'–'}%</small></div>
+    <div><div class="kx-ml">Average trade</div><b class="${cls(K.avg)}">${usd(K.avg)}</b><small>${lost} loss${lost===1?'':'es'}, streak of ${n0(K.streak)}</small></div>
+    <div><div class="kx-ml">Drawdown</div><b class="${K.dd?'neg':''}">${K.dd?'-$'+Number(K.dd).toFixed(0):'$0'}</b><small>worst ever -$${Number(K.maxDd||0).toFixed(0)}, worst window ${K.worstWin} loss${K.worstWin===1?'':'es'}</small></div>
+    <div><div class="kx-ml">Daily stop</div><b class="${stopPct>=1?'neg':''}">-$${stop}</b>${bar(stopPct,stopPct>.6?'var(--bad)':'var(--warn)')}<small>${stopPct>=1?'hit, paused until midnight ET':Math.round(stopPct*100)+'% of the way there'}</small></div>
+    <div><div class="kx-ml">Ready for live</div><b>${okN} <em>of ${chk.length}</em></b>${bar(chk.length?okN/chk.length:0,'var(--kx)')}<small>${okN===chk.length?'every check passes':'see Live account'}</small></div></div></section>
 `,board:`  <div class="card kx-card" style="margin-top:16px"><h3>Live board<span class="r">coin price against Kalshi's target, streamed from Coinbase</span></h3><div class="kx-live" id="kxboard"></div></div>
 `,labs:`  ${sec('Labs','Every idea runs as its own paper account on the same trades as the rule. Nothing here changes the paper book or live trading. A lab earns a real test when it beats the rule over a few hundred trades, not a few days.')}
   <section class="kx-labs"><div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div><div class="kx-race" id="kxrace" style="margin-top:16px"></div>
    <div class="kx-rl">${labs.map(l=>`<button data-lab="${esc(l.id)}" aria-pressed="${!KXL.off.has(l.id)}" style="--c:${l.color}" onclick="kxLabToggle('${esc(l.id)}')"><i></i>${esc(l.name)}</button>`).join('')}</div>
    <div class="kx-lgrid">${labs.filter(l=>l.id!=='rule').map(l=>kxLabCard(l,start)).join('')}</div></section>
-`,scan:`  <div class="card kx-card" style="margin-top:16px"><h3>Scanner, all 9 coins this window<span class="r">what the next trades look like before the 10-minute mark</span></h3><div class="kx-scan" id="kxscan"></div></div>
+`,scan:`  <div class="card kx-card" style="margin-top:16px"><h3>Scanner, all 9 coins this window<span class="r">closest to qualifying first</span></h3><div class="kx-sbh"><span>Coin</span><span>Leader</span><span>Last 15 min</span><span>Price</span><span>vs target</span></div><div class="kx-sbw" id="kxscan"></div></div>
 `,trades:`   <div class="card"><h3>Trades<span class="r">one day at a time, tap a row for the full story</span></h3><div id="kxtrades">${kxTradesTbl(K)}</div>
     <div class="kx-cmp"><div><div class="lbl">Markets watched</div><b>${n0(K.seen)}</b></div><div><div class="lbl">Met the rule</div><b>${n0(K.rule)}</b></div><div><div class="lbl">Leaders under ${Math.round((c.minAsk||.9)*100)}¢, not taken</div><b class="${cls(K.under?.c)}">${K.under?.n?(K.under.c>0?'+':'')+K.under.c+'¢':'–'}</b><span class="sub" style="display:block">${K.under?.n?`${K.under.won} of ${K.under.n} won, per contract`:''}</span></div></div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" onclick="kxCsv()">Export CSV</button><span class="note" style="margin:0;align-self:center">${n0((K.all||[]).length)} settled trades</span></div></div>
@@ -2113,7 +2216,9 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
   if(view==='klabs')return P.labs;
   if(view==='klive')return kxSecHead('Live account','Real money on your Kalshi account, placed by the cloud tracker. Paper keeps running either way.')+`<div class="grid kx-g32">${kxLiveCard().replace('style="margin-top:14px"','')}<div>${P.check}</div></div>`;
   if(view==='kset')return kxSecHead('Settings','Paper rule settings. Live limits live on the Live account tab.')+`<div class="kx-setw">${P.settings}</div>`;
-  return `<div class="kx-home"><div class="kx-hl">${P.hero}<div style="margin-top:16px">${pb}</div>${P.board}</div><div class="kx-hr">${P.scan}</div></div>`}
+  const strip=`<div class="kx-strip"><span class="kx-ss on"><i></i><b>Paper</b>${esc(kxLabOf(K,K.playbook?.id).name)}</span><span class="kx-ss ${lv?.on?'live':''}"><i></i><b>Live</b>${lv?.on?`on, $${lv.size} a trade${lv?.playbook?.id&&lv.playbook.id!=='rule'?' · '+esc(kxLabOf(K,lv.playbook.id).name):''}`:K.keys?'off':'not connected'}</span><span class="kx-ssb"><b>Daily stop</b>${bar(stopPct,stopPct>.6?'var(--bad)':'var(--warn)')}<span>${stopPct>=1?'hit':Math.round(stopPct*100)+'%'}</span></span><span class="kx-ss"><b>${n0(K.n)}</b>trades since ${K.since?dd(K.since):'start'}</span><span class="kx-feeds kx-sp" id="kxfeeds"></span></div>`;
+  const tick=(K.recent||[]).filter(t=>t.done&&t.book!=='live').slice(-14).reverse(),tkl=tick.length?`<div class="kx-tk"><div><span class="kx-tkl">Last trades</span></div>${tick.map(t=>`<div class="${t.won?'w':'l'}" title="${esc(t.title||'')}"><b>${esc(t.coin)}</b><span class="kx-side ${t.side}">${t.side.toUpperCase()}</span><span>${Math.round(t.px*100)}¢</span><b class="${cls(t.pnl)}">${usd(t.pnl)}</b><span>${tm(t.close/1000)}</span></div>`).join('')}</div>`:'';
+  return `<div class="kx-home2">${strip}<div class="kx-home"><div class="kx-hl">${P.hero}<div style="margin-top:16px">${pb}</div>${P.board}</div><div class="kx-hr">${P.scan}</div></div>${tkl}</div>`}
 function paperV(D){const T=D.totals||{},td=T.today||{},al=T.all||{},ti=D.tiers||{},ta=ti.all||{},tt=ti.today||{};
   const wr=(w,n)=>n?Math.round(w/n*100)+'%':'–';const op=(D.open||[]).filter(x=>!x.live);
   const upl=op.reduce((a,x)=>a+(x.spent||0)*(x.pnl||0)/100*(x.left??1),0),inPlay=op.reduce((a,x)=>a+(x.spent||0)*(x.left??1),0);
@@ -2700,7 +2805,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.10',KR_DATE='Nov 9, 2026';
+const KR_VERSION='1.0.11',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

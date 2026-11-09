@@ -1,5 +1,12 @@
 # What's new
 
+## 1.0.11 (Nov 9, 2026)
+- Home page redesign. A status strip under the header (paper and live playbooks, daily stop, feed health). Bank and today as the two big numbers, with the other stats in a compact row. Glass cards, a faint grid, mono numerals.
+- The next trade check is a countdown ring that fills over the 15 minutes and pulses in the last 30 seconds. Scanner prices flash green or red as they tick.
+- The scanner is now a board sorted by leader price, closest to qualifying first, with a gauge of each coin against its target.
+- When nothing is open, the live board shows the current window as a timeline: open, trade check, settle, with a moving cursor and who qualifies right now.
+- A ticker of the last settled trades runs under the page. On wide screens the hero and scanner sit side by side.
+
 ## 1.0.10 (Nov 9, 2026)
 - Updates now arrive within the hour instead of once a day. New setups get this automatically. If you turned on automatic updates before today, go to Connections and press Make hourly (a one-line change in GitHub).
 
