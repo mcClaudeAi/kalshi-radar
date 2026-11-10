@@ -1,5 +1,11 @@
 # What's new
 
+## 1.0.14 (Nov 9, 2026)
+- Give-back stop, in Paper settings. Once the day is up by the amount you set (default $25), trading stops for the day if the profit falls to your chosen share of the day's peak. Protects profit already made. Off by default.
+- Bank drawdown stop. Stops for the day once the bank is a set % under its all-time high. Off by default.
+- Ratchet sizing, a new Your mix sizing choice. The stake steps up only on banked profit while the bank is at a new high, and drops back to base after any loss.
+- All three apply to paper, labs and live. Skipped trades say which stop tripped.
+
 ## 1.0.13 (Nov 9, 2026)
 - Settings now says which box has a problem instead of saving nothing. Typing a range like 3-5 into a number box tells you to put the low end in "at least" and the high end in "at most".
 
