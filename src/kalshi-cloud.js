@@ -71,6 +71,7 @@ function labDefs(K) {
     // MC 2026-11-10 Beats the market: turns the volatility reading into a win probability (normal model, ten minutes to go with
     // the 60-second settlement average) and only buys when that probability beats Kalshi's price plus the fee plus 1 cent. The
     // volatility lab asks "far enough past the target?"; this asks "is the market underpricing it?", so the bar rises with the price.
+    { id: 'vol2', name: 'Margin vs volatility v2', desc: 'Skips a coin that is less than one typical 10-minute move past its target at the trade check. The typical move is measured directly, from every 10-minute price change on Coinbase over the last 5 hours, instead of being scaled up from 1-minute moves (which overstated it and skipped trades that kept winning).', color: '#FF9EDB', filter: t => t.z10 == null ? null : t.z10 >= 1 },
     { id: 'edge', name: 'Beats the market', desc: 'Only buys when our win chance, from the coin\'s volatility and how far it is past the target, beats Kalshi\'s price plus the fee and a cent.', color: '#7CF5C8', filter: t => t.z == null ? null : winP(t.z) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     { id: 'edge2', name: 'Beats the market v2', desc: 'Beats the market with two more checks: volatility is the larger of the last hour and the last 15 minutes, and a coin sliding back toward its target in the last 5 minutes has half that slide taken off its margin.', color: '#B9F27C', filter: t => t.z2 == null ? null : winP(t.z2) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#C8F56A', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
@@ -122,8 +123,8 @@ async function volAt(c, strike, side) {
   try {
     const r = await fetch(`https://api.exchange.coinbase.com/products/${pid}/candles?granularity=60`, { headers: { accept: 'application/json', 'user-agent': 'curve-radar' } });
     if (!r.ok) return null;
-    const rows = (await r.json()).slice(0, 61).sort((a, b) => a[0] - b[0]);   // oldest first: [time, low, high, open, close, volume]
-    if (rows.length < 20) return null;
+    const all = (await r.json()).slice(0, 300).sort((a, b) => a[0] - b[0]);   // oldest first: [time, low, high, open, close, volume]
+    const rows = all.slice(-61); if (rows.length < 20) return null;
     const px = rows[rows.length - 1][4], rets = []; for (let i = 1; i < rows.length; i++) rets.push(Math.log(rows[i][4] / rows[i - 1][4]));
     const m = rets.reduce((a, b) => a + b, 0) / rets.length, sigma = Math.sqrt(rets.reduce((a, b) => a + (b - m) ** 2, 0) / rets.length);
     const margin = (side === 'yes' ? px - strike : strike - px) / strike, z = sigma > 0 ? margin / (sigma * Math.sqrt(10)) : null;
@@ -134,7 +135,13 @@ async function volAt(c, strike, side) {
     const r15 = rets.slice(-15), m15 = r15.reduce((a, b) => a + b, 0) / r15.length, sigma15 = Math.sqrt(r15.reduce((a, b) => a + (b - m15) ** 2, 0) / r15.length);
     const p5 = rows[Math.max(0, rows.length - 6)][4], drift = (side === 'yes' ? 1 : -1) * Math.log(px / p5), sig2 = Math.max(sigma, sigma15);
     const z2 = sig2 > 0 ? (margin + 0.5 * Math.min(0, drift)) / (sig2 * Math.sqrt(10)) : null;
-    return { px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2) };
+    // MC 2026-11-10 v2 of the volatility check measures the 10-minute move directly: every 10-minute change in the last ~5 hours
+    // of 1-minute closes (overlapping windows). Scaling the 1-minute spread by sqrt(10) overstated it, because 1-minute prices
+    // jitter back and forth and most of that cancels over 10 minutes; the model read 15 to 20 points under Kalshi on trades that
+    // kept winning. Needs at least 2 hours of candles, else no reading.
+    let z10 = null, sigma10 = null; const k10 = []; for (let i = 10; i < all.length; i++) if (all[i][0] - all[i - 10][0] === 600) k10.push(Math.log(all[i][4] / all[i - 10][4]));
+    if (k10.length >= 110) { sigma10 = Math.sqrt(k10.reduce((a, b) => a + b * b, 0) / k10.length); z10 = sigma10 > 0 ? +(margin / sigma10).toFixed(2) : null; }
+    return { px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2), sigma10: sigma10 == null ? null : +sigma10.toExponential(3), z10 };
   } catch { return null; }
 }
 
@@ -336,7 +343,7 @@ export function createKalshi(state, env, keep) {
       for (const r of hits) {
         if (offNow) { skipLive(r, `off schedule (${etHour(now)}:00 ET hour)`); continue; }
         if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hits.length; }
-        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, kf: r.kf ?? null });
+        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null });
         if (f === true) { try { await onRule(r, lab); } catch (e) { fail('order error: ' + e.message); } }
         else skipLive(r, `${lab.name}: ${f === null ? 'no volatility reading' : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
@@ -421,7 +428,7 @@ export function createKalshi(state, env, keep) {
     for (const r of rec.values()) {
       if (r.result || !(r.ask >= K.minAsk) || now > r.close + 300000) continue;   // MC 2026-11-08 keep a closed trade on the board until it settles (was dropped after 90s)
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
-      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null });
+      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null });
     }
     return { at: scanAt || now, open, scan, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
   }
@@ -468,12 +475,12 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, sid = stratAt(K.strat, r.at), lab = sid === 'rule' ? null : labs0.find(l => l.id === sid);
       while (kI < kQ.length && kQ[kI].close <= r.at) { kAdd(kS, kQ[kI].px, kQ[kI].won); kI++; }
       const ko = kOf(kS, px);
-      const f = lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, kf: ko.kf }) : true, strat = f !== true ? sid : null;
+      const f = lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: ko.kf }) : true, strat = f !== true ? sid : null;
       const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }, { peak, start: K.startUsd }) : K.sizeUsd;
       const off = (K.skipHours || []).includes(etHour(r.at)), capped = perWin[w] > K.maxPerWindow || halted || cold || off || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
       const t = { tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? 'no volatility reading' : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         tk: r.ticker, left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
-        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null };
+        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null };
       if (r.result) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
       if (r.result) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
       if (!capped && r.result) { t.pnl = +((r.won ? n : 0) - cost).toFixed(2); dayNet[dk] = (dayNet[dk] || 0) + t.pnl; dayPeak[dk] = Math.max(dayPeak[dk], dayNet[dk]); if (inRun) { bal += t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); } }

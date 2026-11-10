@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.33 (Nov 10, 2026)
+- New playbook, Margin vs volatility v2: the same 1-move bar, but the typical 10-minute move is measured directly from the last 5 hours of 10-minute price changes on Coinbase instead of scaled up from 1-minute moves, which overstated it and skipped trades that kept winning. Trade details and live cards show the new reading.
+
 ## 1.0.32 (Nov 10, 2026)
 - Daily profit target (request R-2): in Settings under Stops, set an amount and trading stops for the day once today is up that much. Off by default. Applies to paper, labs and live.
 
