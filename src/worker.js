@@ -74,7 +74,51 @@ export class Store {
   }
   async limited() { const f = (await this.state.storage.get('fails')) || { n: 0, at: 0 }; if (Date.now() - f.at > 15 * 60000) return { n: 0, at: Date.now() }; return f; }
 
-  async alarm() { await this.loadKeys(); await this.K.alarm(); }
+  async alarm() { await this.loadKeys(); await this.K.alarm(); try { await this.ghAuto(); } catch { } }
+
+  // ---------- one-tap and automatic updates ----------
+  // MC 2026-11-10 "Update now" only opened the owner's GitHub Actions page, where they still had to press Run workflow; on a
+  // browser not signed in to GitHub it did nothing at all, and GitHub's own hourly schedule often runs late or not at all on small
+  // repos. Now the owner can save a GitHub token limited to their copy of the repo (Actions: read and write, nothing else). It is
+  // sealed with the same AES key as the Kalshi key and never sent back to the page. With it the dashboard starts the repo's
+  // updater itself: on Update now, and from the tracker's own 15-minute alarm when a newer stable version is out (checked at
+  // most every 30 minutes, at most 3 starts per version so a broken deploy cannot loop). Without a token nothing changes.
+  ver() { return (PAGE.match(/KR_VERSION='([\d.]+)'/) || [])[1] || '0.0.0'; }
+  async gh(path, token, init = {}) { return fetch('https://api.github.com' + path, { ...init, headers: { accept: 'application/vnd.github+json', authorization: 'Bearer ' + token, 'user-agent': 'kalshi-radar', 'x-github-api-version': '2022-11-28', ...(init.body ? { 'content-type': 'application/json' } : {}) } }); }
+  async ghCheck(repo, token) {
+    const r = await this.gh(`/repos/${repo}`, token);
+    if (r.status === 401) return { ok: false, msg: 'GitHub did not accept that token. Copy it again; it starts with github_pat_.' };
+    if (!r.ok) return { ok: false, msg: `GitHub could not find ${repo} with that token. Check the repo name, and that the token was given access to that repository.` };
+    const branch = (await r.json()).default_branch || 'main', w = await this.gh(`/repos/${repo}/actions/workflows/update.yml`, token);
+    if (w.status === 404) return { ok: false, msg: 'That repo has no updater yet. Turn on Automatic updates first (the row above), then save the token.' };
+    if (!w.ok) return { ok: false, msg: 'The token cannot see Actions on that repo. It needs the repository permission Actions: Read and write.' };
+    return { ok: true, branch };
+  }
+  async ghRun(why) {
+    const box = await this.state.storage.get('ghconn'); if (!box) return { ok: false, msg: 'No GitHub token saved.' };
+    let k; try { k = await this.open(box.sealed); } catch { return { ok: false, msg: 'The saved GitHub token could not be read. Save it again on Connections.' }; }
+    let res;
+    try {
+      const r = await this.gh(`/repos/${k.repo}/actions/workflows/update.yml/dispatches`, k.token, { method: 'POST', body: JSON.stringify({ ref: k.branch || 'main' }) });
+      res = r.status === 204 ? { ok: true, msg: 'Update started. It lands in about 2 minutes.' }
+        : r.status === 401 ? { ok: false, msg: 'GitHub rejected the saved token. It may have expired; make a new one and save it on Connections.' }
+        : r.status === 403 ? { ok: false, msg: 'The token is not allowed to start the updater. It needs the repository permission Actions: Read and write.' }
+        : r.status === 404 ? { ok: false, msg: 'GitHub could not find the updater in your repo. Check Automatic updates is turned on.' }
+        : { ok: false, msg: `GitHub answered ${r.status}. Try again in a minute.` };
+    } catch (e) { res = { ok: false, msg: 'Could not reach GitHub. Try again in a minute.' }; }
+    await this.state.storage.put('ghlast', { at: Date.now(), ok: res.ok, msg: res.msg, why });
+    return res;
+  }
+  async ghAuto() {
+    const box = await this.state.storage.get('ghconn'); if (!box || box.auto === false) return;
+    const a = (await this.state.storage.get('ghauto')) || { at: 0, ver: '', tries: 0 };
+    if (Date.now() - a.at < 30 * 60000) return;
+    const r = await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION', { cf: { cacheTtl: 0 } }); if (!r.ok) return;
+    const v = (await r.text()).trim(), cmp = (x, y) => { const p = x.split('.').map(Number), q = y.split('.').map(Number); for (let i = 0; i < 3; i++) if ((p[i] || 0) !== (q[i] || 0)) return (p[i] || 0) - (q[i] || 0); return 0; };
+    if (!/^\d+\.\d+\.\d+$/.test(v) || cmp(v, this.ver()) <= 0) { await this.state.storage.put('ghauto', { at: Date.now(), ver: '', tries: 0 }); return; }
+    const tries = a.ver === v ? a.tries : 0; if (tries >= 3) { await this.state.storage.put('ghauto', { at: Date.now(), ver: v, tries }); return; }
+    await this.ghRun('auto ' + v); await this.state.storage.put('ghauto', { at: Date.now(), ver: v, tries: tries + 1 });
+  }
 
   async fetch(req) {
     const u = new URL(req.url), p = u.pathname, post = req.method === 'POST';
@@ -163,6 +207,21 @@ export class Store {
       await this.state.storage.delete('kconn'); await this.loadKeys(true); this.K.resetKey(); await this.K.publish(true);
       return J({ ok: true, msg: 'Kalshi key removed and live trading turned off. Paper keeps running.' });
     }
+    // ---------- GitHub token for one-tap and automatic updates ----------
+    if (p === '/api/gh' && !post) { const box = await this.state.storage.get('ghconn'); return J({ connected: !!box, repo: box?.repo || null, end: box?.end || null, savedAt: box?.at || null, auto: box ? box.auto !== false : false, last: (await this.state.storage.get('ghlast')) || null, ver: this.ver() }); }
+    if (p === '/api/gh' && post) {
+      const repo = String(body.repo || '').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$|\/$/g, ''), token = String(body.token || '').trim();
+      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return J({ ok: false, msg: 'Use the form name/repo, like jane/kalshi-radar.' }, 400);
+      if (repo.toLowerCase() === 'mcclaudeai/kalshi-radar') return J({ ok: false, msg: 'That is the original. Use the copy in your own GitHub account.' }, 400);
+      if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(token)) return J({ ok: false, msg: 'That does not look like a GitHub token. It starts with github_pat_.' }, 400);
+      const t = await this.ghCheck(repo, token); if (!t.ok) return J(t, 400);
+      await this.state.storage.put('ghconn', { sealed: await this.seal({ repo, token, branch: t.branch }), repo, end: token.slice(-4), at: Date.now(), auto: true });
+      await this.state.storage.delete('ghauto');
+      return J({ ok: true, msg: 'Saved. Update now is one tap from here on, and new versions install on their own.' });
+    }
+    if (p === '/api/gh/auto' && post) { const box = await this.state.storage.get('ghconn'); if (!box) return J({ ok: false, msg: 'Save a GitHub token first.' }, 400); box.auto = body.on !== false; await this.state.storage.put('ghconn', box); return J({ ok: true, msg: box.auto ? 'New versions will install on their own.' : 'Automatic installs are off. Update now still works.' }); }
+    if (p === '/api/gh/delete' && post) { for (const k of ['ghconn', 'ghauto', 'ghlast']) await this.state.storage.delete(k); return J({ ok: true, msg: 'GitHub token removed.' }); }
+    if (p === '/api/update' && post) return J(await this.ghRun('button'));
     return J({ ok: false, msg: 'not found' }, 404);
   }
 }

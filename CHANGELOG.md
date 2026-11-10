@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.35 (Nov 10, 2026)
+- One-tap updates. On Connections, save a GitHub token limited to your copy of the repo (Actions: Read and write, nothing else; steps are on the page). After that Update now starts the update itself from any device, with no trip to GitHub, and new versions install on their own within about 30 minutes. The token is stored encrypted in your own Cloudflare account and is never shown again. Without a token, updates work as before.
+
 ## 1.0.34 (Nov 10, 2026)
 - Self-learning. A small model now refits every morning on every settled trade, starting from four months of history (about 7,900 trades with Coinbase readings). It begins from Kalshi's own price and learns only where that price has been wrong. Each trade's win chance is fixed at the trade check, before the result exists, so its record is only ever on trades it had not seen.
 - New Learning page: what the model has learned in plain words, whether its calls matched what happened, Learned against the plain rule month by month, and today's calls.
