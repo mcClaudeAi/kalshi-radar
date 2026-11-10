@@ -1,3 +1,5 @@
+import { feats, fit, predict, logit, LEARN_F, LEARN_NAME } from './learn.js';
+import { SEED } from './learn-seed.js';
 // MC 2026-11-07 Kalshi tracker moved off the PC (asked to run it somewhere other than his computer; Cloudflare picked over a $5 VPS).
 // This is kalshi-paper.mjs + kalshi-live-lib.mjs + notify.js's kalshiView, rebuilt to run inside the dashboard's Durable Object:
 //   - the worker's cron calls tick() every minute: read the 9 coins' open markets (scanner + live board), add a price point to every
@@ -74,6 +76,9 @@ function labDefs(K) {
     { id: 'vol2', name: 'Margin vs volatility v2', desc: 'Skips a coin that is less than one typical 10-minute move past its target at the trade check. The typical move is measured directly, from every 10-minute price change on Coinbase over the last 5 hours, instead of being scaled up from 1-minute moves (which overstated it and skipped trades that kept winning).', color: '#FF9EDB', filter: t => t.z10 == null ? null : t.z10 >= 1 },
     { id: 'edge', name: 'Beats the market', desc: 'Only buys when our win chance, from the coin\'s volatility and how far it is past the target, beats Kalshi\'s price plus the fee and a cent.', color: '#7CF5C8', filter: t => t.z == null ? null : winP(t.z) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     { id: 'edge2', name: 'Beats the market v2', desc: 'Beats the market with two more checks: volatility is the larger of the last hour and the last 15 minutes, and a coin sliding back toward its target in the last 5 minutes has half that slide taken off its margin.', color: '#B9F27C', filter: t => t.z2 == null ? null : winP(t.z2) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    // MC 2026-11-10 the self-learning playbook. pl is the model's win chance for this trade, frozen at the trade check from that
+    // morning's fit (so it has never seen the trade it is judging). Same bar as Beats the market: price + fee + 1 cent.
+    { id: 'learn', name: 'Learned', desc: 'Only buys when the self-learning model\'s win chance beats Kalshi\'s price plus the fee plus 1¢. The model refits every morning on every settled trade, starting from four months of history, and is only ever scored on trades it had not seen. See the Learning tab.', color: '#7CF0C8', filter: t => t.pl == null ? null : t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#C8F56A', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
 }
@@ -97,6 +102,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
 const fHr = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false });
 const etDay = t => fDay.format(t), etHour = t => +fHr.format(t) % 24;
+// MC 2026-11-10 self-learning: the seed is parsed on first use (not at load, to keep worker start-up cheap). Each row carries its
+// ET day so "everything before this morning" is a string compare.
+let seedRows = null;
+function seedLoad() {
+  if (seedRows) return seedRows;
+  seedRows = SEED.rows.split(';').map(q => { const a = q.split(','), at = a[0] * 900000, px = a[1] / 1000; return { at, close: at + 600000, px, y: +a[2], x: [1, a[3] / 100, a[4] / 100, a[5] / 100, a[6] / 100, a[7] / 100], o: logit(Math.min(0.99, Math.max(0.5, px))), p: a[8] === '' ? null : a[8] / 1000, d: etDay(at + 600000) }; });
+  return seedRows;
+}
+const needPx = px => px + 0.07 * px * (1 - px) + 0.01;
 const nextMark = t => Math.floor((t - 5 * 60000) / Q) * Q + Q + 5 * 60000;   // :05, :20, :35, :50 (10 minutes before each close)
 const thin = p => !p || p.length <= 72 ? (p || null) : p.filter((x, i) => i % Math.ceil(p.length / 72) === 0 || i === p.length - 1);
 
@@ -334,6 +348,7 @@ export function createKalshi(state, env, keep) {
     }
     // MC 2026-11-08 live orders go after the scan so the active playbook can see the whole window (how many coins qualified,
     // each coin's volatility reading). Was: order per coin inside the loop under the plain rule.
+    learnFill(now + 1);
     const c = ctl();
     if (c.enabled && hits.length) {
       const sid = stratAt(c.strat, now), lab = labDefs(cfgP).find(l => l.id === sid);
@@ -343,9 +358,9 @@ export function createKalshi(state, env, keep) {
       for (const r of hits) {
         if (offNow) { skipLive(r, `off schedule (${etHour(now)}:00 ET hour)`); continue; }
         if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hits.length; }
-        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null });
+        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) { try { await onRule(r, lab); } catch (e) { fail('order error: ' + e.message); } }
-        else skipLive(r, `${lab.name}: ${f === null ? 'no volatility reading' : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
+        else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
     }
     } finally { entryBusy = false; }
@@ -428,7 +443,7 @@ export function createKalshi(state, env, keep) {
     for (const r of rec.values()) {
       if (r.result || !(r.ask >= K.minAsk) || now > r.close + 300000) continue;   // MC 2026-11-08 keep a closed trade on the board until it settles (was dropped after 90s)
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
-      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null });
+      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
     }
     return { at: scanAt || now, open, scan, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
   }
@@ -438,8 +453,53 @@ export function createKalshi(state, env, keep) {
     await keep({ klive: kl, kview: view }, false);
   }
 
+  // ---------- self-learning ----------
+  // MC 2026-11-10 one fit per ET day, on the seed plus every settled live rule trade from earlier days. Deterministic for a day,
+  // so it is cached in memory and simply recomputed after a restart. A trade's prediction (r.lp) is frozen on its record at the
+  // trade check and never rewritten, which is what makes the Learned record honest: every number on it was made before the
+  // result existed. Records from before this shipped get the prediction that day's fit would have made (still earlier days only).
+  // Live rows inside the seed's date range predict but do not train (the seed already has them).
+  const LW = {};
+  const learnSame = () => { const m = {}; for (const r of rec.values()) if (r.ask >= 0.9 && r.result !== 'void') m[r.close + r.side] = (m[r.close + r.side] || 0) + 1; return m; };
+  const learnX = (r, same) => feats({ px: r.avgN || r.ask, z10: r.vol?.z10 ?? null, s10: r.vol?.sigma10, s15: r.vol?.sigma15, s1: r.vol?.sigma, drift: r.vol?.drift, same: Math.max(1, same[r.close + r.side] || 1) });
+  function learnW(D) {
+    if (LW[D]) return LW[D];
+    const same = learnSame(), tr = seedLoad().filter(q => q.d < D);
+    for (const r of rec.values()) { if (!(r.ask >= 0.9) || r.at <= SEED.end || !r.result || r.result === 'void' || etDay(r.close) >= D) continue; const x = learnX(r, same); if (x) tr.push({ x, o: logit(Math.min(0.99, Math.max(0.5, r.avgN || r.ask))), y: r.won ? 1 : 0 }); }
+    return LW[D] = { w: fit(tr, SEED.lam), n: tr.length };
+  }
+  function learnFill(before) {
+    let same = null;
+    for (const r of rec.values()) {
+      if (r.lp != null || r.at >= before || r.vol?.z10 == null) continue;
+      same = same || learnSame(); const x = learnX(r, same); if (!x) continue;
+      try { r.lp = +predict(learnW(etDay(r.close)).w, x, logit(Math.min(0.99, Math.max(0.5, r.avgN || r.ask)))).toFixed(4); saveRec(r); } catch (e) { say('learn error: ' + e.message); return; }
+    }
+  }
+  // what the Learning tab shows: today's fit, how its past predictions lined up with what happened, and the Learned playbook
+  // against the plain rule on trades it had not seen (four months of backfill, then live). Flat $ per trade, fee included.
+  let seedAgg = null;
+  function learnView(trades, K) {
+    try {
+      const D = etDay(Date.now()), m = learnW(D), size = K.sizeUsd, pnl = (px, y) => { const n = Math.floor(size / px); return (y ? n : 0) - n * px - fee(px, n); };
+      const mk = () => ({ n: 0, won: 0, net: 0 }), add = (b, px, y) => { b.n++; if (y) b.won++; b.net += pnl(px, y); };
+      const CB = [[0, 0.9], [0.9, 0.93], [0.93, 0.95], [0.95, 0.97], [0.97, 1.01]], calNew = () => CB.map(([lo, hi]) => ({ lo, hi, n: 0, said: 0, mkt: 0, act: 0 }));
+      const calAdd = (c, p, px, y) => { const b = c.find(b => p >= b.lo && p < b.hi); if (b) { b.n++; b.said += p; b.mkt += px; b.act += y; } };
+      const tally = () => ({ rule: mk(), learn: mk(), skip: mk(), months: {}, cal: calNew(), from: null, to: null });
+      const put = (T, at, px, y, p) => { const take = p >= needPx(px), mo = etDay(at).slice(0, 7), M = T.months[mo] = T.months[mo] || { m: mo, rule: mk(), learn: mk() }; add(T.rule, px, y); add(M.rule, px, y); if (take) { add(T.learn, px, y); add(M.learn, px, y); } else add(T.skip, px, y); calAdd(T.cal, p, px, y); T.from = T.from ?? at; T.to = at; };
+      if (!seedAgg || seedAgg.size !== size) { const T = tally(); for (const q of seedLoad()) if (q.p != null) put(T, q.at, q.px, q.y, q.p); seedAgg = { size, T }; }
+      const live = tally(); for (const t of trades) if (t.done && t.pl != null && t.t > SEED.end && t.res !== 'void') put(live, t.t, t.px, t.won ? 1 : 0, t.pl);
+      const fin = T => ({ rule: rnd(T.rule), learn: rnd(T.learn), skip: rnd(T.skip), from: T.from, to: T.to, months: Object.values(T.months).sort((a, b) => a.m < b.m ? -1 : 1).map(M => ({ m: M.m, rule: rnd(M.rule), learn: rnd(M.learn) })),
+        cal: T.cal.filter(b => b.n).map(b => ({ lo: b.lo, hi: b.hi, n: b.n, said: +(b.said / b.n).toFixed(4), mkt: +(b.mkt / b.n).toFixed(4), act: +(b.act / b.n).toFixed(4) })) });
+      const rnd = b => ({ n: b.n, won: b.won, net: +b.net.toFixed(2) });
+      const today = trades.filter(t => etDay(t.close) === D && t.pl != null).slice(-40).reverse().map(t => ({ tk: t.tk, t: t.t, coin: t.coin, side: t.side, px: t.px, p: t.pl, need: +needPx(t.px).toFixed(4), take: t.pl >= needPx(t.px), done: t.done, won: t.won }));
+      return { day: D, n: m.n, seedN: seedLoad().length, liveN: m.n - seedLoad().filter(q => q.d < D).length, w: LEARN_F.map((k, i) => ({ k, name: LEARN_NAME[k], v: m.w[i] })), size, hist: fin(seedAgg.T), live: fin(live), today };
+    } catch (e) { return { err: e.message }; }
+  }
+
   // ---------- the Kalshi tab (same shape as notify.js kalshiView) ----------
   function kalshiView() {
+    learnFill(Date.now() - 90000);
     const K = cfgP, rows = [...rec.values()].sort((a, b) => a.at - b.at), sum = l => +l.reduce((a, t) => a + t.pnl, 0).toFixed(2);
     const H = [], net30 = (c, at) => { let x = 0, k = 0; for (const h of H) if (h.coin === c && h.close <= at && h.close > at - K.coldDays * 86400000) { x += h.pnl; k++; } return { x, k }; };
     const perWin = {}, dayNet = {}, dayPeak = {}, stopDay = {}, trades = [], labs0 = labDefs(K), winN = {};
@@ -475,12 +535,12 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, sid = stratAt(K.strat, r.at), lab = sid === 'rule' ? null : labs0.find(l => l.id === sid);
       while (kI < kQ.length && kQ[kI].close <= r.at) { kAdd(kS, kQ[kI].px, kQ[kI].won); kI++; }
       const ko = kOf(kS, px);
-      const f = lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: ko.kf }) : true, strat = f !== true ? sid : null;
+      const f = lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
       const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }, { peak, start: K.startUsd }) : K.sizeUsd;
       const off = (K.skipHours || []).includes(etHour(r.at)), capped = perWin[w] > K.maxPerWindow || halted || cold || off || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
-      const t = { tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? 'no volatility reading' : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+      const t = { tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         tk: r.ticker, left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
-        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null };
+        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
       if (r.result) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
       if (!capped && r.result) { t.pnl = +((r.won ? n : 0) - cost).toFixed(2); dayNet[dk] = (dayNet[dk] || 0) + t.pnl; dayPeak[dk] = Math.max(dayPeak[dk], dayNet[dk]); if (inRun) { bal += t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); } }
@@ -531,7 +591,7 @@ export function createKalshi(state, env, keep) {
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
       eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
-      pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
+      learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 

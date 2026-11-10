@@ -1,5 +1,10 @@
 # What's new
 
+## 1.0.34 (Nov 10, 2026)
+- Self-learning. A small model now refits every morning on every settled trade, starting from four months of history (about 7,900 trades with Coinbase readings). It begins from Kalshi's own price and learns only where that price has been wrong. Each trade's win chance is fixed at the trade check, before the result exists, so its record is only ever on trades it had not seen.
+- New Learning page: what the model has learned in plain words, whether its calls matched what happened, Learned against the plain rule month by month, and today's calls.
+- New playbook in Labs, Learned: buys only when the model's win chance beats the price plus the fee plus 1¢. It never switches itself on. Trade details show the model's reading.
+
 ## 1.0.33 (Nov 10, 2026)
 - New playbook, Margin vs volatility v2: the same 1-move bar, but the typical 10-minute move is measured directly from the last 5 hours of 10-minute price changes on Coinbase instead of scaled up from 1-minute moves, which overstated it and skipped trades that kept winning. Trade details and live cards show the new reading.
 
