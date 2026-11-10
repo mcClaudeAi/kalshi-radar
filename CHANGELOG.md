@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.32 (Nov 10, 2026)
+- Daily profit target (request R-2): in Settings under Stops, set an amount and trading stops for the day once today is up that much. Off by default. Applies to paper, labs and live.
+
 ## 1.0.31 (Nov 10, 2026)
 - New playbook, Beats the market v2: like Beats the market, but it uses the larger of the last hour's and the last 15 minutes' volatility, so a swing that just started counts, and it takes half of any slide back toward the target in the last 5 minutes off the margin. Trade details and live cards show its reading.
 - Labs: the chart legend is now a filter bar. Tap to show or hide a line, double-click or press and hold to show only that one against the rule, and All or None. Your choice is remembered on that device.
