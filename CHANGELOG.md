@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.28 (Nov 10, 2026)
+- Live board badges wrap inside the card on phones instead of running off the edge.
+
 ## 1.0.27 (Nov 10, 2026)
 - Live board: each open trade says whether it is in your book (green) or was passed by your playbook (amber, dashed card), and why, including the volatility check's numbers.
 
