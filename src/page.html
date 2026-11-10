@@ -16,11 +16,11 @@
  --r:14px;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;
  --bg:#f4f5f7;--s1:#ffffff;--s2:#f7f8fa;--s3:#eef0f3;--line:#e4e7ec;--line2:#d6dae1;
- --ink:#0d1117;--ink2:#2f3742;--mute:#5d6775;--faint:#8b94a1;
+ --ink:#0d1117;--ink2:#2f3742;--mute:#5d6775;--faint:#6a7382;
  --kx:#0f9d63;--kolc:#a86f00;--proven:#2a78d6;--trial:#eb6834;--total:#0d1117;--good:#0f8a3c;--bad:#c93636;--warn:#a86f00;--accent:#4a5bd6}}
 :root[data-theme="light"]{color-scheme:light;
  --bg:#f4f5f7;--s1:#ffffff;--s2:#f7f8fa;--s3:#eef0f3;--line:#e4e7ec;--line2:#d6dae1;
- --ink:#0d1117;--ink2:#2f3742;--mute:#5d6775;--faint:#8b94a1;
+ --ink:#0d1117;--ink2:#2f3742;--mute:#5d6775;--faint:#6a7382;
  --kx:#0f9d63;--kolc:#a86f00;--proven:#2a78d6;--trial:#eb6834;--total:#0d1117;--good:#0f8a3c;--bad:#c93636;--warn:#a86f00;--accent:#4a5bd6}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -491,13 +491,13 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
  --sh1:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px rgba(0,0,0,.3);--sh2:0 30px 80px rgba(0,0,0,.55);--side:232px;--topH:64px}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;
  --bg:#eef1f8;--s1:#ffffff;--s2:#f5f7fc;--s3:#e9edf6;--line:rgba(40,60,120,.12);--line2:rgba(40,60,120,.22);
- --ink:#0f1630;--ink2:#2c3656;--mute:#5d6a8c;--faint:#8b96b3;
- --kx:#0087c4;--accent:#5b4de0;--good:#0f9a6a;--bad:#d8325a;--warn:#b86b00;--kolc:#b86b00;--proven:#0087c4;--trial:#d85a2a;--total:#0f1630;
+ --ink:#0f1630;--ink2:#2c3656;--mute:#55628a;--faint:#66718c;
+ --kx:#0073a8;--accent:#5245d1;--good:#0b7f57;--bad:#c6294d;--warn:#9d5c00;--kolc:#9d5c00;--proven:#0073a8;--trial:#c24e22;--total:#0f1630;
  --glow:0 1px 0 rgba(255,255,255,.6) inset,0 16px 40px -20px rgba(20,30,80,.25);--sh1:0 10px 30px rgba(20,30,80,.08);--sh2:0 30px 80px rgba(20,30,80,.22)}}
 :root[data-theme="light"]{color-scheme:light;
  --bg:#eef1f8;--s1:#ffffff;--s2:#f5f7fc;--s3:#e9edf6;--line:rgba(40,60,120,.12);--line2:rgba(40,60,120,.22);
- --ink:#0f1630;--ink2:#2c3656;--mute:#5d6a8c;--faint:#8b96b3;
- --kx:#0087c4;--accent:#5b4de0;--good:#0f9a6a;--bad:#d8325a;--warn:#b86b00;--kolc:#b86b00;--proven:#0087c4;--trial:#d85a2a;--total:#0f1630;
+ --ink:#0f1630;--ink2:#2c3656;--mute:#55628a;--faint:#66718c;
+ --kx:#0073a8;--accent:#5245d1;--good:#0b7f57;--bad:#c6294d;--warn:#9d5c00;--kolc:#9d5c00;--proven:#0073a8;--trial:#c24e22;--total:#0f1630;
  --glow:0 1px 0 rgba(255,255,255,.6) inset,0 16px 40px -20px rgba(20,30,80,.25);--sh1:0 10px 30px rgba(20,30,80,.08);--sh2:0 30px 80px rgba(20,30,80,.22)}
 html,body{font-family:"Sora",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.45;letter-spacing:-.004em}
 body{background:var(--bg);position:relative;font-variant-numeric:tabular-nums}
@@ -614,7 +614,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .kx-race svg{width:100%;height:100%;display:block;overflow:visible}
 /* MC 2026-11-07 hover readout on the labs race: a crosshair plus every lab's balance at that moment, biggest first */
 .kx-race .kx-rx{position:absolute;top:12px;bottom:26px;width:0;border-left:1px dashed var(--kx);opacity:.7;pointer-events:none;display:none}
-.kx-rtip{position:absolute;z-index:3;min-width:170px;padding:9px 11px;border-radius:10px;background:rgba(8,12,24,.94);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:12px;pointer-events:none;display:none;backdrop-filter:blur(8px)}
+/* MC 2026-11-09 chart tooltips had a hard-coded dark background, so in the light theme the dark text vanished; now a theme surface */
+.kx-rtip{position:absolute;z-index:3;min-width:170px;padding:9px 11px;border-radius:10px;background:color-mix(in srgb,var(--s1) 94%,transparent);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:12px;pointer-events:none;display:none;backdrop-filter:blur(8px)}
 .kx-rtip .kx-rtt{color:var(--mute);font-size:11px;margin-bottom:6px;white-space:nowrap}
 .kx-rtip div.kx-rtr{display:flex;align-items:center;gap:7px;line-height:1.7;white-space:nowrap}.kx-rtip .kx-rtr i{width:8px;height:8px;border-radius:50%;flex:none}
 .kx-rtip .kx-rtr span{color:var(--mute);flex:1}.kx-rtip .kx-rtr b{font-family:'JetBrains Mono',monospace;font-weight:600}
@@ -782,6 +783,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .btn.golive small{font:700 12px 'JetBrains Mono',monospace;letter-spacing:0;text-transform:none;opacity:.95}.btn.golive.on small{color:#fff!important}
 @keyframes glPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}100%{box-shadow:0 0 0 9px rgba(255,255,255,0)}}
 /* MC 2026-11-09 the go-live button's pale pink text vanished on the light theme */
+:root[data-theme="light"] .btn.pri,:root[data-theme="light"] .chip[aria-pressed="true"],:root[data-theme="light"] .kp-btn.on{color:#fff}
 :root[data-theme="light"] .btn.golive:not(.on){color:#b3121f;background:linear-gradient(180deg,rgba(255,77,94,.16),rgba(255,77,94,.06))}
 @media(max-width:760px){.btn.golive{height:38px;padding:0 12px;font-size:11.5px}.btn.golive small{display:none}}
 @media (prefers-reduced-motion:reduce){.btn.golive.on .gl-dot{animation:none}}
@@ -828,7 +830,8 @@ html,body,button,a,[data-tab],.nv,.kp,.kx-seg button,.ck-coin,.bnav button{touch
 @media(min-width:1680px) and (max-width:2199px){.kx-home .kx-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* MC 2026-11-08 plug-and-play edition: setup and sign-in screens, Connections tab */
 body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
-#kgate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;overflow:auto}
+/* MC 2026-11-09 the setup and sign-in screens are dark by design, so they carry their own palette and stay readable when the light theme is saved */
+#kgate{--bg:#04060d;--s1:#0b1020;--s2:#0e1426;--s3:#121a30;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--ink:#eef2ff;--ink2:#c5cfe6;--mute:#8b96b3;--faint:#6e7a99;color:var(--ink);color-scheme:dark;position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;overflow:auto}
 .kg-bg{position:fixed;inset:0;z-index:-1;background:radial-gradient(900px 500px at 20% -10%,rgba(79,209,255,.16),transparent 60%),radial-gradient(800px 500px at 110% 110%,rgba(155,140,255,.14),transparent 60%),#04060d}
 .kg-bg:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(circle at 50% 40%,#000,transparent 75%)}
 .kg-card{width:min(520px,100%);padding:30px 28px;border-radius:24px;border:1px solid rgba(255,255,255,.09);background:linear-gradient(180deg,rgba(16,22,40,.82),rgba(7,10,20,.9));backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06)}
@@ -2958,7 +2961,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.20',KR_DATE='Nov 9, 2026';
+const KR_VERSION='1.0.21',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.21 (Nov 9, 2026)
+- Light theme pass over every page: chart tooltips, secondary text, accent colours and primary buttons all meet a 4.5:1 contrast now. The sign-in and setup screens keep their dark look in both themes.
+
 ## 1.0.20 (Nov 9, 2026)
 - Light theme fixes: the Analytics stat tiles were unreadable, the Cockpit is now always its own dark instrument panel with light text, and the Go live button has proper contrast.
 
