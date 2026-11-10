@@ -944,6 +944,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @media(min-width:1680px){.kx-home2 .kx-home{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 </style>
 <style id="kpb">
+.kx-atchk{font-size:12px;color:var(--mute);margin:-2px 0 10px}.kx-atchk b{color:var(--ink);font-family:var(--mono);font-weight:600}
 /* MC 2026-11-10 the badge ran past the card on phones (nowrap on a long volatility line); it now wraps inside the card */
 .kx-pbtag{display:inline-flex;align-items:flex-start;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:12px;border:1px solid var(--line);white-space:normal;line-height:1.35;max-width:100%;margin-left:2px}
 .kx-pbtag::before{flex:none;margin-top:4px}
@@ -1876,9 +1877,16 @@ const kxWinZ=z=>kxPhi(z*Math.sqrt(10/(10-2/3))),kxNeed=p=>p+.07*p*(1-p)+.01;
 // lowering the 20; that still misread the size of a move, because 60-second gaps were scored as 10-second ones. Now every gap is
 // scaled to a per-minute move by its own length, and if there is still too little to measure, a typical crypto minute (0.06%)
 // stands in, so the number always shows.
+// MC 2026-11-10 live win chance read 15-20 points under Kalshi on every card: it measured volatility from 15 minutes of raw ticks
+// and then added 20% on top, so it saw every wiggle as risk. It now uses the same measure the tracker decides on, the spread of
+// 1-minute Coinbase closes over the last hour, refreshed each minute. The tick method stays as the fallback, without the 20%.
+KX.v1h=KX.v1h||{};
+function kxVol1h(c){const v=KX.v1h[c],now=Date.now();if(v&&now-v.at<60000)return v.sigma;if(v?.busy||!KXPID[c])return v?.sigma??null;KX.v1h[c]={...(v||{}),busy:true};
+  kxGet(`https://api.exchange.coinbase.com/products/${KXPID[c]}/candles?granularity=60`).then(r=>r.ok?r.json():null).then(j=>{const rows=(j||[]).slice(0,61).sort((a,b)=>a[0]-b[0]);if(rows.length<20){KX.v1h[c]={...(KX.v1h[c]||{}),busy:false,at:Date.now()-45000};return}
+    const rets=[];for(let i=1;i<rows.length;i++)rets.push(Math.log(rows[i][4]/rows[i-1][4]));const m=rets.reduce((a,b)=>a+b,0)/rets.length,sg=Math.sqrt(rets.reduce((a,b)=>a+(b-m)**2,0)/rets.length);KX.v1h[c]={sigma:sg,at:Date.now(),busy:false}}).catch(()=>{KX.v1h[c]={...(KX.v1h[c]||{}),busy:false,at:Date.now()-45000}});return v?.sigma??null}
 function kxWinP(c,W,side){if(!W||W.strike==null||W.close==null)return null;const now=Date.now(),S=W.open!=null?kxSeries(c,W.open):(KX.px[c]?.ticks||[]),px=KX.px[c]?.last??S.at(-1)?.[1];if(px==null)return null;
   const tail=S.filter(p=>p[0]>=now/1000-900),d=[];for(let i=0;i<tail.length;i++){const j=tail.findIndex((q,k)=>k>i&&q[0]>=tail[i][0]+10);if(j<0)break;const dt=tail[j][0]-tail[i][0];if(dt<=180)d.push((tail[j][1]-tail[i][1])/Math.sqrt(dt/60));i+=Math.max(0,j-i-1)}
-  let sig=px*.0006;if(d.length>=4){const m=d.reduce((a,b)=>a+b,0)/d.length;sig=Math.max(Math.sqrt(d.reduce((a,b)=>a+(b-m)**2,0)/(d.length-1))*1.2,px*.0002)}
+  const s1=kxVol1h(c);let sig=px*.0006;if(s1>0)sig=px*s1;else if(d.length>=4){const m=d.reduce((a,b)=>a+b,0)/d.length;sig=Math.max(Math.sqrt(d.reduce((a,b)=>a+(b-m)**2,0)/(d.length-1)),px*.0002)}
   const tau=(W.close-now)/60000,tgt=W.strike;let mean,sd;
   if(tau<=0){const a=kxAvg60(c,W.close);if(a==null)return null;const w=side==='yes'?a>=tgt:a<tgt;return {p:w?.995:.005,done:true}}
   if(tau>=1){mean=px;sd=sig*Math.sqrt(tau-2/3)}else{const lo=Math.floor((W.close-60000)/1000),r=S.filter(p=>p[0]>=lo),mr=r.length?r.reduce((a,p)=>a+p[1],0)/r.length:px,e=1-tau;mean=e*mr+tau*px;sd=sig*Math.sqrt(tau**3/3)}
@@ -1985,7 +1993,7 @@ function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,open=kxO
   const sig=open.map(o=>o.tk).join(',');
   if(el.dataset.sig!==sig){el.dataset.sig=sig;
     el.innerHTML=open.length?open.map(o=>`<div class="kx-pos ${kxPbOf(o)?.cls==='out'?'kx-passed':''}" data-tk="${esc(o.tk)}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span><span data-k="pb">${kxPbTag(o)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
-      <div class="kx-pm"><span>Target<b>${kxFmt(o.strike,o.strike)}</b></span><span>Now<b data-k="px">–</b></span><span>Margin<b data-k="mg">–</b></span><span>60s avg<b data-k="avg">–</b></span><span class="kx-wp">Win chance<b data-k="wp">–</b><small data-k="wpk"></small></span></div>
+      <div class="kx-pm"><span>Target<b>${kxFmt(o.strike,o.strike)}</b></span><span>Now<b data-k="px">–</b></span><span>Margin<b data-k="mg">–</b></span><span>60s avg<b data-k="avg">–</b></span><span class="kx-wp">Win chance<b data-k="wp">–</b><small data-k="wpk"></small></span></div>${o.z!=null?`<div class="kx-atchk">At the trade check: <b>${Number(o.z).toFixed(2)} moves</b> past the target, win chance <b>${(kxWinZ(Number(o.z))*100).toFixed(0)}%</b> against ${Math.round(o.px*100)}¢ paid</div>`:''}
       <div class="kx-cvw"><canvas class="kx-cv"></canvas></div>
       <div class="kx-pf"><span>Kalshi now <b data-k="kp">${o.ya!=null?(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢':'–'}</b></span><span class="kx-spw" data-k="sp">${kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}</span><span class="kx-pay">pays $${o.n}.00 · <span class="pos">+$${(o.n-o.cost).toFixed(2)}</span> if ${o.side.toUpperCase()}, <span class="neg">-$${Number(o.cost).toFixed(2)}</span> if not</span></div></div>`).join('')
     :`<div class="kx-none"><div class="kx-tl" id="kxtl"></div><div class="note" style="margin-top:12px">Nothing open. The tracker takes a market at the trade check when its leader costs ${Math.round((c.minAsk||.9)*100)}¢ or more.</div></div>`}
@@ -2994,7 +3002,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.29',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.30',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

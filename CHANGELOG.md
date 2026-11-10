@@ -1,5 +1,9 @@
 # What's new
 
+## 1.0.30 (Nov 10, 2026)
+- Live win chance now uses the same volatility measure the tracker decides on (an hour of 1-minute Coinbase prices), without the extra safety margin, so it no longer reads well under Kalshi on every card.
+- Each live card shows what the trade looked like at the trade check: moves past the target and the win chance then, against the price paid.
+
 ## 1.0.29 (Nov 10, 2026)
 - New playbook, Beats the market: turns the volatility reading into a win chance and only buys when that beats Kalshi's price plus the fee and a cent. Trade details and live board badges show our win chance against what was needed.
 - Fix: the Win chance shown on open trades read about 3 points high in the middle of its range.
