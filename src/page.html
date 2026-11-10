@@ -2286,7 +2286,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
   const roll=(K.roll||[]).slice(-60);
   const P={hero:`<section class="kx-hero2" style="--hero:${K.net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
    <div class="kx-hd"><div><div class="kx-eyebrow">Kalshi 15-minute crypto, running in the cloud</div>
-     <div class="kx-big"><div><div class="kx-ml">Paper bank</div><div class="kx-bal">${'$'+Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kx-big2"><div class="kx-ml">Today</div><b class="${cls(todayNet)}">${usd(todayNet)}</b><small>${K.today?.n||0} trades, ${K.today?.won||0} won${stopPct>=1?' · stop hit':''}</small></div></div>
+     <div class="kx-big"><div><div class="kx-ml">Paper bank</div><div class="kx-bal">${'$'+Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kx-big2"><div class="kx-ml">Today</div><b class="${cls(todayNet)}">${usd(todayNet)}</b><small>${K.today?.n||0} trades, ${K.today?.won||0} won${K.today?.passed?`, ${K.today.passed} passed${K.today.pWon+K.today.pLost?` (${K.today.pWon}-${K.today.pLost})`:''}`:''}${stopPct>=1?' · stop hit':''}</small></div></div>
      <div class="kx-sub"><b class="${cls(K.net)}">${usd(K.net)}</b> on $${Number(start).toLocaleString('en-US')} since ${K.since?dd(K.since):'the start'}. ${n0(K.n)} trades, ${K.n?Math.round(wr*1000)/10+'% won':'none settled yet'}${K.inPlay?`, $${Number(K.inPlay).toFixed(0)} in play right now`:''}.</div></div>
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
    <div class="kx-st">
@@ -2972,7 +2972,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.25',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.26',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

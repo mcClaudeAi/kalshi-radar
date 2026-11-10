@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.26 (Nov 10, 2026)
+- Home's Today line shows what your playbook passed on and how those would have gone, like "2 trades, 2 won, 4 passed (3-1)".
+
 ## 1.0.25 (Nov 10, 2026)
 - Each trade's detail now shows its volatility check: how far past the target the coin was, what a normal 10-minute move was at the time, and how many moves clear that is (the check needs 1). So a trade skipped by the volatility playbooks says why.
 
