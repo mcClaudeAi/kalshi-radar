@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.16 (Nov 9, 2026)
+- Settings redesigned: section cards with a side navigation, each setting on one row with its control beside it, How it works panels that stay open, and a save bar that shows when you have unsaved changes with a Discard button. The page no longer refreshes under you while you are editing.
+
 ## 1.0.15 (Nov 9, 2026)
 - Settings are grouped (the basics, stops, Your mix, schedule) and every setting has a How it works you can open, with a worked example of what it does.
 
