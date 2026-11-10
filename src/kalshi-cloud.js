@@ -135,8 +135,8 @@ function walk(asks, n) { let left = n, cost = 0; for (const [p, q] of asks) { co
 async function volAt(c, strike, side) {
   const pid = CBPID[c]; if (!pid || !(strike > 0)) return null;
   try {
-    const H = { accept: 'application/json', 'user-agent': 'curve-radar', 'cache-control': 'no-cache' };
-    const r = await fetch(`https://api.exchange.coinbase.com/products/${pid}/candles?granularity=60&_=${Date.now()}`, { headers: H, cf: { cacheTtl: 0 } });
+    const H = { accept: 'application/json', 'user-agent': 'curve-radar' };
+    const r = await fetch(`https://api.exchange.coinbase.com/products/${pid}/candles?granularity=60&_=${Date.now()}`, { headers: H });
     if (!r.ok) return null;
     const all = (await r.json()).slice(0, 300).sort((a, b) => a[0] - b[0]);   // oldest first: [time, low, high, open, close, volume]
     const rows = all.slice(-61); if (rows.length < 20) return null;
@@ -144,9 +144,15 @@ async function volAt(c, strike, side) {
     // target is the price at the window's open, so a margin of exactly zero is what a candle list five minutes behind looks like.
     // The request now asks for an uncached copy, the age of the newest candle is saved on the reading, and when it is more than
     // 2 minutes old the price comes from the live ticker instead (the candles still supply the volatility). If the ticker fails
-    // too there is no reading: a stale margin is worse than none.
+    // too the reading is kept but marked stale, and the repair pass rebuilds it from history a few minutes later. Checked from
+    // Actions the same evening: the plain candles URL came back 3 minutes behind, the same URL with a throwaway query was current.
     const age = Math.round(Date.now() / 1000 - rows[rows.length - 1][0]); let px = rows[rows.length - 1][4], src = 'candle';
-    if (age > 120) { const t = await fetch(`https://api.exchange.coinbase.com/products/${pid}/ticker?_=${Date.now()}`, { headers: H, cf: { cacheTtl: 0 } }); const j = t.ok ? await t.json() : null; if (!(Number(j?.price) > 0)) return null; px = Number(j.price); src = 'ticker'; }
+    if (age > 120) { src = 'stale'; try { const t = await fetch(`https://api.exchange.coinbase.com/products/${pid}/ticker?_=${Date.now()}`, { headers: H }); const j = t.ok ? await t.json() : null; if (Number(j?.price) > 0) { px = Number(j.price); src = 'ticker'; } } catch { } }
+    return volCalc(all, rows, px, strike, side, age, src);
+  } catch { return null; }
+}
+// the arithmetic, shared by the live reading and the repair pass
+function volCalc(all, rows, px, strike, side, age, src) {
     const rets = []; for (let i = 1; i < rows.length; i++) rets.push(Math.log(rows[i][4] / rows[i - 1][4]));
     const m = rets.reduce((a, b) => a + b, 0) / rets.length, sigma = Math.sqrt(rets.reduce((a, b) => a + (b - m) ** 2, 0) / rets.length);
     const margin = (side === 'yes' ? px - strike : strike - px) / strike, z = sigma > 0 ? margin / (sigma * Math.sqrt(10)) : null;
@@ -164,7 +170,19 @@ async function volAt(c, strike, side) {
     let z10 = null, sigma10 = null; const k10 = []; for (let i = 10; i < all.length; i++) if (all[i][0] - all[i - 10][0] === 600) k10.push(Math.log(all[i][4] / all[i - 10][4]));
     if (k10.length >= 110) { sigma10 = Math.sqrt(k10.reduce((a, b) => a + b * b, 0) / k10.length); z10 = sigma10 > 0 ? +(margin / sigma10).toFixed(2) : null; }
     return { px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2), sigma10: sigma10 == null ? null : +sigma10.toExponential(3), z10, age, src };
-  } catch { return null; }
+}
+
+
+// MC 2026-11-10 the same reading rebuilt from Coinbase's history for a past trade check: candles up to the minute before `at`.
+// Used to repair readings taken from a stale candle list, and to give older trades the 10-minute measure they never had.
+async function volPast(c, strike, side, at) {
+  const pid = CBPID[c]; if (!pid || !(strike > 0)) return null;
+  const end = Math.floor(at / 60000) * 60 - 60, iso = t => new Date(t * 1000).toISOString();
+  const r = await fetch(`https://api.exchange.coinbase.com/products/${pid}/candles?granularity=60&start=${iso(end - 299 * 60)}&end=${iso(end)}`, { headers: { accept: 'application/json', 'user-agent': 'curve-radar' } });
+  if (!r.ok) throw new Error('coinbase ' + r.status);
+  const all = (await r.json()).filter(k => k[0] <= end).sort((a, b) => a[0] - b[0]), rows = all.slice(-61);
+  if (rows.length < 20 || end - rows[rows.length - 1][0] > 180) return null;
+  return volCalc(all, rows, rows[rows.length - 1][4], strike, side, 0, 'history');
 }
 
 // ---------- request signing (WebCrypto) ----------
@@ -394,6 +412,7 @@ export function createKalshi(state, env, keep) {
       if (r && !r.result && r.ask >= K.minAsk) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); }
     }
     scan = out; scanAt = now;
+    if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     // live account upkeep
     const c = ctl();
@@ -459,6 +478,42 @@ export function createKalshi(state, env, keep) {
     const kl = JSON.stringify(kliveBody());
     if (viewDirty || !view || Date.now() - viewAt > 120000) { view = JSON.stringify(kalshiView()); viewDirty = false; viewAt = Date.now(); }
     await keep({ klive: kl, kview: view }, false);
+  }
+
+  // ---------- repair of stale volatility readings ----------
+  // MC 2026-11-10 before 1.0.39 a reading could come from a Coinbase candle list minutes behind (an XRP trade read 0.000% from its
+  // target with Kalshi at 92c). Those readings carry no age, so they are found by what they claimed: any un-aged reading whose
+  // win chance sat 15 points or more under the price paid is rebuilt from Coinbase's history for that minute. If the rebuilt
+  // margin differs by more than a third of a typical 10-minute move the reading is replaced (the old numbers are kept under
+  // `was`), the Learned call is redone from that morning's fit, and every playbook re-judges the trade on the next view, paper
+  // bank included. Readings that hold up are marked checked. A probe that evening showed the plain candles URL running about
+  // 3 minutes behind as a matter of course, so after the suspects every other un-aged reading is rechecked the same way, newest
+  // first, and older trades with no 10-minute measure get one (v2 and Learned then reach back as far as the readings do).
+  // Eight a minute from the cron tick, kept away from the trade check, three tries each.
+  let fixAt = 0;
+  async function volRepair(now, max = 8) {
+    if (now - fixAt < 50000) return; fixAt = now;
+    const sus = [], none = [], old = [], rest = [];
+    for (const r of rec.values()) { const v = r.vol;
+      // no reading at all (Coinbase did not answer at the check): rebuild it from history, within the last week
+      if (!v) { if (r.ask >= KEEP_ASK && r.strike > 0 && (r.vtry || 0) < 3 && r.at < now - 120000 && r.at > now - 7 * 86400000) none.push(r); continue; }
+      if ( (v.age != null && v.src !== 'stale') || v.chk || v.fixed || (v.try || 0) >= 3 || !(r.strike > 0) || r.at > now - 120000) continue;
+      const zz = v.z10 ?? v.z; if (v.src === 'stale' || (zz != null && winP(zz) < (r.avgN || r.ask) - 0.15)) sus.push(r); else if (v.z10 == null) old.push(r); else rest.push(r); }
+    const todo = [...sus.sort((a, b) => b.at - a.at), ...none.sort((a, b) => b.at - a.at), ...rest.sort((a, b) => b.at - a.at), ...old.sort((a, b) => b.at - a.at)].slice(0, max); if (!todo.length) return;
+    let fixed = 0;
+    for (const r of todo) {
+      const v = r.vol;
+      try {
+        const n = await volPast(coin(r.series), r.strike, r.side, r.at);
+        if (!v) { if (n) { r.vol = { ...n, fixed: 1 }; delete r.lp; fixed++; } else r.vtry = (r.vtry || 0) + 1; saveRec(r); viewDirty = true; continue; }
+        if (!n) { v.try = (v.try || 0) + 1; if (v.try >= 3) v.chk = 1; saveRec(r); continue; }
+        const typ = n.sigma10 || n.sigma * Math.sqrt(10), moved = Math.abs(n.margin - v.margin) > typ / 3;
+        if (moved) { r.vol = { ...n, fixed: 1, was: { px: v.px, margin: v.margin, z: v.z, z10: v.z10 ?? null } }; delete r.lp; fixed++; }
+        else r.vol = { ...v, sigma15: v.sigma15 ?? n.sigma15, drift: v.drift ?? n.drift, z2: v.z2 ?? n.z2, sigma10: v.sigma10 ?? n.sigma10, z10: v.z10 ?? (n.sigma10 > 0 ? +(v.margin / n.sigma10).toFixed(2) : null), chk: 1 };
+        saveRec(r); viewDirty = true;
+      } catch (e) { if (v) v.try = (v.try || 0) + 1; else r.vtry = (r.vtry || 0) + 1; saveRec(r); break; }
+    }
+    if (fixed) { for (const k of Object.keys(LW)) delete LW[k]; say(`volatility readings: ${fixed} corrected from Coinbase history`); }
   }
 
   // ---------- self-learning ----------
@@ -548,7 +603,7 @@ export function createKalshi(state, env, keep) {
       const off = (K.skipHours || []).includes(etHour(r.at)), capped = perWin[w] > K.maxPerWindow || halted || cold || off || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
       const t = { tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         tk: r.ticker, left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
-        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
+        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
       if (r.result) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
       if (!capped && r.result) { t.pnl = +((r.won ? n : 0) - cost).toFixed(2); dayNet[dk] = (dayNet[dk] || 0) + t.pnl; dayPeak[dk] = Math.max(dayPeak[dk], dayNet[dk]); if (inRun) { bal += t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); } }
@@ -599,7 +654,7 @@ export function createKalshi(state, env, keep) {
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
       eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
-      learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
+      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.try || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vtry || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 
@@ -707,5 +762,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { volRepair, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

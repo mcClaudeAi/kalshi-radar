@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.40 (Nov 10, 2026): Past volatility readings rechecked
+Readings taken from an out-of-date Coinbase price are rebuilt from its history, and every playbook re-judges those trades.
+- [fixed] Coinbase's price list was coming back about 3 minutes behind, so past volatility readings were measured from an old price. The tracker now rechecks every earlier reading against Coinbase's price history, a few each minute, newest and most suspicious first. A reading that was off is replaced, and the volatility playbooks, Beats the market and Learned re-judge that trade, in Labs and in your paper bank. Trades that had no reading at all get one.
+- [improved] Older trades gain the 10-minute measure during the recheck, so Margin vs volatility v2 and Learned have a record going back as far as the readings do.
+- [improved] The Labs chart caption shows how many readings were corrected and how many are left, and a corrected trade says so in its details.
+- [fixed] Live readings stay fresh: the request that returns the current price is kept, and if Coinbase is behind anyway the reading is marked and rechecked instead of dropped.
+
 ## 1.0.39 (Nov 10, 2026): No more stale volatility readings
 The volatility check now refuses a Coinbase price that is behind, and shows the price it used.
 - [fixed] A trade could read exactly 0.000% from its target when Coinbase's candle list came back several minutes behind, so the volatility playbooks and Learned passed on a trade that was well clear. The check now asks for an uncached copy, uses the live ticker when the newest candle is over 2 minutes old, and takes no reading at all if both fail.
