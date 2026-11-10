@@ -1,4 +1,7 @@
 {
-  "updated": "Nov 9, 2026",
-  "items": []
+  "updated": "Nov 10, 2026",
+  "items": [
+    { "id": 2, "text": "Add a daily profit lockout: stop trading once the day hits a profit target, so a good day isn't given back.", "status": "released", "version": "1.0.32", "note": "Settings, Stops: Daily profit target. Over the four months to Nov 9 a low target cost a lot of profit ($25 a day kept almost nothing), while $200 a day came out a little ahead of no target. Test it on paper before trusting it." },
+    { "id": 1, "text": "Inbox test", "status": "hidden", "note": "" }
+  ]
 }
