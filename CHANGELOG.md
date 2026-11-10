@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.17 (Nov 9, 2026)
+- Paper runs. Settings has a Start a new paper run button: the bank goes back to the starting bank from that moment and only new trades count toward the bank, win rate, chart and today. Earlier trades stay in Trades and Analytics as the previous run. Count everything again undoes it.
+
 ## 1.0.16 (Nov 9, 2026)
 - Settings redesigned: section cards with a side navigation, each setting on one row with its control beside it, How it works panels that stay open, and a save bar that shows when you have unsaved changes with a Discard button. The page no longer refreshes under you while you are editing.
 
