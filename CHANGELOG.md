@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.38 (Nov 10, 2026): New playbooks show on the Labs chart
+A playbook that has judged trades but not taken one yet no longer goes missing.
+- [fixed] The Labs chart left out any playbook with fewer than two taken trades, so a new one (Margin vs volatility v2, Beats the market v2, Learned) looked like it was not logging. It now draws from its first judged trade, flat at $0 until it takes one.
+
 ## 1.0.37 (Nov 10, 2026): A Labs chart you can read
 Every line starts at $0 from the same moment, so the gap between two lines is the real difference.
 - [improved] Labs chart redrawn. It now shows profit since one shared start instead of each line's own balance from its own start date, which had the rule sitting hundreds of dollars from playbooks that began later. Lines step at each settled trade, the grid uses round numbers, and each line ends in its name and total. The plain rule is dashed and your paper playbook is the heavy line.
