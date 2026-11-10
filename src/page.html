@@ -611,16 +611,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .kx-labs{position:relative;border-radius:26px;border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--s1) 92%,transparent),color-mix(in srgb,var(--s2) 80%,transparent));box-shadow:var(--glow);padding:22px 22px 18px;overflow:hidden}
 .kx-labs::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(50% 70% at 100% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%)}
 .kx-labs>*{position:relative}
-.kx-race{position:relative;height:300px;margin-top:6px;touch-action:pan-y}
+.kx-race{position:relative;height:340px;margin-top:6px;touch-action:pan-y}
+.kx-rtop{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:18px}.kx-rcap b{display:block;font-size:14.5px;color:var(--ink);font-weight:700}.kx-rcap span{display:block;font-size:12px;color:var(--mute);margin-top:3px;line-height:1.45;max-width:640px}
+.kx-rg{display:flex;gap:2px;padding:3px;border-radius:99px;background:color-mix(in srgb,var(--ink) 6%,transparent);flex:none}.kx-rg button{all:unset;cursor:pointer;font-size:12px;font-weight:600;color:var(--mute);padding:6px 12px;border-radius:99px;white-space:nowrap}.kx-rg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .kx-race svg{width:100%;height:100%;display:block;overflow:visible}
 /* MC 2026-11-07 hover readout on the labs race: a crosshair plus every lab's balance at that moment, biggest first */
-.kx-race .kx-rx{position:absolute;top:12px;bottom:26px;width:0;border-left:1px dashed var(--kx);opacity:.7;pointer-events:none;display:none}
+.kx-race .kx-rx{position:absolute;top:14px;bottom:28px;width:0;border-left:1px dashed var(--kx);opacity:.7;pointer-events:none;display:none}
 /* MC 2026-11-09 chart tooltips had a hard-coded dark background, so in the light theme the dark text vanished; now a theme surface */
 .kx-rtip{position:absolute;z-index:3;min-width:170px;padding:9px 11px;border-radius:10px;background:color-mix(in srgb,var(--s1) 94%,transparent);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:12px;pointer-events:none;display:none;backdrop-filter:blur(8px)}
 .kx-rtip .kx-rtt{color:var(--mute);font-size:11px;margin-bottom:6px;white-space:nowrap}
 .kx-rtip div.kx-rtr{display:flex;align-items:center;gap:7px;line-height:1.7;white-space:nowrap}.kx-rtip .kx-rtr i{width:8px;height:8px;border-radius:50%;flex:none}
 .kx-rtip .kx-rtr span{color:var(--mute);flex:1}.kx-rtip .kx-rtr b{font-family:'JetBrains Mono',monospace;font-weight:600}
-.kx-race.hov svg path{stroke-opacity:.55}.kx-race.hov svg path.on{stroke-opacity:1}
+
 /* MC 2026-11-07 paper and live trade tables: day filter (today by default) and 10 rows a page */
 .kx-tf{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 10px}.kx-tf input[type=date]{background:rgba(255,255,255,.04);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:6px 9px;font:inherit;font-size:13px;color-scheme:dark}
 .kx-tf .btn.sm[aria-pressed=true]{border-color:var(--kx);color:var(--kx)}.kx-tf .kx-tfn{color:var(--mute);font-size:12px;margin-left:auto}
@@ -2377,37 +2379,55 @@ function kxLabSpark(eq,colr,start){if(!eq||eq.length<2)return '<svg viewBox="0 0
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${Y(start).toFixed(1)}" y2="${Y(start).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="3 4"/><path d="${d}" fill="none" stroke="${colr}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`}
 // MC 2026-11-10 the race chart's legend was already a toggle but looked like a label and forgot its state; now it is a filter bar
 // with All, None and "only this" (double-click or long-press), remembered on this device
-const KXL={off:new Set((()=>{try{return JSON.parse(localStorage.getItem('kx-laboff')||'[]')}catch{return []}})())};
+const KXL={off:new Set((()=>{try{return JSON.parse(localStorage.getItem('kx-laboff')||'[]')}catch{return []}})()),rg:(()=>{try{const r=localStorage.getItem('kx-labrg');return ['match','1d','7d','all'].includes(r)?r:'match'}catch{return 'match'}})()};
 const kxLabSave=()=>{try{localStorage.setItem('kx-laboff',JSON.stringify([...KXL.off]))}catch{}};
-function kxRace(el,labs,start){if(!el)return;const L=(labs||[]).filter(l=>l.eq&&l.eq.length>1&&!KXL.off.has(l.id));if(!L.length){el.innerHTML='<div class="empty">The labs start scoring after the next settled trade.</div>';return}
-  const W=el.clientWidth||900,H=el.clientHeight||300,P={l:46,r:12,t:12,b:26};const all=L.flatMap(l=>l.eq);
-  const x0=Math.min(...all.map(p=>p[0])),x1=Math.max(...all.map(p=>p[0]))||x0+1,ys=all.map(p=>p[1]),lo=Math.min(start,...ys),hi=Math.max(start,...ys),pad=(hi-lo)*.08||1;
-  const X=t=>P.l+(t-x0)/(x1-x0)*(W-P.l-P.r),Y=v=>P.t+(1-(v-(lo-pad))/((hi+pad)-(lo-pad)))*(H-P.t-P.b);
-  const ticks=[];for(let i=0;i<=4;i++){const v=lo-pad+((hi+pad)-(lo-pad))*i/4;ticks.push(v)}
-  const days=[];let d0=null;for(let t=x0;t<=x1;t+=3600000){const k=new Date(t).toLocaleDateString('en-CA',ET);if(k!==d0){d0=k;days.push([t,k])}}
-  const mxl=W<520?4:8,dl=days.filter((_,i)=>days.length<=mxl||i%Math.ceil(days.length/mxl)===0);
-  const paths=L.map(l=>{const d=l.eq.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ');const last=l.eq[l.eq.length-1];return {l,d,last}}).sort((a,b)=>(a.l.id==='rule')-(b.l.id==='rule'));
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-label="Labs balance over time">
-   ${ticks.map(v=>`<g><line x1="${P.l}" x2="${W-P.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line)"/><text x="${P.l-8}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--faint)">$${Math.round(v).toLocaleString('en-US')}</text></g>`).join('')}
-   <line x1="${P.l}" x2="${W-P.r}" y1="${Y(start).toFixed(1)}" y2="${Y(start).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="4 6"/>
-   ${dl.map(([t,k])=>`<text x="${X(t).toFixed(1)}" y="${H-8}" font-size="11" fill="var(--faint)" text-anchor="middle">${new Date(t).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'})}</text>`).join('')}
-   ${paths.map(({l,d,last})=>`<path d="${d}" data-id="${esc(l.id)}" fill="none" stroke="${l.color}" stroke-width="${l.id==='rule'?2.6:1.7}" stroke-opacity="${l.id==='rule'?1:.9}" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="${l.id==='rule'?4:3}" fill="${l.color}"/>`).join('')}
-   <g class="kx-rdots">${L.map(l=>`<circle data-dot="${esc(l.id)}" r="4" fill="${l.color}" stroke="#060913" stroke-width="1.5" style="display:none"/>`).join('')}</g>
+// MC 2026-11-10 Labs chart redone. Was: every line drawn as its own balance from its own start date, so the rule (running since
+// the first day) sat hundreds of dollars away from playbooks that only began when their readings did, and the picture said nothing
+// true about who was ahead. Thinned points were joined with diagonals, which looked like prices instead of settled trades, and
+// the axis had odd ticks like $1,039. Now: profit since one shared moment (default: when the newest visible line began), every
+// line from $0, stepped at each settle, round-number grid, names and totals at the line ends. The rule is the dashed baseline
+// and your active paper playbook is the heavy line. 24h, 7 days and All are there for the longer view.
+function kxRace(el,labs,start){if(!el)return;const L0=(labs||[]).filter(l=>l.eq&&l.eq.length>1&&!KXL.off.has(l.id));const cap=$('#kxrcap');document.querySelectorAll('.kx-rg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.rg===KXL.rg)));
+  if(!L0.length){el.innerHTML='<div class="empty">The labs start scoring after the next settled trade.</div>';if(cap)cap.textContent='';return}
+  const W=el.clientWidth||900,H=el.clientHeight||320,wide=W>=720,P={l:54,r:wide?216:14,t:14,b:28},pb=ST.D?.kalshi?.playbook?.id;
+  const first=l=>l.since||l.eq[0][0],x1=Math.max(Date.now(),...L0.map(l=>l.eq[l.eq.length-1][0])),rg=KXL.rg;
+  const t0=rg==='1d'?x1-86400000:rg==='7d'?x1-7*86400000:rg==='all'?Math.min(...L0.map(first)):Math.max(...L0.map(first));
+  const L=L0.map(l=>{let base=start;for(const q of l.eq){if(q[0]<=t0)base=q[1];else break}const s=Math.max(t0,first(l)),pts=[[s,0]];for(const q of l.eq)if(q[0]>t0)pts.push([q[0],+(q[1]-base).toFixed(2)]);pts.push([x1,pts[pts.length-1][1]]);return {...l,pts,late:first(l)>t0+60000,end:pts[pts.length-1][1]}});
+  const x0=Math.min(t0,...L.map(l=>l.pts[0][0])),ys=L.flatMap(l=>l.pts.map(q=>q[1])),lo0=Math.min(0,...ys),hi0=Math.max(0,...ys),span=Math.max(20,hi0-lo0);
+  const raw=span/4,mag=Math.pow(10,Math.floor(Math.log10(raw))),stp=[1,2,2.5,5,10].map(m=>m*mag).find(v=>v>=raw),lo=Math.floor((lo0-span*.04)/stp)*stp,hi=Math.ceil((hi0+span*.04)/stp)*stp;
+  const X=t=>P.l+(t-x0)/((x1-x0)||1)*(W-P.l-P.r),Y=v=>P.t+(1-(v-lo)/(hi-lo))*(H-P.t-P.b),$f=v=>(v<0?'-$':v>0?'+$':'$')+Math.abs(Math.round(v)).toLocaleString('en-US');
+  const ticks=[];for(let v=lo;v<=hi+1e-6;v+=stp)ticks.push(+v.toFixed(2));
+  const hrs=(x1-x0)/3600000,xt=[];if(hrs<=40){const n=Math.max(1,Math.ceil(hrs/(wide?8:4)));for(let t=Math.ceil(x0/3600000)*3600000;t<=x1;t+=3600000){const h=+new Date(t).toLocaleString('en-US',{...ET,hour:'numeric',hour12:false})%24;if(h%n===0)xt.push([t,h===0?new Date(t).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'}):new Date(t).toLocaleTimeString('en-US',{...ET,hour:'numeric'})])}}
+  else{let d0=null;const ds=[];for(let t=Math.ceil(x0/3600000)*3600000;t<=x1;t+=3600000){const k=new Date(t).toLocaleDateString('en-CA',ET);if(k!==d0){if(d0)ds.push(t);d0=k}}const mxl=wide?9:4,n=Math.ceil(ds.length/mxl)||1;ds.forEach((t,i)=>{if(i%n===0)xt.push([t,new Date(t).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'})])})}
+  const order=L.slice().sort((a,b)=>(a.id===pb)-(b.id===pb)||(b.id==='rule')-(a.id==='rule')),sw=l=>l.id===pb?2.8:l.id==='rule'?1.8:1.5;
+  const path=l=>l.pts.map((q,i)=>i?`H${X(q[0]).toFixed(1)}V${Y(q[1]).toFixed(1)}`:`M${X(q[0]).toFixed(1)} ${Y(q[1]).toFixed(1)}`).join('');
+  // end labels: sorted by where the line ends, pushed apart so they never sit on each other
+  const lab=L.slice().sort((a,b)=>Y(a.end)-Y(b.end)).map(l=>({l,y:Y(l.end)}));for(let i=1;i<lab.length;i++)if(lab[i].y<lab[i-1].y+15)lab[i].y=lab[i-1].y+15;const over=lab.length?lab[lab.length-1].y-(H-P.b):0;if(over>0)for(let i=lab.length-1;i>=0;i--){lab[i].y=Math.min(lab[i].y,i===lab.length-1?H-P.b:lab[i+1].y-15)}
+  const xe=W-P.r,short=n=>n.length>24?n.slice(0,23)+'…':n;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-label="Labs profit over time">
+   ${ticks.map(v=>`<g><line x1="${P.l}" x2="${xe}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${v===0?'var(--line2)':'var(--line)'}" ${v===0?'':'stroke-opacity=".6"'}/><text x="${P.l-10}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="${v===0?'var(--mute)':'var(--faint)'}" style="font-variant-numeric:tabular-nums">${$f(v)}</text></g>`).join('')}
+   ${xt.map(([t,k])=>`<g><line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${P.t}" y2="${H-P.b}" stroke="var(--line)" stroke-opacity=".45"/><text x="${X(t).toFixed(1)}" y="${H-8}" font-size="11" fill="var(--faint)" text-anchor="middle">${k}</text></g>`).join('')}
+   ${order.map(l=>`<path d="${path(l)}" data-id="${esc(l.id)}" fill="none" stroke="${l.color}" stroke-width="${sw(l)}" ${l.id==='rule'&&l.id!==pb?'stroke-dasharray="5 4"':''} stroke-linejoin="round"/>${l.late?`<circle cx="${X(l.pts[0][0]).toFixed(1)}" cy="${Y(0).toFixed(1)}" r="3" fill="var(--bg)" stroke="${l.color}" stroke-width="1.5"/>`:''}<circle cx="${xe.toFixed(1)}" cy="${Y(l.end).toFixed(1)}" r="${l.id===pb?4:3}" fill="${l.color}"/>`).join('')}
+   ${wide?lab.map(({l,y})=>`<g><path d="M${xe+4} ${Y(l.end).toFixed(1)}L${xe+12} ${y.toFixed(1)}" stroke="${l.color}" stroke-opacity=".6" fill="none"/><text x="${xe+16}" y="${(y+4).toFixed(1)}" font-size="11.5" fill="var(--mute)" ${l.id===pb?'font-weight="700"':''}>${esc(short(l.name))}</text><text x="${W-2}" y="${(y+4).toFixed(1)}" font-size="11.5" text-anchor="end" font-weight="700" fill="${l.end>=0?'var(--good)':'var(--bad)'}" style="font-variant-numeric:tabular-nums">${$f(l.end)}</text></g>`).join(''):''}
+   <g class="kx-rdots">${L.map(l=>`<circle data-dot="${esc(l.id)}" r="4" fill="${l.color}" stroke="var(--bg)" stroke-width="1.5" style="display:none"/>`).join('')}</g>
   </svg><div class="kx-rx"></div><div class="kx-rtip"></div>`;
-  // MC 2026-11-07 hover (or touch-drag) readout: the time under the pointer and each lab's balance then, from its own equity series
-  el._kx={L,X,Y,x0,x1,P,W,H,start};if(!el._kxBound){el._kxBound=true;
-    const at=(eq,t)=>{let v=null;for(const p of eq){if(p[0]<=t)v=p;else break}return v};
+  const whenS=new Date(x0).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),late=L.filter(l=>l.late).length;
+  if(cap)cap.innerHTML=`<b>Profit since ${whenS} ET</b><span>${rg==='match'||!rg?'Every line starts at $0 from the same moment, so the gap between two lines is the real difference.':late?`${late} line${late===1?'':'s'} began later and start${late===1?'s':''} at $0 from the open dot.`:'Every line starts at $0.'} Dashed is the plain rule${pb&&pb!=='rule'&&L.find(l=>l.id===pb)?'; the heavy line is your paper playbook':''}.</span>`;
+  // MC 2026-11-07 hover (or touch-drag) readout: the time under the pointer and each lab's profit then, from its own series
+  el._kx={L,X,Y,x0,x1,P,W,H};if(!el._kxBound){el._kxBound=true;
+    const at=(pts,t)=>{let v=null;for(const q of pts){if(q[0]<=t)v=q;else break}return v};
     const move=ev=>{const S=el._kx;if(!S)return;const r=el.getBoundingClientRect(),px=(ev.clientX-r.left)*S.W/r.width;if(px<S.P.l||px>S.W-S.P.r){leave();return}
-      const t=S.x0+(px-S.P.l)/(S.W-S.P.l-S.P.r)*(S.x1-S.x0);const rows=S.L.map(l=>({l,p:at(l.eq,t)})).filter(x=>x.p).sort((a,b)=>b.p[1]-a.p[1]);if(!rows.length){leave();return}
-      el.classList.add('hov');const svg=el.querySelector('svg');svg.querySelectorAll('path[data-id]').forEach(p=>p.classList.toggle('on',true));
-      for(const {l,p} of rows){const d=svg.querySelector(`[data-dot="${CSS.escape(l.id)}"]`);if(d){d.style.display='';d.setAttribute('cx',S.X(p[0]).toFixed(1));d.setAttribute('cy',S.Y(p[1]).toFixed(1))}}
+      const t=S.x0+(px-S.P.l)/(S.W-S.P.l-S.P.r)*(S.x1-S.x0);const rows=S.L.map(l=>({l,p:at(l.pts,t)})).filter(x=>x.p).sort((a,b)=>b.p[1]-a.p[1]);if(!rows.length){leave();return}
+      el.classList.add('hov');const svg=el.querySelector('svg');
+      for(const {l,p} of rows){const d=svg.querySelector(`[data-dot="${CSS.escape(l.id)}"]`);if(d){d.style.display='';d.setAttribute('cx',(px).toFixed(1));d.setAttribute('cy',S.Y(p[1]).toFixed(1))}}
       for(const l of S.L)if(!rows.find(x=>x.l===l)){const d=svg.querySelector(`[data-dot="${CSS.escape(l.id)}"]`);if(d)d.style.display='none'}
       const xl=el.querySelector('.kx-rx'),tip=el.querySelector('.kx-rtip');xl.style.display='block';xl.style.left=(px/S.W*100)+'%';
       const when=new Date(t).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-      tip.innerHTML=`<div class="kx-rtt">${when} ET</div>${rows.map(({l,p})=>`<div class="kx-rtr"><i style="background:${l.color}"></i><span>${esc(l.name)}</span><b class="${p[1]>=S.start?'pos':'neg'}">$${p[1].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b></div>`).join('')}`;
+      tip.innerHTML=`<div class="kx-rtt">${when} ET</div>${rows.map(({l,p})=>`<div class="kx-rtr"><i style="background:${l.color}"></i><span>${esc(l.name)}</span><b class="${p[1]>=0?'pos':'neg'}">${(p[1]<0?'-$':'+$')+Math.abs(p[1]).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b></div>`).join('')}`;
       tip.style.display='block';const tw=tip.offsetWidth,left=px/S.W*r.width;tip.style.left=(left+14+tw>r.width?left-tw-14:left+14)+'px';tip.style.top='8px'};
     const leave=()=>{el.classList.remove('hov');const xl=el.querySelector('.kx-rx'),tip=el.querySelector('.kx-rtip');if(xl)xl.style.display='none';if(tip)tip.style.display='none';el.querySelectorAll('[data-dot]').forEach(d=>d.style.display='none')};
     el.addEventListener('pointermove',move);el.addEventListener('pointerdown',move);el.addEventListener('pointerleave',leave);el.addEventListener('pointercancel',leave)}}
+function kxLabRange(r){KXL.rg=r;try{localStorage.setItem('kx-labrg',r)}catch{}kxLabToggle(null)}
 function kxLabSet(mode,id){const ids=(ST.D?.kalshi?.labs||[]).map(l=>l.id);if(mode==='all')KXL.off.clear();else if(mode==='none')ids.forEach(x=>KXL.off.add(x));else if(mode==='only'){ids.forEach(x=>KXL.off.add(x));KXL.off.delete(id);KXL.off.delete('rule')}kxLabSave();kxLabToggle(null)}
 function kxLabToggle(id){if(id)KXL.off.has(id)?KXL.off.delete(id):KXL.off.add(id);kxLabSave();const K=ST.D?.kalshi;if(K)kxRace($('#kxrace'),K.labs,K.cfg?.startUsd||1000);document.querySelectorAll('[data-lab]').forEach(b=>b.setAttribute('aria-pressed',String(!KXL.off.has(b.dataset.lab))))}
 function kxLabCard(l,start){const since=l.since?new Date(l.since).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'}):null,idle=!l.n;
@@ -2456,7 +2476,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
     <div><div class="kx-ml">Ready for live</div><b>${okN} <em>of ${chk.length}</em></b>${bar(chk.length?okN/chk.length:0,'var(--kx)')}<small>${okN===chk.length?'every check passes':'see Live account'}</small></div></div></section>
 `,board:`  <div class="card kx-card" style="margin-top:16px"><h3>Live board<span class="r">coin price against Kalshi's target, streamed from Coinbase</span></h3><div class="kx-live" id="kxboard"></div></div>
 `,labs:`  ${sec('Labs','Every idea runs as its own paper account on the same trades as the rule. Nothing here changes the paper book or live trading. A lab earns a real test when it beats the rule over a few hundred trades, not a few days.')}
-  <section class="kx-labs"><div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div><div class="kx-race" id="kxrace" style="margin-top:16px"></div>
+  <section class="kx-labs"><div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div><div class="kx-rtop"><div class="kx-rcap" id="kxrcap"></div><div class="kx-rg">${[['match','Same start'],['1d','24h'],['7d','7 days'],['all','All']].map(([k,n])=>`<button data-rg="${k}" aria-pressed="${KXL.rg===k}" onclick="kxLabRange('${k}')">${n}</button>`).join('')}</div></div><div class="kx-race" id="kxrace"></div>
    <div class="kx-rlh"><span class="kx-ml">Show on the chart</span><button class="btn sm ghost" onclick="kxLabSet('all')">All</button><button class="btn sm ghost" onclick="kxLabSet('none')">None</button><span class="kx-rln">Tap to show or hide. Double-click (or press and hold) to show only that one against the rule.</span></div>
    <div class="kx-rl">${labs.map(l=>`<button data-lab="${esc(l.id)}" aria-pressed="${!KXL.off.has(l.id)}" style="--c:${l.color}" onclick="kxLabToggle('${esc(l.id)}')" ondblclick="kxLabSet('only','${esc(l.id)}')" oncontextmenu="kxLabSet('only','${esc(l.id)}');return false"><i></i>${esc(l.name)}</button>`).join('')}</div>
    <div class="kx-lgrid">${labs.filter(l=>l.id!=='rule').map(l=>kxLabCard(l,start)).join('')}</div></section>
@@ -3136,7 +3156,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.36',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.37',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

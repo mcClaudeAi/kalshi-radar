@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.37 (Nov 10, 2026): A Labs chart you can read
+Every line starts at $0 from the same moment, so the gap between two lines is the real difference.
+- [improved] Labs chart redrawn. It now shows profit since one shared start instead of each line's own balance from its own start date, which had the rule sitting hundreds of dollars from playbooks that began later. Lines step at each settled trade, the grid uses round numbers, and each line ends in its name and total. The plain rule is dashed and your paper playbook is the heavy line.
+- [new] Range buttons on the Labs chart: Same start, 24h, 7 days and All. Your choice is remembered on that device.
+
 ## 1.0.36 (Nov 10, 2026): Release notes page
 Every update in one place, with search and filters.
 - [new] Release notes page in the sidebar: every release with a title and what changed, tagged new, improved or fixed. Filter by tag, search the notes, jump by date, and see at a glance how much of the work was new features against fixes. Your installed version is marked, and What's new now opens this page instead of GitHub.
