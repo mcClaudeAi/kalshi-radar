@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.22 (Nov 9, 2026)
+- A proper home-screen icon. Add the dashboard to your phone's home screen (Share, then Add to Home Screen on iPhone) and it gets the radar mark and opens full screen like an app, instead of a letter in a box.
+
 ## 1.0.21 (Nov 9, 2026)
 - Light theme pass over every page: chart tooltips, secondary text, accent colours and primary buttons all meet a 4.5:1 contrast now. The sign-in and setup screens keep their dark look in both themes.
 

@@ -1,5 +1,6 @@
 import PAGE from './page.html';
 import { createKalshi } from './kalshi-cloud.js';
+import { ICONS } from './icons.js';
 // Kalshi Radar, the plug-and-play edition of the Curve Radar Kalshi dashboard (Cloudflare Worker + one Durable Object).
 //
 // MC 2026-11-08 asked for a version someone else can run with nothing but a Cloudflare account and their own Kalshi key, with every
@@ -170,6 +171,9 @@ const SEC = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referr
 export default {
   async fetch(req, env) {
     const u = new URL(req.url), stub = env.STORE.get(env.STORE.idFromName('main'));
+    // MC 2026-11-09 home-screen icons and the web manifest, public, cached for a day
+    if (ICONS[u.pathname.slice(1)]) { const b = Uint8Array.from(atob(ICONS[u.pathname.slice(1)]), c => c.charCodeAt(0)); return new Response(b, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' } }); }
+    if (u.pathname === '/manifest.webmanifest') return new Response(JSON.stringify({ name: 'Kalshi Radar', short_name: 'Kalshi Radar', start_url: '/', display: 'standalone', background_color: '#060a16', theme_color: '#060a16', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=86400' } });
     if (u.pathname === '/' || u.pathname === '/index.html') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SEC } });
     if (u.pathname === '/data' || u.pathname.startsWith('/api/')) return stub.fetch(req);
     if (u.pathname === '/favicon.ico') return new Response(null, { status: 204 });
