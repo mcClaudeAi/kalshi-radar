@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.24 (Nov 10, 2026)
+- Settings on a locked device shows an Unlock this device button again (the redesign had hidden it), and says it is locked. Phones that open the dashboard from the home screen keep their own sign-in, separate from Safari, so they need unlocking once too.
+
 ## 1.0.23 (Nov 9, 2026)
 - Opened from the home screen, the header no longer slides under the phone's clock and battery.
 
