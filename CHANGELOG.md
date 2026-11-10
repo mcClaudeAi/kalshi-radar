@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.39 (Nov 10, 2026): No more stale volatility readings
+The volatility check now refuses a Coinbase price that is behind, and shows the price it used.
+- [fixed] A trade could read exactly 0.000% from its target when Coinbase's candle list came back several minutes behind, so the volatility playbooks and Learned passed on a trade that was well clear. The check now asks for an uncached copy, uses the live ticker when the newest candle is over 2 minutes old, and takes no reading at all if both fail.
+- [improved] Trade details show the Coinbase price the volatility check used and how old it was.
+
 ## 1.0.38 (Nov 10, 2026): New playbooks show on the Labs chart
 A playbook that has judged trades but not taken one yet no longer goes missing.
 - [fixed] The Labs chart left out any playbook with fewer than two taken trades, so a new one (Margin vs volatility v2, Beats the market v2, Learned) looked like it was not logging. It now draws from its first judged trade, flat at $0 until it takes one.
