@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.18 (Nov 9, 2026)
+- Requests page. Ask for something the dashboard can't do yet. You get a number to track it, requests are read every day, and the ones that get built ship in the next release. The page also shows what others have asked for and where each one stands.
+
 ## 1.0.17 (Nov 9, 2026)
 - Paper runs. Settings has a Start a new paper run button: the bank goes back to the starting bank from that moment and only new trades count toward the bank, win rate, chart and today. Earlier trades stay in Trades and Analytics as the previous run. Count everything again undoes it.
 

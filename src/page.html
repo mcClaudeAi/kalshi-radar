@@ -934,6 +934,17 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  .kx-tlt .cur b{display:none}.kx-tlx span:first-child{display:none}.kx-hero2 .kx-heq{opacity:.2!important}.kx-hero2 .kx-grid{opacity:.3}}
 @media(min-width:1680px){.kx-home2 .kx-home{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 </style>
+<style id="kreq">
+.kr-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:860px}
+.kr-l{display:block;font-size:13px;font-weight:600;color:var(--ink);margin:12px 0 0}.kr-l small{font-weight:500;color:var(--faint);font-size:11.5px;margin-left:4px}
+.kr-l textarea,.kr-l input{display:block;width:100%;margin-top:6px;border-radius:12px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);font:500 14px inherit;padding:10px 12px;resize:vertical}
+.kr-acts{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+.kr-item{padding:12px 0;border-top:1px solid var(--line)}.kr-item:first-of-type{border-top:0}.kr-ih{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kr-ih b{font-family:var(--mono);font-size:12px;color:var(--mute)}.kr-when{margin-left:auto;font-size:11.5px;color:var(--faint)}
+.kr-item p{margin:6px 0 0;font-size:13.5px;line-height:1.5;color:var(--ink)}.kr-note{margin-top:6px;font-size:12.5px;color:var(--mute);padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--s2) 70%,transparent);border:1px solid var(--line)}
+.kr-st{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.kr-planned{color:var(--kx);border-color:color-mix(in srgb,var(--kx) 50%,transparent)}.kr-built,.kr-released{color:var(--good);border-color:color-mix(in srgb,var(--good) 50%,transparent)}.kr-possible{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}.kr-declined{opacity:.7}
+@media(min-width:1100px){.kr-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-width:none}.kr-wrap .card:first-child{grid-column:1/-1}}
+</style>
 <style id="kxset">
 .kx-setw{max-width:none;display:grid;grid-template-columns:230px minmax(0,1fr);gap:22px;align-items:start}
 .kx-snav{position:sticky;top:76px;display:flex;flex-direction:column;gap:4px}.kx-snavh{font-size:15px;font-weight:700;color:var(--ink)}.kx-snavs{font-size:11.5px;color:var(--faint);margin-bottom:10px}
@@ -1021,10 +1032,10 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 <script>
 'use strict';
 // MC 2026-10-16 v3 navigation, grouped. Controls is new: live switch, settings, devices, activity.
-const IC={gauge:'M4.5 17a8.5 8.5 0 1 1 15 0M12 13l3.5-4.5M12 13h.01',chart:'M4 20V11M10 20V5M16 20v-7M21 20H3',chev:'M9 6l6 6-6 6',kalshi:'M12 2l3 6 6 .9-4.5 4.3 1 6.3L12 16.6 6.5 19.5l1-6.3L3 8.9 9 8z',feed:'M4 6h16M4 12h10M4 18h13M19 11l2 2-2 2',overview:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',wallet:'M3 7h18v13H3zM16 14h2M3 7l3-3h12v3',live:'M3 12h4l3-7 4 14 3-7h4',open:'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',trades:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',wallets:'M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M22 19v-1a4 4 0 0 0-3-3.9M16 5.1a3 3 0 0 1 0 5.8',golive:'M4 21V4h12l-2 4 2 4H4',tests:'M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5',log:'M4 17l6-5-6-5M12 19h8',controls:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',lock:'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',pause:'M8 5v14M16 5v14',play:'M7 4l13 8-13 8z',more:'M5 12h.01M12 12h.01M19 12h.01',sell:'M12 5v14M5 12l7 7 7-7',paper:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',checks:'M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 12l5-5M12 3v3M12 12a4 4 0 1 0 0-.01'};
+const IC={idea:'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2.2h5c.1-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3z',gauge:'M4.5 17a8.5 8.5 0 1 1 15 0M12 13l3.5-4.5M12 13h.01',chart:'M4 20V11M10 20V5M16 20v-7M21 20H3',chev:'M9 6l6 6-6 6',kalshi:'M12 2l3 6 6 .9-4.5 4.3 1 6.3L12 16.6 6.5 19.5l1-6.3L3 8.9 9 8z',feed:'M4 6h16M4 12h10M4 18h13M19 11l2 2-2 2',overview:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',wallet:'M3 7h18v13H3zM16 14h2M3 7l3-3h12v3',live:'M3 12h4l3-7 4 14 3-7h4',open:'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',trades:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',wallets:'M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M22 19v-1a4 4 0 0 0-3-3.9M16 5.1a3 3 0 0 1 0 5.8',golive:'M4 21V4h12l-2 4 2 4H4',tests:'M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5',log:'M4 17l6-5-6-5M12 19h8',controls:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',lock:'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',pause:'M8 5v14M16 5v14',play:'M7 4l13 8-13 8z',more:'M5 12h.01M12 12h.01M19 12h.01',sell:'M12 5v14M5 12l7 7 7-7',paper:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',checks:'M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 12l5-5M12 3v3M12 12a4 4 0 1 0 0-.01'};
 const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${IC[k]||IC.more}"/></svg>`;
 // MC 2026-11-08 Kalshi only up front; the memecoin bot's pages live under Archive (collapsed), still reachable
-const NAV=[['Kalshi',[['kalshi','Home','kalshi'],['kcock','Cockpit','gauge'],['kan','Analytics','chart'],['ktrades','Trades','trades'],['klabs','Labs','tests'],['klive','Live account','live'],['kset','Settings','controls'],['kconn','Connections','wallet']]]];
+const NAV=[['Kalshi',[['kalshi','Home','kalshi'],['kcock','Cockpit','gauge'],['kan','Analytics','chart'],['ktrades','Trades','trades'],['klabs','Labs','tests'],['klive','Live account','live'],['kset','Settings','controls'],['kreq','Requests','idea'],['kconn','Connections','wallet']]]];
 const NAVI=NAV.flatMap(g=>g[1]);const TABS=NAVI.map(([k,l])=>[k,l]);
 // MC 2026-10-26 dev-launch tier: its own label and swatch everywhere a tier shows
 const TN=t=>t==='proven'?'Proven':t==='dev'?'Dev launch':t==='kol'?'KOL':'Trial',TS=t=>t==='proven'?'p':t==='dev'?'d':t==='kol'?'k':'t';
@@ -1117,8 +1128,35 @@ function beat(){const d=$('#dot'),a=$('#ago');if(!ST.last){a.textContent=ST.err?
 // ---------- views ----------
 function tabsHtml(){paintChrome()}
 function render(){const D=ST.D;if(!D)return;paintChrome();
-  const y=window.scrollY;const m=$('#main');const kv=v=>D=>kalshiV(D,v);m.innerHTML=({overview,feed:feedV,wallet:walletV,live:liveV,open:openV,trades,whist,wallets,golive,tests,search,log:logV,controls:controlsV,kalshi:kalshiV,kcock:kxCockpitV,kan:kxAnalyticsV,ktrades:kv('ktrades'),klabs:kv('klabs'),klive:kv('klive'),kset:kv('kset'),kconn:kxConnV,paper:paperV,checks:checksV}[ST.tab]||kalshiV)(D);after[ST.tab]?.(D);if(!KXTABS.includes(ST.tab))kxStop();else{KX.lvSig='';kxLivePaint()}drawLiveCharts(D);drawMini();window.scrollTo(0,y)}
+  const y=window.scrollY;const m=$('#main');const kv=v=>D=>kalshiV(D,v);m.innerHTML=({overview,feed:feedV,wallet:walletV,live:liveV,open:openV,trades,whist,wallets,golive,tests,search,log:logV,controls:controlsV,kalshi:kalshiV,kcock:kxCockpitV,kan:kxAnalyticsV,ktrades:kv('ktrades'),klabs:kv('klabs'),klive:kv('klive'),kset:kv('kset'),kreq:kxReqV,kconn:kxConnV,paper:paperV,checks:checksV}[ST.tab]||kalshiV)(D);after[ST.tab]?.(D);if(!KXTABS.includes(ST.tab))kxStop();else{KX.lvSig='';kxLivePaint()}drawLiveCharts(D);drawMini();window.scrollTo(0,y)}
 const after={};
+// MC 2026-11-09 Requests: "I want the dashboard to do X" from any copy. Posts to the shared inbox worker, keeps the
+// requester's own ids on this device, and shows the triaged list from requests.json on the Kalshi Radar stable branch, so
+// nothing anyone types is shown to everyone until a person has read it. Read daily; built ones ship in the next release.
+const KR_INBOX='https://kalshi-radar-inbox.mc-radar.workers.dev',KR_REQS='https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/requests.json';
+const KRQ={list:null,at:0,mine:[]};try{KRQ.mine=JSON.parse(localStorage.getItem('kr-reqs')||'[]')}catch{}
+const krSt={new:['New','Waiting to be read'],read:['Read','Looked at, not decided yet'],planned:['Planned','Going to be built'],built:['Built','Done, in the next release'],released:['Released','Out now'],possible:['Already possible','The dashboard can do this'],declined:['Not planned','']};
+function kxReqV(){after.kreq=()=>{if(Date.now()-KRQ.at>300000)fetch(KR_REQS+'?t='+Math.floor(Date.now()/300000),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j){KRQ.list=j;KRQ.at=Date.now();if(ST.tab==='kreq')render()}}).catch(()=>{})};
+  const L=KRQ.list||{items:[]},by={};for(const x of L.items||[])by[x.id]=x;
+  const chip=st=>`<span class="kr-st kr-${esc(st||'new')}" title="${esc((krSt[st]||krSt.new)[1])}">${esc((krSt[st]||krSt.new)[0])}</span>`;
+  const ver=typeof KR_VERSION!=='undefined'?KR_VERSION:'dev';
+  const mine=KRQ.mine.slice().reverse().map(m=>{const x=by[m.id];return `<div class="kr-item"><div class="kr-ih"><b>R-${m.id}</b>${chip(x?.status)}<span class="kr-when">${new Date(m.at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div><p>${esc(m.text)}</p>${x?.note?`<div class="kr-note">${esc(x.note)}${x.version?` · ${esc(x.version)}`:''}</div>`:''}</div>`}).join('');
+  const pub=(L.items||[]).filter(x=>x.status!=='hidden').sort((a,b)=>b.id-a.id).map(x=>`<div class="kr-item"><div class="kr-ih"><b>R-${x.id}</b>${chip(x.status)}${x.version?`<span class="kr-when">${esc(x.version)}</span>`:''}</div><p>${esc(x.text)}</p>${x.note?`<div class="kr-note">${esc(x.note)}</div>`:''}</div>`).join('');
+  return kxSecHead('Requests','Want the dashboard to do something it can\'t yet? Ask here. Requests are read every day; the ones that get built ship in the next release.')+`<div class="kr-wrap">
+   <div class="card kr-form"><h3>Ask for something</h3>
+    <label class="kr-l">What do you want it to do?<textarea id="kr-text" maxlength="1000" rows="3" placeholder="Example: let me set a different size per coin"></textarea></label>
+    <label class="kr-l">Why, or what are you trying to get? <small>optional</small><textarea id="kr-why" maxlength="600" rows="2" placeholder="Example: BTC is steadier than the others, so I want to bet more on it"></textarea></label>
+    <label class="kr-l">Name or handle <small>optional, shown with the request</small><input id="kr-who" maxlength="60" placeholder="Steven"></label>
+    <div class="kr-acts"><button class="btn pri" onclick="krSend()">Send it</button><span class="hint">No account details are sent. You get a number to track it here.</span></div></div>
+   <div class="card"><h3>Your requests<span class="r">on this device</span></h3>${mine||'<div class="empty">Nothing sent from this device yet.</div>'}</div>
+   <div class="card"><h3>What people have asked for<span class="r">${L.updated?'updated '+esc(L.updated):'loading…'}</span></h3>${pub||'<div class="empty">Nothing triaged yet.</div>'}</div></div>`}
+async function krSend(){const text=$('#kr-text').value.trim(),why=$('#kr-why').value.trim(),who=$('#kr-who').value.trim();if(text.length<8){toast('Say a little more about what you want it to do');$('#kr-text').focus();return}
+  const b=document.querySelector('.kr-acts .btn');b.disabled=true;b.textContent='Sending…';
+  try{const r=await fetch(KR_INBOX+'/r',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text,why,who,ver:typeof KR_VERSION!=='undefined'?KR_VERSION:'dev'})}),j=await r.json().catch(()=>({}));
+    if(!j.ok){toast(j.msg||'Could not send it');b.disabled=false;b.textContent='Send it';return}
+    KRQ.mine.push({id:j.id,at:j.at,text});try{localStorage.setItem('kr-reqs',JSON.stringify(KRQ.mine.slice(-50)))}catch{}
+    toastP('Request R-'+j.id,'').ok('Sent','It will be read within a day. Track it on this page.');render()}
+  catch{toast('Could not reach the inbox. Try again in a minute.');b.disabled=false;b.textContent='Send it'}}
 
 function equitySeries(D,range){
   const e=(D.equity||[]).slice().sort((a,b)=>a[0]-b[0]);const now=D.at/1000;
@@ -1535,7 +1573,7 @@ function go(k){ST.tab=k;try{localStorage.setItem('cr-tab',k)}catch{}$('#drawer')
 
 // ===================== MC 2026-11-08 Kalshi-only layout =====================
 // The memecoin bot is retired: its views stay reachable under Archive in the sidebar, everything up front is Kalshi.
-const KXTABS=['kalshi','kcock','kan','ktrades','klabs','klive','kset','kconn'];
+const KXTABS=['kalshi','kcock','kan','ktrades','klabs','klive','kset','kreq','kconn'];
 const KXSEG={an:'paper',anR:'30',trd:'paper'};
 try{const j=JSON.parse(localStorage.getItem('cr-kxseg')||'{}');Object.assign(KXSEG,j)}catch{}
 function kxSegSet(k,v){KXSEG[k]=v;try{localStorage.setItem('cr-kxseg',JSON.stringify(KXSEG))}catch{}render()}
@@ -2915,7 +2953,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.17',KR_DATE='Nov 9, 2026';
+const KR_VERSION='1.0.18',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
