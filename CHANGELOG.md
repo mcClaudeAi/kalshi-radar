@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.15 (Nov 9, 2026)
+- Settings are grouped (the basics, stops, Your mix, schedule) and every setting has a How it works you can open, with a worked example of what it does.
+
 ## 1.0.14 (Nov 9, 2026)
 - Give-back stop, in Paper settings. Once the day is up by the amount you set (default $25), trading stops for the day if the profit falls to your chosen share of the day's peak. Protects profit already made. Off by default.
 - Bank drawdown stop. Stops for the day once the bank is a set % under its all-time high. Off by default.
