@@ -697,7 +697,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .an-sub{color:var(--mute);font-size:13.5px}.an-wr{position:relative;height:8px;border-radius:6px;background:rgba(255,255,255,.06);margin-top:16px;overflow:visible}
 .an-wr i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 60%,transparent),var(--kx))}.an-wr em{position:absolute;top:-5px;bottom:-5px;width:2px;background:#ffb347;border-radius:2px;box-shadow:0 0 8px #ffb347}
 .an-kg,.an-ex{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.an-ex{grid-template-columns:repeat(5,minmax(0,1fr))}
-.an-k{padding:12px 13px;border-radius:14px;background:rgba(6,9,19,.55);border:1px solid var(--line);min-width:0}
+/* MC 2026-11-09 the stat tiles had a hard-coded near-black background, unreadable in light mode; now a theme surface */
+.an-k{padding:12px 13px;border-radius:14px;background:color-mix(in srgb,var(--s2) 85%,transparent);border:1px solid var(--line);min-width:0;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+:root[data-theme="light"] .an-k{background:var(--s3);box-shadow:none}
 .an-k span{display:block;font-size:11.5px;color:var(--mute);font-weight:600}.an-k b{display:block;font-size:19px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .an-k small{display:block;font-size:11px;color:var(--faint);margin-top:3px;line-height:1.35}
 .an-card{margin-top:14px}.an-row{margin-top:0}.an-eqc{position:relative;height:300px;touch-action:pan-y}.an-ax{fill:var(--faint);font:500 10.5px 'JetBrains Mono',monospace}
@@ -709,7 +711,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .an-bw span{display:block;font-size:11.5px;color:var(--mute)}.an-bw b{display:block;font-size:17px;margin-top:3px}.an-bw small{color:var(--faint);font-size:11px}
 @media(max-width:900px){.an-hero{grid-template-columns:1fr;padding:18px}.an-kg{grid-template-columns:repeat(2,minmax(0,1fr))}.an-ex{grid-template-columns:repeat(2,minmax(0,1fr))}.an-eqc{height:240px}}
 /* cockpit */
-.ck{position:relative;border-radius:24px;padding:18px 18px 16px;border:1px solid rgba(255,255,255,.07);overflow:hidden;
+/* MC 2026-11-09 the cockpit is a dark instrument cluster in both themes: in light mode its text picked up the dark ink and vanished, so it carries its own dark palette */
+.ck{--bg:#070a14;--s1:#0b1020;--s2:#0e1426;--s3:#121a30;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--ink:#eef2ff;--ink2:#c5cfe6;--mute:#8b96b3;--faint:#5d6a8c;color:var(--ink);color-scheme:dark;position:relative;border-radius:24px;padding:18px 18px 16px;border:1px solid rgba(255,255,255,.07);overflow:hidden;
   background:radial-gradient(900px 340px at 50% -10%,rgba(255,140,60,.10),transparent 60%),radial-gradient(700px 400px at 50% 120%,rgba(79,209,255,.08),transparent 60%),linear-gradient(180deg,#070a14,#03050b)}
 .ck:before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px)}
 .ck-coins{position:relative;display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.ck-coins::-webkit-scrollbar{display:none}
@@ -778,6 +781,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .btn.golive.on .gl-dot{background:#fff;border-color:#fff;animation:glPulse 1.4s ease-out infinite}
 .btn.golive small{font:700 12px 'JetBrains Mono',monospace;letter-spacing:0;text-transform:none;opacity:.95}.btn.golive.on small{color:#fff!important}
 @keyframes glPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}100%{box-shadow:0 0 0 9px rgba(255,255,255,0)}}
+/* MC 2026-11-09 the go-live button's pale pink text vanished on the light theme */
+:root[data-theme="light"] .btn.golive:not(.on){color:#b3121f;background:linear-gradient(180deg,rgba(255,77,94,.16),rgba(255,77,94,.06))}
 @media(max-width:760px){.btn.golive{height:38px;padding:0 12px;font-size:11.5px}.btn.golive small{display:none}}
 @media (prefers-reduced-motion:reduce){.btn.golive.on .gl-dot{animation:none}}
 
@@ -2953,7 +2958,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.19',KR_DATE='Nov 9, 2026';
+const KR_VERSION='1.0.20',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

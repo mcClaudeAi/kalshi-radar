@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.20 (Nov 9, 2026)
+- Light theme fixes: the Analytics stat tiles were unreadable, the Cockpit is now always its own dark instrument panel with light text, and the Go live button has proper contrast.
+
 ## 1.0.19 (Nov 9, 2026)
 - Bank drawdown stop fix: it measured against the all-time high, so a bank that fell under the line could never trade its way back. The day after it trips, the line now resets to the bank as it stands.
 
