@@ -489,9 +489,9 @@ export function createKalshi(state, env, keep) {
   // bank included. Readings that hold up are marked checked. A probe that evening showed the plain candles URL running about
   // 3 minutes behind as a matter of course, so after the suspects every other un-aged reading is rechecked the same way, newest
   // first, and older trades with no 10-minute measure get one (v2 and Learned then reach back as far as the readings do).
-  // Eight a minute from the cron tick, kept away from the trade check, three tries each.
+  // Twenty a minute from the cron tick (was eight: 1,574 readings would have taken five hours), kept away from the trade check, three tries each.
   let fixAt = 0;
-  async function volRepair(now, max = 8) {
+  async function volRepair(now, max = 20) {
     if (now - fixAt < 50000) return; fixAt = now;
     const sus = [], none = [], old = [], rest = [];
     for (const r of rec.values()) { const v = r.vol;
