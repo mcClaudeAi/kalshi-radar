@@ -1,5 +1,9 @@
 # What's new
 
+## 1.0.29 (Nov 10, 2026)
+- New playbook, Beats the market: turns the volatility reading into a win chance and only buys when that beats Kalshi's price plus the fee and a cent. Trade details and live board badges show our win chance against what was needed.
+- Fix: the Win chance shown on open trades read about 3 points high in the middle of its range.
+
 ## 1.0.28 (Nov 10, 2026)
 - Live board badges wrap inside the card on phones instead of running off the edge.
 

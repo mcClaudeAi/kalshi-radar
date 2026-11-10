@@ -68,10 +68,18 @@ function labDefs(K) {
         : K.mixSize === 'ratchet' ? (b, t, S) => { const base = K.sizeUsd, hi = S?.peak ?? b, st = S?.start ?? K.startUsd; return b + 0.005 < hi ? base : base + (K.ratchetAdd ?? 10) * Math.max(0, Math.floor((hi - st) / (K.ratchetEvery ?? 200))); }
         : b => Math.max(5, Math.round(b * (K.mixPct ?? 5) / 100))) },
     { id: 'kelly', name: 'Kelly sizing', desc: 'Sizes each bet by the Kelly criterion from the win rate already seen at that price, at a quarter of Kelly, split across the coins in the window. Skips prices with no proven edge.', color: '#E5E7EB', filter: t => t.kf == null ? null : t.kf > 0, size: (b, t) => Math.max(5, Math.min(b * 0.05, b * 0.25 * (t?.kf || 0) / Math.max(1, t?.win || 1))) },
+    // MC 2026-11-10 Beats the market: turns the volatility reading into a win probability (normal model, ten minutes to go with
+    // the 60-second settlement average) and only buys when that probability beats Kalshi's price plus the fee plus 1 cent. The
+    // volatility lab asks "far enough past the target?"; this asks "is the market underpricing it?", so the bar rises with the price.
+    { id: 'edge', name: 'Beats the market', desc: 'Only buys when our win chance, from the coin\'s volatility and how far it is past the target, beats Kalshi\'s price plus the fee and a cent.', color: '#7CF5C8', filter: t => t.z == null ? null : winP(t.z) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#C8F56A', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
 }
 const LAB_IDS = labDefs(PAPER_DEF).map(l => l.id);
+// normal CDF (Abramowitz and Stegun 7.1.26 on erf) and the win chance from a z of margin over one 10-minute move; the 60-second
+// settlement average trims the effective time to 10 - 2/3 minutes, hence the small scale-up
+function Phi(z) { const x = Math.abs(z) / Math.SQRT2, t = 1 / (1 + 0.3275911 * x), e = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return z >= 0 ? 0.5 + e / 2 : 0.5 - e / 2; }
+function winP(z) { return Phi(z * Math.sqrt(10 / (10 - 2 / 3))); }
 const KB = p => p < 0.92 ? 0 : p < 0.94 ? 1 : p < 0.96 ? 2 : 3, K_PRIOR = 40;
 const kNew = () => [[0, 0], [0, 0], [0, 0], [0, 0]];
 const kAdd = (S, px, won) => { const b = S[KB(px)]; b[0]++; if (won) b[1]++; };
