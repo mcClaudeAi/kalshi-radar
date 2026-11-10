@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.25 (Nov 10, 2026)
+- Each trade's detail now shows its volatility check: how far past the target the coin was, what a normal 10-minute move was at the time, and how many moves clear that is (the check needs 1). So a trade skipped by the volatility playbooks says why.
+
 ## 1.0.24 (Nov 10, 2026)
 - Settings on a locked device shows an Unlock this device button again (the redesign had hidden it), and says it is locked. Phones that open the dashboard from the home screen keep their own sign-in, separate from Safari, so they need unlocking once too.
 
