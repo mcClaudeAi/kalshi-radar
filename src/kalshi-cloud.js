@@ -222,7 +222,9 @@ export function createKalshi(state, env, keep) {
       const t = todayL(); if (realized(t) <= -c.dailyLossUsd) return `daily loss cap hit (${realized(t).toFixed(2)})`;
       // MC 2026-11-09 give-back and bank-drawdown stops on the live book too, from the paper settings
       if (cfgP.giveBackPct > 0) { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk >= (cfgP.giveBackMin ?? 25) && run <= pk * cfgP.giveBackPct / 100) return `give-back stop: today peaked at +$${pk.toFixed(2)}, now ${run >= 0 ? '+' : ''}$${run.toFixed(2)}`; }
-      if (cfgP.bankDdPct > 0) { let run = 0, pk = 0; for (const x of [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk - run >= Math.max(1, pk) * cfgP.bankDdPct / 100 && pk > 0) return `bank is ${cfgP.bankDdPct}% under its live high`; }
+      if (cfgP.bankDdPct > 0) { const xs = [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at), start = (st.bal ?? 0) - xs.reduce((a, x) => a + x.pnl, 0); let run = 0, ref = start, lastD = null; const tripped = {};
+        for (const x of xs) { const d = etDay(x.at); if (lastD && lastD !== d && tripped[lastD]) ref = start + run; lastD = d; run += x.pnl; const cash = start + run; ref = Math.max(ref, cash); if (cash <= ref * (1 - cfgP.bankDdPct / 100)) tripped[d] = true; }
+        if (lastD === etDay(Date.now()) && tripped[lastD]) return `bank drawdown stop: ${cfgP.bankDdPct}% under its high today`; }
       if (t.filter(x => x.fill > 0).length >= HARD.maxPerDay) return 'daily order limit';
       if ([...L.values()].filter(x => x.close === r.close && x.fill > 0).length >= HARD.maxPerWindow) return 'window limit';
       return null; })();
@@ -425,10 +427,10 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-09 a paper run: "Start a new paper run" in Settings stamps paperFrom, and the bank, equity and the Home numbers
     // count only trades after it, from the starting bank again. Earlier trades stay in the log for Analytics, Trades and the labs,
     // marked run:false. Asked for because changing a rule and wanting a clean $1,000 test meant fudging the balance before.
-    const runFrom = K.paperFrom || 0; let runOn = !runFrom;
+    const runFrom = K.paperFrom || 0; let runOn = !runFrom, ddRef = null, ddLastDay = null;
     for (const r of rows) {
       if (!(r.ask >= K.minAsk) || r.result === 'void') continue;
-      if (!runOn && r.at >= runFrom) { runOn = true; bal = K.startUsd; peak = bal; maxDd = 0; balU = K.startUsd; eq.length = 0; eq.push([runFrom, bal]); }
+      if (!runOn && r.at >= runFrom) { runOn = true; bal = K.startUsd; peak = bal; ddRef = bal; maxDd = 0; balU = K.startUsd; eq.length = 0; eq.push([runFrom, bal]); }
       const inRun = runOn;
       const w = r.close; perWin[w] = (perWin[w] || 0) + 1;
       // MC 2026-11-09 two more stops beside the daily loss cap, both for keeping profit already made. Give-back: once today's
@@ -436,7 +438,11 @@ export function createKalshi(state, env, keep) {
       // day once the bank is bankDdPct under its all-time high. Each stays on for the rest of that ET day once it trips.
       const dk = etDay(r.close); if (dayPeak[dk] == null) dayPeak[dk] = 0;
       const gb = K.giveBackPct > 0 && (stopDay[dk] === 'giveback' || (dayPeak[dk] >= (K.giveBackMin ?? 25) && (dayNet[dk] || 0) <= dayPeak[dk] * K.giveBackPct / 100));
-      const bd = K.bankDdPct > 0 && (stopDay[dk] === 'bankdd' || bal <= peak * (1 - K.bankDdPct / 100));
+      // MC 2026-11-09 the drawdown stop measures against its own reference high, not the all-time peak: the day after it trips
+      // the reference resets to the bank as it stands, or a bank that fell under the line could never trade its way back (the
+      // smoke test showed 13 trades in four months with the all-time peak as the line)
+      if (ddRef == null) ddRef = bal; if (ddLastDay && ddLastDay !== dk && stopDay[ddLastDay] === 'bankdd') ddRef = bal; ddLastDay = dk; ddRef = Math.max(ddRef, bal);
+      const bd = K.bankDdPct > 0 && (stopDay[dk] === 'bankdd' || bal <= ddRef * (1 - K.bankDdPct / 100));
       const haltWhy = K.dailyLossUsd > 0 && (dayNet[dk] || 0) <= -K.dailyLossUsd ? 'daily' : gb ? 'giveback' : bd ? 'bankdd' : null, halted = !!haltWhy;
       if (haltWhy && haltWhy !== 'daily' && !stopDay[dk]) stopDay[dk] = haltWhy;
       const c30 = K.coldDays > 0 ? net30(coin(r.series), r.at) : { x: 0, k: 0 }, cold = K.coldDays > 0 && c30.x < 0;
@@ -508,7 +514,7 @@ export function createKalshi(state, env, keep) {
     const LABS = labDefs(K);
     const todayK = etDay(Date.now());
     const sim = (lab, from, baseline) => {
-      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 };
+      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }; let ddRef = bank, ddLast = null;
       for (const t of trades) {
         if (!t.done || t.close < from) continue;
         if (t.win > K.maxPerWindow || t.off) continue;
@@ -516,7 +522,9 @@ export function createKalshi(state, env, keep) {
         const dk = etDay(t.close);
         if (K.dailyLossUsd > 0 && (day[dk] || 0) <= -K.dailyLossUsd) continue;
         if (stopD[dk]) continue; if (dayPk[dk] == null) dayPk[dk] = 0;
-        if ((K.giveBackPct > 0 && dayPk[dk] >= (K.giveBackMin ?? 25) && (day[dk] || 0) <= dayPk[dk] * K.giveBackPct / 100) || (K.bankDdPct > 0 && bank <= peak * (1 - K.bankDdPct / 100))) { stopD[dk] = true; continue; }
+        if (ddLast && ddLast !== dk && stopD[ddLast] === 'bankdd') ddRef = bank; ddLast = dk; ddRef = Math.max(ddRef, bank);
+        if (K.giveBackPct > 0 && dayPk[dk] >= (K.giveBackMin ?? 25) && (day[dk] || 0) <= dayPk[dk] * K.giveBackPct / 100) { stopD[dk] = 'giveback'; continue; }
+        if (K.bankDdPct > 0 && bank <= ddRef * (1 - K.bankDdPct / 100)) { stopD[dk] = 'bankdd'; continue; }
         const size = lab.size && !baseline ? lab.size(bank, t, { peak, start: K.startUsd }) : K.sizeUsd, k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = (t.won ? k : 0) - cost;
         if (!f) { sk++; skNet += t.rulePnl ?? t.pnl ?? 0; continue; }
         n++; if (t.won) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; dayPk[dk] = Math.max(dayPk[dk], day[dk]); peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);

@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.19 (Nov 9, 2026)
+- Bank drawdown stop fix: it measured against the all-time high, so a bank that fell under the line could never trade its way back. The day after it trips, the line now resets to the bank as it stands.
+
 ## 1.0.18 (Nov 9, 2026)
 - Requests page. Ask for something the dashboard can't do yet. You get a number to track it, requests are read every day, and the ones that get built ship in the next release. The page also shows what others have asked for and where each one stands.
 
