@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.41 (Nov 10, 2026): Pull to refresh
+Reload the home-screen app without closing it.
+- [new] Pull to refresh. In the app opened from your home screen, pull down from the top of any page and let go to reload it. Before, the only way to reload was to swipe the app away and open it again.
+
 ## 1.0.40 (Nov 10, 2026): Past volatility readings rechecked
 Readings taken from an out-of-date Coinbase price are rebuilt from its history, and every playbook re-judges those trades.
 - [fixed] Coinbase's price list was coming back about 3 minutes behind, so past volatility readings were measured from an old price. The tracker now rechecks every earlier reading against Coinbase's price history, a few each minute, newest and most suspicious first. A reading that was off is replaced, and the volatility playbooks, Beats the market and Learned re-judge that trade, in Labs and in your paper bank. Trades that had no reading at all get one.
