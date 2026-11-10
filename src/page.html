@@ -943,6 +943,14 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  .kx-tlt .cur b{display:none}.kx-tlx span:first-child{display:none}.kx-hero2 .kx-heq{opacity:.2!important}.kx-hero2 .kx-grid{opacity:.3}}
 @media(min-width:1680px){.kx-home2 .kx-home{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 </style>
+<style id="kpb">
+.kx-pbtag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;margin-left:2px}
+.kx-pbtag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.kx-pbtag.in{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 10%,transparent)}
+.kx-pbtag.out{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.kx-pos.kx-passed{border-style:dashed}.kx-pos.kx-passed .kx-pf .kx-pay{opacity:.6}
+.kx-pos .kx-coin{flex-wrap:wrap;row-gap:6px}
+</style>
 <style id="kreq">
 .kr-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:860px}
 .kr-l{display:block;font-size:13px;font-weight:600;color:var(--ink);margin:12px 0 0}.kr-l small{font-weight:500;color:var(--faint);font-size:11.5px;margin-left:4px}
@@ -1959,15 +1967,23 @@ function kxOpen(){const L=KX.live;if(!L)return[];const now=Date.now();return (L.
 function kxHdr(){const e=$('#kxfeeds');if(!e)return;const age=KX.liveAt?(Date.now()-KX.liveAt)/1000:Infinity,tr=KX.live?.at?(Date.now()-KX.live.at)/1000:Infinity;
   const chip=(ok,lab,sub)=>`<span class="kx-chip ${ok===true?'kxok':ok===false?'kxoff':'kxwarn'}"><i></i>${lab}<small>${sub}</small></span>`;
   e.innerHTML=chip(tr<90?true:tr<180?null:false,'Tracker',isFinite(tr)?(tr<60?Math.round(tr)+'s ago':Math.round(tr/60)+'m ago')+(KX.live?.fallback?' · via bot':''):'no data')+chip(KX.wsOk?true:Object.keys(KX.px).length?null:false,'Prices',KX.wsOk?'Coinbase live':Object.keys(KX.px).length?'Coinbase, polling':'connecting')+(ST.D?.copyOff||botAge()>3600?'':chip(botAge()<30?true:botAge()<120?null:false,'Bot',isFinite(botAge())?Math.round(botAge())+'s ago':'offline'))}
+// MC 2026-11-10 the live board shows every trade the rule took, but the paper book may be running a playbook that passed on
+// some of them. Each card now says whether this one is in your book, and if not, why (the volatility numbers when it is that).
+function kxPbOf(o){const K=ST.D?.kalshi||{},t=[...(K.pending||[]),...(K.recent||[])].find(x=>x.tk===o.tk);if(!t)return null;const pb=kxLabOf(K,K.playbook?.id).name;
+  if(!t.capped)return {cls:'in',txt:K.playbook?.id&&K.playbook.id!=='rule'?`In your book · ${pb}`:'In your book'};
+  if(t.strat){const z=t.z!=null?` · ${Number(t.z).toFixed(2)} moves clear, needs 1`:t.stratWhy==='no volatility reading'?' · no volatility reading':'';return {cls:'out',txt:`Passed by ${esc(t.stratWhy&&t.stratWhy!=='no volatility reading'&&!/^Kelly/.test(t.stratWhy)?t.stratWhy:pb)}${z}`}}
+  if(t.halted)return {cls:'out',txt:t.haltWhy==='giveback'?'Skipped · give-back stop':t.haltWhy==='bankdd'?'Skipped · bank drawdown stop':'Skipped · daily stop'};
+  if(t.off)return {cls:'out',txt:'Skipped · off-schedule hour'};if(t.cold)return {cls:'out',txt:'Skipped · coin benched'};return {cls:'out',txt:'Skipped · window cap'}}
+const kxPbTag=o=>{const b=kxPbOf(o);return b?`<span class="kx-pbtag ${b.cls}">${b.txt}</span>`:''};
 function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,open=kxOpen(),K=ST.D?.kalshi||{},c=K.cfg||{};const now=Date.now();
   const sig=open.map(o=>o.tk).join(',');
   if(el.dataset.sig!==sig){el.dataset.sig=sig;
-    el.innerHTML=open.length?open.map(o=>`<div class="kx-pos" data-tk="${esc(o.tk)}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
+    el.innerHTML=open.length?open.map(o=>`<div class="kx-pos ${kxPbOf(o)?.cls==='out'?'kx-passed':''}" data-tk="${esc(o.tk)}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span><span data-k="pb">${kxPbTag(o)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
       <div class="kx-pm"><span>Target<b>${kxFmt(o.strike,o.strike)}</b></span><span>Now<b data-k="px">–</b></span><span>Margin<b data-k="mg">–</b></span><span>60s avg<b data-k="avg">–</b></span><span class="kx-wp">Win chance<b data-k="wp">–</b><small data-k="wpk"></small></span></div>
       <div class="kx-cvw"><canvas class="kx-cv"></canvas></div>
       <div class="kx-pf"><span>Kalshi now <b data-k="kp">${o.ya!=null?(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢':'–'}</b></span><span class="kx-spw" data-k="sp">${kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}</span><span class="kx-pay">pays $${o.n}.00 · <span class="pos">+$${(o.n-o.cost).toFixed(2)}</span> if ${o.side.toUpperCase()}, <span class="neg">-$${Number(o.cost).toFixed(2)}</span> if not</span></div></div>`).join('')
     :`<div class="kx-none"><div class="kx-tl" id="kxtl"></div><div class="note" style="margin-top:12px">Nothing open. The tracker takes a market at the trade check when its leader costs ${Math.round((c.minAsk||.9)*100)}¢ or more.</div></div>`}
-  else if(open.length){for(const o of open){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const kp=card.querySelector('[data-k=kp]');if(kp&&o.ya!=null)kp.textContent=(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢';const sp=card.querySelector('[data-k=sp]');if(sp)sp.innerHTML=kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}}
+  else if(open.length){for(const o of open){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const pbe=card.querySelector('[data-k=pb]'),pbh=kxPbTag(o);if(pbe&&pbe.innerHTML!==pbh)pbe.innerHTML=pbh;card.classList.toggle('kx-passed',kxPbOf(o)?.cls==='out');const kp=card.querySelector('[data-k=kp]');if(kp&&o.ya!=null)kp.textContent=(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢';const sp=card.querySelector('[data-k=sp]');if(sp)sp.innerHTML=kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}}
   kxScan();kxFrame(true)}
 function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{},minAsk=c.minAsk||.9;
   // MC 2026-11-09 board rows sorted by leader price so what is about to qualify floats to the top; alphabetical was the old order
@@ -2972,7 +2988,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.26',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.27',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.27 (Nov 10, 2026)
+- Live board: each open trade says whether it is in your book (green) or was passed by your playbook (amber, dashed card), and why, including the volatility check's numbers.
+
 ## 1.0.26 (Nov 10, 2026)
 - Home's Today line shows what your playbook passed on and how those would have gone, like "2 trades, 2 won, 4 passed (3-1)".
 
