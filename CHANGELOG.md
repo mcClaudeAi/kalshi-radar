@@ -1,5 +1,8 @@
 # What's new
 
+## 1.0.23 (Nov 9, 2026)
+- Opened from the home screen, the header no longer slides under the phone's clock and battery.
+
 ## 1.0.22 (Nov 9, 2026)
 - A proper home-screen icon. Add the dashboard to your phone's home screen (Share, then Add to Home Screen on iPhone) and it gets the radar mark and opens full screen like an app, instead of a letter in a box.
 

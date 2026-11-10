@@ -993,6 +993,12 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-more p b{color:var(--ink)}.kx-more .kx-ex{border-color:color-mix(in srgb,var(--kx) 35%,var(--line));background:color-mix(in srgb,var(--kx) 7%,transparent)}
 .kx-more .kx-ex b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--kx);margin-bottom:4px}
 </style>
+<style id="safe">
+/* MC 2026-11-09 opened from the home screen the page runs full screen under a see-through status bar, so the header slid under
+   the clock and battery. The header now pads by the notch inset; in Safari the inset is 0, so nothing moves there. */
+.top{padding-top:env(safe-area-inset-top)}
+.modal{padding-top:max(16px,env(safe-area-inset-top))}
+</style>
 <style id="mfix">
 .fld select{width:100%;height:42px;border-radius:12px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);font:600 14px inherit;padding:0 10px}
 .kx-hrpick{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
@@ -2962,7 +2968,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.22',KR_DATE='Nov 9, 2026';
+const KR_VERSION='1.0.23',KR_DATE='Nov 9, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
