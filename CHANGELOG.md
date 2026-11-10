@@ -1,5 +1,9 @@
 # What's new
 
+## 1.0.31 (Nov 10, 2026)
+- New playbook, Beats the market v2: like Beats the market, but it uses the larger of the last hour's and the last 15 minutes' volatility, so a swing that just started counts, and it takes half of any slide back toward the target in the last 5 minutes off the margin. Trade details and live cards show its reading.
+- Labs: the chart legend is now a filter bar. Tap to show or hide a line, double-click or press and hold to show only that one against the rule, and All or None. Your choice is remembered on that device.
+
 ## 1.0.30 (Nov 10, 2026)
 - Live win chance now uses the same volatility measure the tracker decides on (an hour of 1-minute Coinbase prices), without the extra safety margin, so it no longer reads well under Kalshi on every card.
 - Each live card shows what the trade looked like at the trade check: moves past the target and the win chance then, against the price paid.
