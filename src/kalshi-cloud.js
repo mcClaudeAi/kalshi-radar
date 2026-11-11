@@ -535,6 +535,45 @@ export function createKalshi(state, env, keep) {
     await keep({ klive: kl, kview: view }, false);
   }
 
+  // ---------- notifications ----------
+  // MC 2026-11-10 what the phone is told. One message per 15-minute window per account, never one per coin: nine buzzes in a
+  // second is noise. "Positions opened" goes out once the window's entries are in. "Settled" waits until every position in the
+  // window has its result (or 4 minutes after the close), so the message carries the whole window: how many won, the net, each
+  // coin, then the day and the bank. Each trade is marked once it has been reported, and the marks live in storage because
+  // memory does not last between minutes. Nothing older than the lookback is sent, so turning notifications on does not replay
+  // the day. The worker decides which devices get which message; this only writes them. Wording is plain and exact on purpose.
+  let pnT = null, pnBank = null;
+  async function events(now = Date.now()) {
+    await load(); if (!pnT) kalshiView();
+    const seen = (await kv.get('kpn')) || {}, out = [], K = cfgP; let ch = false;
+    const mark = k => { seen[k] = now; ch = true; }, usd = v => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), sg = v => (v < 0 ? '\u2212' : '+') + usd(v);
+    const c1 = px => (px * 100).toFixed(1) + '\u00a2', sd = x => x === 'yes' ? 'Yes' : 'No', tm = t => new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) + ' ET';
+    const join = l => l.length > 6 ? l.slice(0, 6).join('  \u00b7  ') + `  \u00b7  and ${l.length - 6} more` : l.join('  \u00b7  '), D = etDay(now);
+    const build = (book, label, opens, wins, key, rows, dayNet, bankLine, pbName) => {
+      const byW = {}; for (const x of rows) (byW[x.close] = byW[x.close] || []).push(x);
+      for (const [cl, w] of Object.entries(byW)) { const close = +cl;
+        const o = w.filter(x => !seen[key + 'o' + x.id] && now - x.at < 12 * 60000 && now < close + 60000);
+        if (o.length) { const cost = o.reduce((a, x) => a + x.cost, 0); o.forEach(x => mark(key + 'o' + x.id));
+          out.push({ book, kind: 'open', tag: key + 'o' + close, url: '/', title: o.length === 1 ? `${label}: position opened` : `${label}: ${o.length} positions opened`,
+            body: (o.length === 1 ? `${o[0].coin} ${sd(o[0].side)}, ${o[0].n} contracts at ${c1(o[0].px)}${o[0].late ? ' (second look)' : ''}` : join(o.map(x => `${x.coin} ${sd(x.side)} ${c1(x.px)}`))) + `\nCommitted ${usd(cost)}. Settles ${tm(close)}.` + (pbName ? `\nPlaybook: ${pbName}.` : '') }); }
+        const d = w.filter(x => x.done && !seen[key + 's' + x.id] && now - close < 40 * 60000), all = w.every(x => x.done);
+        if (d.length && (all || now > close + 4 * 60000)) { const net = d.reduce((a, x) => a + x.pnl, 0), nw = d.filter(x => x.won).length, nl = d.length - nw; d.forEach(x => mark(key + 's' + x.id));
+          out.push({ book, kind: 'settle', win: nw > 0, loss: nl > 0, tag: key + 's' + close, url: '/',
+            title: d.length === 1 ? `${label}: ${d[0].coin} ${sd(d[0].side)} ${d[0].won ? 'won' : 'lost'}, ${sg(net)}` : nl === 0 ? `${label}: ${nw} of ${nw} won, ${sg(net)}` : nw === 0 ? `${label}: ${nl} of ${nl} lost, ${sg(net)}` : `${label}: ${nw} won, ${nl} lost, ${sg(net)}`,
+            body: (d.length === 1 ? `${d[0].n} contracts at ${c1(d[0].px)}, settled ${tm(close)}.` : join(d.slice().sort((a, b) => a.pnl - b.pnl).map(x => `${x.coin} ${sg(x.pnl)}`))) + `\nToday ${sg(dayNet)}. ${bankLine}` }); } }
+    };
+    // paper: the active playbook's own trades in the current run
+    const pt = (pnT || []).filter(t => !t.capped && t.run && now - t.t < 60 * 60000).map(t => ({ id: t.tk, at: t.t, close: t.close, coin: t.coin, side: t.side, px: t.px, n: t.n, cost: t.cost, done: t.done, won: t.won, pnl: t.pnl ?? 0, late: t.late }));
+    if (pt.length) { const today = (pnT || []).filter(t => t.done && !t.capped && t.run && etDay(t.close) === D).reduce((a, t) => a + (t.pnl || 0), 0), sid = stratAt(K.strat, now), nm = sid === 'rule' ? 'The rule' : (labDefs(K).find(l => l.id === sid)?.name || null);
+      build('paper', 'Paper account', 0, 0, 'p', pt, today, `Bank ${usd(pnBank ?? K.startUsd)}.`, nm); }
+    // live: orders that filled, and their results
+    const lt = [...L.values()].filter(x => x.fill > 0 && x.px != null && now - x.at < 60 * 60000).map(x => ({ id: x.tk, at: x.at, close: x.close, coin: x.coin, side: x.side, px: x.px, n: x.fill, cost: x.cost ?? x.fill * x.px, done: !!x.result, won: !!x.won, pnl: x.pnl ?? 0 }));
+    if (lt.length) { const today = [...L.values()].filter(x => x.result && x.fill > 0 && etDay(x.close) === D).reduce((a, x) => a + (x.pnl || 0), 0), sid = stratAt(ctl().strat, now), nm = sid === 'rule' ? 'The rule' : (labDefs(K).find(l => l.id === sid)?.name || null);
+      build('live', 'Live account', 0, 0, 'l', lt, today, st.bal != null ? `Kalshi balance ${usd(st.bal)}.` : '', nm); }
+    if (ch) { for (const k of Object.keys(seen)) if (now - seen[k] > 6 * 3600000) delete seen[k]; await kv.put('kpn', seen); }
+    return out;
+  }
+
   // ---------- second look ----------
   const baseTaken = tk => { const b = rec.get(tk); return !!(b && b.ask >= cfgP.minAsk && b.result !== 'void' && b.vol?.z >= 1); };
   // MC 2026-11-10 asked the same evening: "9 coins passed this round, did the recheck take them?" There was nowhere to see it.
@@ -715,6 +754,7 @@ export function createKalshi(state, env, keep) {
     // every second-look entry as a bare trade for the Labs line, whichever playbook the paper book is on
     const lateT = [...rec2.values()].filter(r => r.result !== 'void').map(r => { const px = r.avgN || r.ask; return { late: 1, bTaken: baseTaken(r.ticker), tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), done: !!r.result, won: !!r.won, z: r.vol?.z ?? null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }; });
     const labs = runLabs(trades, K, lateT);
+    pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
     const byCoin = {}; for (const t of doneAll) { const b = byCoin[t.coin] = byCoin[t.coin] || { coin: t.coin, n: 0, won: 0, net: 0 }; b.n++; if (t.won) b.won++; b.net = +(b.net + t.pnl).toFixed(2); }
     const winLoss = {}; for (const t of done) { if (!t.won) winLoss[t.close] = (winLoss[t.close] || 0) + 1; }
@@ -868,5 +908,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

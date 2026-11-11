@@ -1,6 +1,7 @@
 import PAGE from './page.html';
 import { createKalshi } from './kalshi-cloud.js';
 import { ICONS } from './icons.js';
+import { pushApi, pushSend, SW_JS } from './push.js';
 // Kalshi Radar, the plug-and-play edition of the Curve Radar Kalshi dashboard (Cloudflare Worker + one Durable Object).
 //
 // MC 2026-11-08 asked for a version someone else can run with nothing but a Cloudflare account and their own Kalshi key, with every
@@ -74,7 +75,9 @@ export class Store {
   }
   async limited() { const f = (await this.state.storage.get('fails')) || { n: 0, at: 0 }; if (Date.now() - f.at > 15 * 60000) return { n: 0, at: Date.now() }; return f; }
 
-  async alarm() { await this.loadKeys(); await this.K.alarm(); try { await this.ghAuto(); } catch { } }
+  async alarm() { await this.loadKeys(); await this.K.alarm(); await this.notify(); try { await this.ghAuto(); } catch { } }
+  // MC 2026-11-10 after every wake of the tracker: anything worth telling the phone goes out to the devices that asked for it
+  async notify() { try { await pushSend(this.state.storage, await this.K.events()); } catch (e) { console.log('notify: ' + e.message); } }
 
   // ---------- one-tap and automatic updates ----------
   // MC 2026-11-10 "Update now" only opened the owner's GitHub Actions page, where they still had to press Run workflow; on a
@@ -122,7 +125,7 @@ export class Store {
 
   async fetch(req) {
     const u = new URL(req.url), p = u.pathname, post = req.method === 'POST';
-    if (p === '/k/tick') { await this.loadKeys(); await this.K.tick(); return new Response('ok'); }
+    if (p === '/k/tick') { await this.loadKeys(); await this.K.tick(); await this.notify(); return new Response('ok'); }
     // state-changing calls must come from the page itself (SameSite=Strict cookie + this header, which a form post can't set)
     if (post && req.headers.get('x-cr') !== '1') return J({ ok: false, msg: 'bad request' }, 400);
     const body = post ? await req.json().catch(() => ({})) : {};
@@ -208,6 +211,7 @@ export class Store {
       return J({ ok: true, msg: 'Kalshi key removed and live trading turned off. Paper keeps running.' });
     }
     // ---------- GitHub token for one-tap and automatic updates ----------
+    if (p === '/api/push' && post) return J(await pushApi(this.state.storage, body.op, { ...body, origin: u.origin }));
     if (p === '/api/gh' && !post) { const box = await this.state.storage.get('ghconn'); return J({ connected: !!box, repo: box?.repo || null, end: box?.end || null, savedAt: box?.at || null, auto: box ? box.auto !== false : false, last: (await this.state.storage.get('ghlast')) || null, ver: this.ver() }); }
     if (p === '/api/gh' && post) {
       const repo = String(body.repo || '').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$|\/$/g, ''), token = String(body.token || '').trim();
@@ -232,6 +236,7 @@ export default {
     const u = new URL(req.url), stub = env.STORE.get(env.STORE.idFromName('main'));
     // MC 2026-11-09 home-screen icons and the web manifest, public, cached for a day
     if (ICONS[u.pathname.slice(1)]) { const b = Uint8Array.from(atob(ICONS[u.pathname.slice(1)]), c => c.charCodeAt(0)); return new Response(b, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' } }); }
+    if (u.pathname === '/sw.js') return new Response(SW_JS, { headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache', 'service-worker-allowed': '/' } });
     if (u.pathname === '/manifest.webmanifest') return new Response(JSON.stringify({ name: 'Kalshi Radar', short_name: 'Kalshi Radar', start_url: '/', display: 'standalone', background_color: '#060a16', theme_color: '#060a16', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=86400' } });
     if (u.pathname === '/' || u.pathname === '/index.html') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SEC } });
     if (u.pathname === '/data' || u.pathname.startsWith('/api/')) return stub.fetch(req);

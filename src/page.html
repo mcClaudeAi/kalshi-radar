@@ -975,6 +975,21 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @media(max-width:900px){.kl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kl-k b{font-size:22px}}
 @media(max-width:520px){.kl-w{grid-template-columns:minmax(0,1fr)}.kl-bar{grid-row:auto;grid-column:1;margin-top:4px}}
 </style>
+<style id="kpn">
+.pn-note{font-size:13px;line-height:1.55;color:var(--mute);padding:4px 0 12px}.pn-note b{color:var(--ink)}.pn-err{font-size:12.5px;color:var(--bad);padding:0 0 12px}
+.pn-on{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);padding:2px 0 12px}.pn-on i{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 22%,transparent)}
+.pn-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.pn-col{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:color-mix(in srgb,var(--bg) 55%,transparent)}
+.pn-ch{padding:12px 14px;border-bottom:1px solid var(--line)}.pn-ch b{display:block;font-size:13.5px;color:var(--ink)}.pn-ch span{font-size:11.5px;color:var(--faint)}
+.pn-row{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:12px 14px;cursor:pointer;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)}.pn-ch+.pn-row{border-top:0}
+.pn-row b{display:block;font-size:13.5px;font-weight:600;color:var(--ink)}.pn-row small{display:block;font-size:11.5px;color:var(--faint);margin-top:2px;line-height:1.4}
+.pn-row i{flex:none;position:relative;width:42px;height:25px;border-radius:99px;background:color-mix(in srgb,var(--ink) 16%,transparent);transition:background .18s}.pn-row i::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .18s}
+.pn-row[aria-checked="true"] i{background:var(--good)}.pn-row[aria-checked="true"] i::after{transform:translateX(17px)}.pn-row:focus-visible{outline:2px solid var(--kx);outline-offset:-2px}
+.pn-prev{display:flex;gap:12px;align-items:flex-start;margin:14px 0;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:color-mix(in srgb,var(--s2) 60%,transparent);max-width:440px}
+.pn-pi{flex:none;width:36px;height:36px;border-radius:9px;background:#060a16 url(/icon-192.png) center/cover}.pn-prev>div:last-child{min-width:0;flex:1}
+.pn-pt{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.pn-pt b{font-size:13px;color:var(--ink);line-height:1.3}.pn-pt span{font-size:11px;color:var(--faint);flex:none}.pn-prev p{margin:3px 0 0;font-size:12.5px;line-height:1.45;color:var(--mute)}
+.pn-acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:2px 0 14px}.pn-sub{font-size:12px;color:var(--faint);flex:1 1 220px;line-height:1.4}
+@media(max-width:700px){.pn-cols{grid-template-columns:minmax(0,1fr)}}
+</style>
 <style id="klabc">
 /* MC 2026-11-10 playbook colors are picked for the dark theme; on white the yellow, the pale pink and the greys washed out.
    In the light theme the chart lines and swatches are darkened and saturated as a set, so each stays the same hue. */
@@ -1741,6 +1756,37 @@ async function lockDevice(all){const ok=await confirmBox({title:all?'Lock every 
 // which matters now that a playbook cuts off at 95. Fill prices show one decimal app wide. Kalshi's own quotes stay whole
 // cents, because that is what they are.
 function kxC(v){return v==null||!isFinite(v)?'–':(Number(v)*100).toFixed(1)+'¢'}
+// MC 2026-11-10 push notifications, set per device. The page registers the service worker, asks the phone for permission on
+// the tap that turns them on (iOS only allows the ask from a tap, and only in the app opened from the Home Screen), and sends
+// the subscription to the dashboard. Six switches: paper and live, each for positions opened, wins and losses. They save on tap
+// and belong to this device only, so a phone and a laptop can listen for different things.
+const PN={st:'init',on:false,prefs:null,ep:null,busy:false,note:''};
+const pnOk=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window,pnIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),pnApp=()=>navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+const pnName=()=>{const u=navigator.userAgent;return /iPhone/.test(u)?'iPhone':/iPad/.test(u)||pnIOS()?'iPad':/Android/.test(u)?'Android':/Mac/.test(u)?'Mac':/Windows/.test(u)?'Windows':'Browser'},pnKey=k=>Uint8Array.from(atob(k.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((k.length+3)%4)),c=>c.charCodeAt(0));
+function pnPaint(){const e=$('#kxpush');if(e)e.innerHTML=kxPushCard()}
+async function pnLoad(){if(PN.st!=='init'&&PN.st!=='error')return;if(!pnOk()){PN.st='none';pnPaint();return}
+  try{const reg=await navigator.serviceWorker.register('/sw.js'),sub=await reg.pushManager.getSubscription();
+    if(sub){PN.ep=sub.endpoint;let r=await api('/api/push',{op:'get',endpoint:sub.endpoint});if(!r.on){const j=sub.toJSON();r=await api('/api/push',{op:'sub',endpoint:j.endpoint,keys:j.keys,name:pnName()})}PN.on=!!r.on;PN.prefs=r.prefs||null}else PN.on=false;
+    PN.st=Notification.permission==='denied'?'denied':'ready'}catch(x){PN.st='error';PN.note=String(x.message||x)}pnPaint()}
+async function pnOn(){if(PN.busy)return;PN.busy=true;PN.note='';pnPaint();
+  try{const perm=await Notification.requestPermission();if(perm!=='granted'){PN.st=perm==='denied'?'denied':'ready';PN.busy=false;pnPaint();return}
+    const reg=await navigator.serviceWorker.ready,k=await api('/api/push',{op:'key'});if(!k.key)throw new Error(k.msg||'The dashboard did not return its key.');
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pnKey(k.key)}),j=sub.toJSON(),r=await api('/api/push',{op:'sub',endpoint:j.endpoint,keys:j.keys,name:pnName()});
+    if(!r.on)throw new Error(r.msg||'The dashboard could not save this device.');PN.ep=j.endpoint;PN.on=true;PN.prefs=r.prefs;PN.st='ready';toast('Notifications are on for this device');api('/api/push',{op:'test',endpoint:PN.ep})}
+  catch(x){PN.note=String(x.message||x)}PN.busy=false;pnPaint()}
+async function pnOff(){const ok=await confirmBox({title:'Turn notifications off on this device?',body:'This device will stop receiving them. Other devices keep theirs.',confirm:'Turn off'});if(!ok)return;
+  try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();if(sub){await api('/api/push',{op:'unsub',endpoint:sub.endpoint});await sub.unsubscribe()}}catch{}PN.on=false;PN.ep=null;toast('Notifications are off for this device');pnPaint()}
+async function pnTog(book,k){if(!PN.prefs||!PN.ep)return;PN.prefs[book][k]=!PN.prefs[book][k];pnPaint();const r=await api('/api/push',{op:'prefs',endpoint:PN.ep,prefs:PN.prefs});if(r.prefs)PN.prefs=r.prefs;else{PN.note=r.msg||'That switch did not save.';PN.prefs[book][k]=!PN.prefs[book][k]}pnPaint()}
+async function pnTest(){const r=await api('/api/push',{op:'test',endpoint:PN.ep});toast(r.msg||(r.ok?'Test sent':'Test not sent'))}
+function kxPushCard(){if(PN.st==='init'){setTimeout(pnLoad,0);return '<div class="pn-note">Checking this device…</div>'}
+  const sample=`<div class="pn-prev" aria-hidden="true"><div class="pn-pi"></div><div><div class="pn-pt"><b>Paper account: 3 of 3 won, +$11.82</b><span>now</span></div><p>BTC +$4.10  ·  ETH +$3.62  ·  SOL +$4.10<br>Today +$103.41. Bank $1,103.41.</p></div></div>`;
+  if(PN.st==='none')return `<div class="pn-note">${pnIOS()&&!pnApp()?'<b>Add this dashboard to your Home Screen first.</b> On iPhone and iPad, notifications only work in the app opened from the Home Screen: tap Share, then Add to Home Screen, open it from there and come back to this page.':'<b>This browser cannot receive push notifications.</b> On iPhone, open the dashboard from its Home Screen icon. On a computer, use a current Chrome, Edge, Firefox or Safari.'}</div>${sample}`;
+  if(PN.st==='denied')return `<div class="pn-note"><b>Notifications are blocked for this app.</b> ${pnIOS()?'Open the iPhone\'s Settings, then Notifications, find this app and allow notifications. Then come back to this page.':'Allow notifications for this site in your browser\'s site settings, then reload this page.'}</div>${sample}`;
+  if(PN.st==='error')return `<div class="pn-note"><b>This device could not be set up for notifications.</b> ${esc(PN.note)}</div><div class="pn-acts"><button class="btn sm" onclick="PN.st='init';pnPaint()">Try again</button></div>`;
+  if(!PN.on)return `${sample}<div class="pn-acts"><button class="btn pri" onclick="pnOn()" ${PN.busy?'disabled':''}>${PN.busy?'Turning on…':'Turn on for this device'}</button><span class="pn-sub">Your ${pnName()} will ask for permission. You choose what to hear about on the next screen.</span></div>${PN.note?`<div class="pn-err">${esc(PN.note)}</div>`:''}`;
+  const P=PN.prefs||{paper:{},live:{}},row=(b,k,t,d)=>`<button class="pn-row" role="switch" aria-checked="${!!P[b][k]}" onclick="pnTog('${b}','${k}')"><span><b>${t}</b><small>${d}</small></span><i></i></button>`;
+  const col=(b,t,d)=>`<div class="pn-col"><div class="pn-ch"><b>${t}</b><span>${d}</span></div>${row(b,'open','Positions opened','When the playbook buys. Coins, prices, amount committed.')}${row(b,'win','Wins','When a window settles with a winning position.')}${row(b,'loss','Losses','When a window settles with a losing position.')}</div>`;
+  return `<div class="pn-on"><i></i><b>On for this ${pnName()}</b></div><div class="pn-cols">${col('paper','Paper account','Practice trades')}${col('live','Live account','Real orders on Kalshi')}</div>${sample}<div class="pn-acts"><button class="btn sm" onclick="pnTest()">Send a test</button><button class="btn sm ghost" onclick="pnOff()">Turn off for this device</button></div>${PN.note?`<div class="pn-err">${esc(PN.note)}</div>`:''}`}
 function kxPaperFree(){return !(kxLv()?.on)}
 function kxFreeCmd(type,args){return kxPaperFree()&&(type==='kalshiSet'||(type==='kalshiStrat'&&args&&args.book==='paper'))}
 async function cmd(type,args,label){
@@ -2619,7 +2665,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" onclick="kxCsv()">Export CSV</button><span class="note" style="margin:0;align-self:center">${n0((K.all||[]).length)} settled trades</span></div></div>
 `,check:`    <div class="card"><h3>Go-live checklist<span class="r">${okN} of ${chk.length}</span></h3><div class="kx-checks">${chk.map(x=>`<div class="kx-ck ${x.ok?'done':''}"><div class="kx-ckh"><i>${x.ok?'✓':''}</i><b>${esc(x.label)}</b></div>${bar(x.pct,x.ok?'var(--good)':'var(--kx)')}<small>${esc(x.note)}</small></div>`).join('')}</div></div>
 `,settings:`    <div class="kx-snav"><div class="kx-snavh">Paper settings</div><div class="kx-snavs">${lk?'Locked on this device':'This device can change them'}</div>
-     ${[['basics','The basics','Bank, size, the rule'],['stops','Stops','End a day early'],['mix','Your mix','Build your own playbook'],['sched','Schedule','Hours to sit out']].map(([i,t,d])=>`<a href="#kxg-${i}" onclick="document.getElementById('kxg-${i}').scrollIntoView({behavior:'smooth',block:'start'});return false"><b>${t}</b><span>${d}</span></a>`).join('')}
+     ${[['basics','The basics','Bank, size, the rule'],['stops','Stops','End a day early'],['mix','Your mix','Build your own playbook'],['sched','Schedule','Hours to sit out'],['notify','Notifications','On this device']].map(([i,t,d])=>`<a href="#kxg-${i}" onclick="document.getElementById('kxg-${i}').scrollIntoView({behavior:'smooth',block:'start'});return false"><b>${t}</b><span>${d}</span></a>`).join('')}
      <div class="kx-snavn">Every setting has a short line and a <b>How it works</b> with a worked example. Nothing changes until you press Save.</div></div>
     <div class="kx-sbody">
     <div class="kx-sg" id="kxg-basics"><div class="kx-sgh">The basics</div><div class="kx-sgd">The bank, the stake and the rule itself.</div>
@@ -2682,6 +2728,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
     <div class="kx-sg" id="kxg-sched"><div class="kx-sgh">Schedule</div><div class="kx-sgd">Hours of the day, Eastern time, to sit out.</div>
     <div class="fld"><label>Schedule (ET)</label><div class="kx-hrpick">${Array.from({length:24},(_,h)=>{const x=(K.byHour||{})[h];return `<button type="button" class="kx-hp" data-h="${h}" aria-pressed="${!(c.skipHours||[]).includes(h)}" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')" ${dis}><b>${kxHrLbl(h)}</b><small class="${x?cls(x.net):''}">${x?usd(x.net):'–'}</small></button>`}).join('')}</div><div class="hint">Tap an hour to switch it off. Trades that would start in an off hour are skipped, paper and live, and every playbook. Under each hour is what the plain rule made in it so far.</div>${more('Each button is one hour of the day in Eastern time. A lit button trades; a crossed-out one does not. A trade belongs to the hour its trade check falls in. Off hours apply to every playbook, paper and live, and to the labs. The small number under each hour is what the plain rule has made in that hour across your whole history, so you can see which hours are hurting before you switch them off.','Tap 9a and 10a to cover the US stock market open. The 9:05, 9:20, 9:35, 9:50, 10:05, 10:20, 10:35 and 10:50 trade checks are skipped. Trades from 11:05 AM onward run as normal.','sched')}</div>
     </div>
+    <div class="kx-sg" id="kxg-notify"><div class="kx-sgh">Notifications</div><div class="kx-sgd">Sent to this device when positions open and when they settle. One message per 15-minute window, never one per coin. These switches save as you tap them.</div><div id="kxpush">${kxPushCard()}</div></div>
     <div class="kx-savebar ${lk?'locked':''}" id="kxsavebar"><div><b id="kxsavest">${lk?'Locked on this device':'No unsaved changes'}</b><span>${lk?'To change settings, unlock this device once with a code sent to your Telegram. It stays unlocked for 30 days.':'Saving re-books the paper account from the whole log. The schedule, the stops and Your mix apply live too when live is on.'}</span></div><div class="kx-saveb">${lk?'<button class="btn pri unl" onclick="unlockFlow()">Unlock this device</button>':'<button class="btn" onclick="render()">Discard</button>'}${lk?'':'<button class="btn pri" onclick="kxSave()">Save</button>'}</div></div>
     </div>`};
   const pb=`<div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div>`;
@@ -3304,7 +3351,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.52',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.53',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

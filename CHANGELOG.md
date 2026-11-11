@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.53 (Nov 10, 2026): Push notifications
+Your phone is told when positions open and when they settle.
+- [new] Push notifications from the home-screen app, set up under Settings, Notifications. One message when a window's positions open (coins, prices, amount committed, when it settles, the playbook) and one when the window settles (how many won and lost, the net, each coin's result, today's total and the bank). One message per 15-minute window, never one per coin.
+- [new] Six switches per device: paper and live, each for positions opened, wins and losses. They save as you tap them, and each device keeps its own, so a phone and a laptop can listen for different things. Send a test from the same card.
+- [improved] Messages are encrypted end to end between your dashboard and your device, sent straight to Apple's, Google's or Mozilla's push service with no third party in between. On iPhone and iPad, add the dashboard to your Home Screen first; notifications only work from there.
+
 ## 1.0.52 (Nov 10, 2026): Playbook colors you can tell apart
 Every playbook has its own clearly different color.
 - [improved] With fifteen playbooks, several shared near-identical pinks and greens on the Labs chart. Each now has its own hue, the same one on Labs and on the Backtest page, and the set is darkened in the light theme so the yellow and the pale colors stay visible.
