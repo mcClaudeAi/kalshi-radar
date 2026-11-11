@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.61 (Nov 11, 2026): Cash out when the trend turns
+Test selling a trade at the 10-minute mark when the trend runs against it.
+- [new] Setting under Stops: Cash out when the trend turns. At the 10-minute mark of every window, the tracker fits the trend line from minute 5 to minute 10. With the bet or flat, the trade is held. Against the bet, the position is sold right then at the price Kalshi's buyers are paying, fee included. It applies to every playbook. Paper only for now; live keeps holding.
+- [new] A Cash out when the trend turns panel on Labs measures the idea on every rule trade, whether the setting is on or not: how often trades with the trend, flat and against it won, and what selling the against ones did compared with holding them.
+- [improved] Trade details say which way the trend ran at minute 10 and whether the trade was held or cashed out. Cashed trades are marked in Trades.
+- [improved] The trade replay keeps the 5-to-10 minute trend line and drops the dotted line to the close, at Steven's request.
+
 ## 1.0.60 (Nov 11, 2026): A paper run starts its first day at zero
 Lowering the daily stop no longer wipes out the day a run began.
 - [fixed] The daily stops counted the whole ET day, including trades from before a paper run started. A run begun in the afternoon after a losing morning could be stopped the moment it started, and because saving settings re-books the whole log, lowering the daily loss stop could empty that day after the fact. The run's first day now starts from zero.
