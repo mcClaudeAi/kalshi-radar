@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.68 (Nov 11, 2026): Cash out and Wait for the trend in Backtest
+Both trend ideas can now be tested on four months of history.
+- [new] Backtest has a Trend turns against the bet choice: Hold to the close, or Cash out at minute 10, with the Cash out only past (%) line next to it. With cash out on, every playbook sells the trades whose trend ran against them past that line, at what they would have sold for at minute 10, fee included.
+- [new] Wait for the trend is a row in Backtest, run on every coin's price at 5 minutes left over the same four months.
+- [improved] What the history shows: over four months, cashing out past 0.15% turns the plain rule's +$4,092 into +$34, and Wait for the trend loses about $2,300. The trend line does pick out the risky trades, but Kalshi's price at minute 10 already reflects it, so selling or waiting costs more than it saves. Labs keeps tracking both live.
+
 ## 1.0.67 (Nov 11, 2026): Bottom bar stays at the bottom
 A fix for the iPhone home-screen app.
 - [fixed] The bottom bar could be left floating in the middle of the screen after typing, or get dragged up by scrolling past the end of a page. It now goes back into place when the keyboard closes and hides while the keyboard is up, and the page no longer bounces past its ends.
