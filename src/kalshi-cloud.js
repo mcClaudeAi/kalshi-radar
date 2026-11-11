@@ -41,13 +41,16 @@ function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
   if (K.mixVol) p.push('at least one expected move past the target');
   const size = sz === 'pct' ? `${K.mixPct ?? 5}% of the bank a trade` : sz === 'kelly' ? 'quarter Kelly sizing' : sz === 'ratchet' ? `$${K.sizeUsd} a trade plus $${K.ratchetAdd ?? 10} for every $${K.ratchetEvery ?? 200} of banked profit, back to $${K.sizeUsd} whenever the bank is under its high` : `$${K.sizeUsd} a trade`;
   return `${p.length ? 'Only trades ' + p.join(', ') : 'Every rule trade'}; ${size}. Built in Paper settings.`; }
+// MC 2026-11-10 colors re-picked as one set once there were fifteen playbooks: three pinks sat next to each other on the Labs
+// chart. Each hue is now used once (sky, orange, sea green, hot pink, royal blue, tan, grey, purple, mint, olive, yellow, red,
+// pale pink, lavender, dim grey). The Backtest page uses the same ones.
 function labDefs(K) {
   return [
-    { id: 'rule', name: 'The rule', desc: `Every 90¢+ leader at 10 minutes left, $${K.sizeUsd} a trade.`, color: '#4FD1FF', filter: () => true },
-    { id: 'no95', name: 'Skip 95¢ and up', desc: 'Only buys between 90¢ and 94¢. Over 4 months the 95¢+ trades made nothing but still lost the full stake in bad windows.', color: '#FFB347', filter: t => t.px < 0.95 },
-    { id: 'six', name: '6 or more coins', desc: 'Only trades windows where at least 6 of the 9 coins qualify. Those windows won 96% in the replay with half the drawdown.', color: '#35E0A1', filter: t => t.win >= 6 },
-    { id: 'vol', name: 'Margin vs volatility', desc: 'Skips when the coin is less than one expected 10-minute move past its target, judged by its last hour on Coinbase.', color: '#FF7AD9', filter: t => t.z == null ? null : t.z >= 1 },
-    { id: 'pct', name: 'Size follows the bank', desc: `Stakes 5% of the bank instead of a fixed $${K.sizeUsd}, so bets shrink after losses and grow after wins.`, color: '#9B8CFF', filter: () => true, size: b => Math.max(5, Math.round(b * 0.05)) },
+    { id: 'rule', name: 'The rule', desc: `Every 90¢+ leader at 10 minutes left, $${K.sizeUsd} a trade.`, color: '#4CC9F0', filter: () => true },
+    { id: 'no95', name: 'Skip 95¢ and up', desc: 'Only buys between 90¢ and 94¢. Over 4 months the 95¢+ trades made nothing but still lost the full stake in bad windows.', color: '#F8961E', filter: t => t.px < 0.95 },
+    { id: 'six', name: '6 or more coins', desc: 'Only trades windows where at least 6 of the 9 coins qualify. Those windows won 96% in the replay with half the drawdown.', color: '#43AA8B', filter: t => t.win >= 6 },
+    { id: 'vol', name: 'Margin vs volatility', desc: 'Skips when the coin is less than one expected 10-minute move past its target, judged by its last hour on Coinbase.', color: '#F72585', filter: t => t.z == null ? null : t.z >= 1 },
+    { id: 'pct', name: 'Size follows the bank', desc: `Stakes 5% of the bank instead of a fixed $${K.sizeUsd}, so bets shrink after losses and grow after wins.`, color: '#4361EE', filter: () => true, size: b => Math.max(5, Math.round(b * 0.05)) },
     // MC 2026-11-08 Kelly lab. Win chance per price band (90-91, 92-93, 94-95, 96-99c) comes only from trades already settled
     // before the entry, shrunk toward break-even by 40 make-believe break-even trades, so a thin or lucky band can't size up.
     // Kelly fraction f = (q - c) / (1 - c) with c = price plus fee per contract. Stake is a quarter of f times the bank, split
@@ -60,7 +63,7 @@ function labDefs(K) {
     // MC 2026-11-09 Your mix grew into a builder: any of the filters (same-side coins, price cap, volatility check) plus a
     // sizing choice (fixed, % of bank, quarter Kelly), so two playbooks can run as one. Was only same-side plus price cap,
     // which couldn't pair skip-95 with size-follows-the-bank. 1 coin and 100c turn those two filters off.
-    { id: 'mix', name: 'Your mix', desc: mixDesc(K), color: '#FFD166',
+    { id: 'mix', name: 'Your mix', desc: mixDesc(K), color: '#D4A373',
       filter: t => { const sz = K.mixSize || 'fixed'; // MC 2026-11-09 upper bound too: 6+ coins agreeing is usually one market-wide move, so a range like 3 to 5 can be tested
         if (!(t.px < (K.mixMaxPx ?? 0.95)) || (t.same ?? 0) < (K.mixSame ?? 3) || (t.same ?? 0) > (K.mixSameMax ?? 9)) return false;
         if (K.mixVol && t.z == null) return null; if (K.mixVol && t.z < 1) return false;
@@ -70,34 +73,34 @@ function labDefs(K) {
         // moment the bank is under its high. Wins compound slowly, a loss shrinks the bet at once. S carries the bank's high and start.
         : K.mixSize === 'ratchet' ? (b, t, S) => { const base = K.sizeUsd, hi = S?.peak ?? b, st = S?.start ?? K.startUsd; return b + 0.005 < hi ? base : base + (K.ratchetAdd ?? 10) * Math.max(0, Math.floor((hi - st) / (K.ratchetEvery ?? 200))); }
         : b => Math.max(5, Math.round(b * (K.mixPct ?? 5) / 100))) },
-    { id: 'kelly', name: 'Kelly sizing', desc: 'Sizes each bet by the Kelly criterion from the win rate already seen at that price, at a quarter of Kelly, split across the coins in the window. Skips prices with no proven edge.', color: '#E5E7EB', filter: t => t.kf == null ? null : t.kf > 0, size: (b, t) => Math.max(5, Math.min(b * 0.05, b * 0.25 * (t?.kf || 0) / Math.max(1, t?.win || 1))) },
+    { id: 'kelly', name: 'Kelly sizing', desc: 'Sizes each bet by the Kelly criterion from the win rate already seen at that price, at a quarter of Kelly, split across the coins in the window. Skips prices with no proven edge.', color: '#ADB5BD', filter: t => t.kf == null ? null : t.kf > 0, size: (b, t) => Math.max(5, Math.min(b * 0.05, b * 0.25 * (t?.kf || 0) / Math.max(1, t?.win || 1))) },
     // MC 2026-11-10 Beats the market: turns the volatility reading into a win probability (normal model, ten minutes to go with
     // the 60-second settlement average) and only buys when that probability beats Kalshi's price plus the fee plus 1 cent. The
     // volatility lab asks "far enough past the target?"; this asks "is the market underpricing it?", so the bar rises with the price.
-    { id: 'vol2', name: 'Margin vs volatility v2', desc: 'Skips a coin that is less than one typical 10-minute move past its target at the trade check. The typical move is measured directly, from every 10-minute price change on Coinbase over the last 5 hours, instead of being scaled up from 1-minute moves (which overstated it and skipped trades that kept winning).', color: '#FF9EDB', filter: t => t.z10 == null ? null : t.z10 >= 1 },
-    { id: 'edge', name: 'Beats the market', desc: 'Only buys when our win chance, from the coin\'s volatility and how far it is past the target, beats Kalshi\'s price plus the fee and a cent.', color: '#7CF5C8', filter: t => t.z == null ? null : winP(t.z) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
-    { id: 'edge2', name: 'Beats the market v2', desc: 'Beats the market with two more checks: volatility is the larger of the last hour and the last 15 minutes, and a coin sliding back toward its target in the last 5 minutes has half that slide taken off its margin.', color: '#B9F27C', filter: t => t.z2 == null ? null : winP(t.z2) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    { id: 'vol2', name: 'Margin vs volatility v2', desc: 'Skips a coin that is less than one typical 10-minute move past its target at the trade check. The typical move is measured directly, from every 10-minute price change on Coinbase over the last 5 hours, instead of being scaled up from 1-minute moves (which overstated it and skipped trades that kept winning).', color: '#9D4EDD', filter: t => t.z10 == null ? null : t.z10 >= 1 },
+    { id: 'edge', name: 'Beats the market', desc: 'Only buys when our win chance, from the coin\'s volatility and how far it is past the target, beats Kalshi\'s price plus the fee and a cent.', color: '#06D6A0', filter: t => t.z == null ? null : winP(t.z) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    { id: 'edge2', name: 'Beats the market v2', desc: 'Beats the market with two more checks: volatility is the larger of the last hour and the last 15 minutes, and a coin sliding back toward its target in the last 5 minutes has half that slide taken off its margin.', color: '#90BE6D', filter: t => t.z2 == null ? null : winP(t.z2) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     // MC 2026-11-10 Margin vs volatility with the 95c cap, as one named playbook. It existed only as a Backtest row and as a
     // Your mix recipe (volatility on, cap 95, then switch the playbook to Your mix), which was three steps and easy to half do.
     // In the four-month backtest it gave the most profit per dollar of worst drop of anything tested.
-    { id: 'mv95', name: 'Margin vs volatility, under 95¢', desc: 'Margin vs volatility, and it also skips anything priced 95¢ or more. Those contracts pay the least for the same risk. In the four-month backtest this kept nearly all of the profit with a smaller worst drop and no losing month.', color: '#B79CFF', filter: t => t.z == null ? null : t.z >= 1 && t.px < 0.95 },
+    { id: 'mv95', name: 'Margin vs volatility, under 95¢', desc: 'Margin vs volatility, and it also skips anything priced 95¢ or more. Those contracts pay the least for the same risk. In the four-month backtest this kept nearly all of the profit with a smaller worst drop and no losing month.', color: '#FFD60A', filter: t => t.z == null ? null : t.z >= 1 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
     // none had a second half without a red day, because one loss costs about 15 wins. This is the steadiest that held up when
     // it was picked on the first two months and checked on the last two: at least two typical moves past the target on both
     // measures. 91% green days on the half it was picked on, 89% on the half it had not seen, about 7 trades a day, and roughly
     // a fifth of Margin vs volatility's profit. Steadier, smaller; not safe.
-    { id: 'two', name: 'Two moves clear', desc: 'Only buys when the coin is at least two normal 10-minute moves past its target on both volatility measures, twice the bar Margin vs volatility uses. Far fewer trades (about 7 a day) and far fewer losing days: about 9 days in 10 finished green in the four-month history. It earns much less in total. It still has losing days.', color: '#9AD0FF', filter: t => t.z == null || t.z10 == null ? null : t.z >= 2 && t.z10 >= 2 },
+    { id: 'two', name: 'Two moves clear', desc: 'Only buys when the coin is at least two normal 10-minute moves past its target on both volatility measures, twice the bar Margin vs volatility uses. Far fewer trades (about 7 a day) and far fewer losing days: about 9 days in 10 finished green in the four-month history. It earns much less in total. It still has losing days.', color: '#E63946', filter: t => t.z == null || t.z10 == null ? null : t.z >= 2 && t.z10 >= 2 },
     // MC 2026-11-10 second look. Every coin used to get one look, at 10 minutes left; one that qualified a minute or three later
     // (DOGE at 7:37 PM: under 90c at the mark, 92c with a clear lead soon after) was never considered. This playbook is Margin
     // vs volatility at the mark, plus: each minute after it, down to 4 minutes left, a coin it does not already hold is bought
     // the first time its leader is priced 91c to 95c and is at least one typical 10-minute move past the target on a current
     // price. One entry per market. Paper and Labs only for now: live still places orders at the mark only. There is no history
     // to backtest this on (the four-month data has one snapshot per trade), so Labs is the test.
-    { id: 'look2', name: 'Margin vs volatility + second look', late: true, desc: 'Margin vs volatility at the 10-minute mark, plus a second look: every minute after that, until 4 minutes are left, it buys a coin it does not already hold the first time the leader is priced 91¢ to 95¢ and is at least one normal 10-minute move past its target. Paper and Labs only; live still trades at the mark only.', color: '#FFB86B', filter: t => t.late ? (t.bTaken ? null : true) : t.z == null ? null : t.z >= 1 },
+    { id: 'look2', name: 'Margin vs volatility + second look', late: true, desc: 'Margin vs volatility at the 10-minute mark, plus a second look: every minute after that, until 4 minutes are left, it buys a coin it does not already hold the first time the leader is priced 91¢ to 95¢ and is at least one normal 10-minute move past its target. Paper and Labs only; live still trades at the mark only.', color: '#FFB3C6', filter: t => t.late ? (t.bTaken ? null : true) : t.z == null ? null : t.z >= 1 },
     // MC 2026-11-10 the self-learning playbook. pl is the model's win chance for this trade, frozen at the trade check from that
     // morning's fit (so it has never seen the trade it is judging). Same bar as Beats the market: price + fee + 1 cent.
-    { id: 'learn', name: 'Learned', desc: 'Only buys when the self-learning model\'s win chance beats Kalshi\'s price plus the fee plus 1¢. The model refits every morning on every settled trade, starting from four months of history, and is only ever scored on trades it had not seen. See the Learning tab.', color: '#7CF0C8', filter: t => t.pl == null ? null : t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
-    { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#C8F56A', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
+    { id: 'learn', name: 'Learned', desc: 'Only buys when the self-learning model\'s win chance beats Kalshi\'s price plus the fee plus 1¢. The model refits every morning on every settled trade, starting from four months of history, and is only ever scored on trades it had not seen. See the Learning tab.', color: '#E0AAFF', filter: t => t.pl == null ? null : t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#6C757D', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
 }
 const LAB_IDS = labDefs(PAPER_DEF).map(l => l.id);

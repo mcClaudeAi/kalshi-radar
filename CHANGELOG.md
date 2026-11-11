@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.52 (Nov 10, 2026): Playbook colors you can tell apart
+Every playbook has its own clearly different color.
+- [improved] With fifteen playbooks, several shared near-identical pinks and greens on the Labs chart. Each now has its own hue, the same one on Labs and on the Backtest page, and the set is darkened in the light theme so the yellow and the pale colors stay visible.
+- [improved] The Labs chart has room for the longer playbook names at the line ends.
+
 ## 1.0.51 (Nov 10, 2026): Exact fill prices
 Fill prices show one decimal everywhere.
 - [improved] Fill prices were rounded to whole cents, so a 94.6¢ fill and a 95.2¢ one both read 95¢. They now show one decimal on Trades, Home, the live board, the scanner, trade details and the Learning page, so you can tell which side of a 95¢ cap a trade fell on. Kalshi's own quotes stay in whole cents.

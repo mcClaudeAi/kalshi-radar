@@ -975,6 +975,11 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @media(max-width:900px){.kl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kl-k b{font-size:22px}}
 @media(max-width:520px){.kl-w{grid-template-columns:minmax(0,1fr)}.kl-bar{grid-row:auto;grid-column:1;margin-top:4px}}
 </style>
+<style id="klabc">
+/* MC 2026-11-10 playbook colors are picked for the dark theme; on white the yellow, the pale pink and the greys washed out.
+   In the light theme the chart lines and swatches are darkened and saturated as a set, so each stays the same hue. */
+:root[data-theme="light"] .kx-race svg path[data-id],:root[data-theme="light"] .kx-race svg circle,:root[data-theme="light"] .kx-rl button i,:root[data-theme="light"] .bt-chart svg path,:root[data-theme="light"] .bt-tbl i,:root[data-theme="light"] .bt-m th i,:root[data-theme="light"] .kx-lab h4 i,:root[data-theme="light"] .kx-lspk{filter:brightness(.68) saturate(1.5)}
+</style>
 <style id="k2nd">.kx-l2{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:var(--s1);padding:16px 18px}.kx-l2 h4{margin:0 0 10px;font-size:15px;color:var(--ink);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}.kx-l2 h4 span{font-size:11.5px;font-weight:500;color:var(--faint)}.kx-2nd{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:6px;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);white-space:nowrap}</style>
 <style id="ptr-css">
 #ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6px);transform:translate(-50%,0);z-index:90;display:none;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;background:var(--s1);border:1px solid var(--line2);box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:12.5px;font-weight:600;color:var(--mute);pointer-events:none;opacity:0}
@@ -1322,12 +1327,12 @@ function kxRelV(){after.krel=krlLoad;const L=KRL.list||[],head=kxSecHead('Releas
 // cloud tracker's labDefs; if one changes there, change it here. Second look is absent on purpose: the history has one
 // snapshot per trade, at the 10-minute mark, so there is nothing to recheck against.
 const KR_BT='https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/backtest.json',BT={at:0,d:null,err:false,rg:'all',per:'month',met:'net',hit:200,off:new Set(),size:null,loss:null,win:null};
-const BTP=[['rule','The rule','#49C8FF','Every 90¢+ leader at 10 minutes left.',t=>true],['no95','Skip 95¢ and up','#FFB23E','Leaves out the dearest contracts.',t=>t.px<0.95],['six','6 or more coins','#35E0A1','Only when 6+ coins lead the same way.',t=>t.same>=6],
- ['vol','Margin vs volatility','#FF7AD9','At least 1 typical move past the target.',t=>t.z==null?null:t.z>=1],['vol2','Margin vs volatility v2','#FF9EDB','Same, with the 10-minute move measured directly.',t=>t.z10==null?null:t.z10>=1],
- ['edge','Beats the market','#7CE38B','Our win chance must beat price + fee + 1¢.',t=>t.z==null?null:kxWinZ(t.z)>=kxNeed(t.px)],['edge2','Beats the market v2','#D4F06B','Same, stricter volatility and drift.',t=>t.z2==null?null:kxWinZ(t.z2)>=kxNeed(t.px)],
- ['learn','Learned','#7CF0C8','The self-learning model\'s win chance must beat price + fee + 1¢. First 30 days are training, so it starts a month in.',t=>t.pl==null?null:t.pl>=kxNeed(t.px)],
- ['two','Two moves clear','#9AD0FF','At least 2 typical moves past the target on both measures. Few trades, few losing days.',t=>t.z==null||t.z10==null?null:t.z>=2&&t.z10>=2],
- ['mv95','Margin vs volatility, under 95¢','#B79CFF','Margin vs volatility and Skip 95¢ together.',t=>t.z==null?null:t.z>=1&&t.px<0.95],['six95','6 or more coins, under 95¢','#5ED3C4','6 or more coins and Skip 95¢ together.',t=>t.same>=6&&t.px<0.95]];
+const BTP=[['rule','The rule','#4CC9F0','Every 90¢+ leader at 10 minutes left.',t=>true],['no95','Skip 95¢ and up','#F8961E','Leaves out the dearest contracts.',t=>t.px<0.95],['six','6 or more coins','#43AA8B','Only when 6+ coins lead the same way.',t=>t.same>=6],
+ ['vol','Margin vs volatility','#F72585','At least 1 typical move past the target.',t=>t.z==null?null:t.z>=1],['vol2','Margin vs volatility v2','#9D4EDD','Same, with the 10-minute move measured directly.',t=>t.z10==null?null:t.z10>=1],
+ ['edge','Beats the market','#06D6A0','Our win chance must beat price + fee + 1¢.',t=>t.z==null?null:kxWinZ(t.z)>=kxNeed(t.px)],['edge2','Beats the market v2','#90BE6D','Same, stricter volatility and drift.',t=>t.z2==null?null:kxWinZ(t.z2)>=kxNeed(t.px)],
+ ['learn','Learned','#E0AAFF','The self-learning model\'s win chance must beat price + fee + 1¢. First 30 days are training, so it starts a month in.',t=>t.pl==null?null:t.pl>=kxNeed(t.px)],
+ ['two','Two moves clear','#E63946','At least 2 typical moves past the target on both measures. Few trades, few losing days.',t=>t.z==null||t.z10==null?null:t.z>=2&&t.z10>=2],
+ ['mv95','Margin vs volatility, under 95¢','#FFD60A','Margin vs volatility and Skip 95¢ together.',t=>t.z==null?null:t.z>=1&&t.px<0.95],['six95','6 or more coins, under 95¢','#577590','6 or more coins and Skip 95¢ together.',t=>t.same>=6&&t.px<0.95]];
 function btLoad(){if(BT.d||Date.now()-BT.at<60000)return;BT.at=Date.now();fetch(KR_BT+'?t='+Math.floor(Date.now()/3600000),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.rows){const f=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}),n=v=>v==null?null:v/100;
     BT.d={from:j.from,to:j.to,built:j.built,rows:j.rows.map((r,i)=>{const at=r[0]*60000;return {i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],same:r[4],win:r[5],z:n(r[6]),z2:n(r[7]),z10:n(r[8]),pl:r[9]==null?null:r[9]/1000}})};BT.err=false}else BT.err=true;if(ST.tab==='kbt')render()}).catch(()=>{BT.err=true;if(ST.tab==='kbt')render()})}
 function btRun(rows,size,loss,win){return BTP.map(([id,name,color,desc,f])=>{let net=0,pk=0,dd=0,n=0,won=0,nr=0,stops=0,worst=0;const day={},stopped={},eq=[],mo={},ds={},seq=[],tp={};
@@ -2512,7 +2517,7 @@ function kxRace(el,labs,start){if(!el)return;// MC 2026-11-10 a playbook that ha
   // v2 or Learned looked like it was not logging. It now draws from its first judged trade, flat at $0 until it takes one.
   const L0=(labs||[]).filter(l=>l.eq&&(l.eq.length>1||l.since)&&!KXL.off.has(l.id));const cap=$('#kxrcap');document.querySelectorAll('.kx-rg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.rg===KXL.rg)));
   if(!L0.length){el.innerHTML='<div class="empty">The labs start scoring after the next settled trade.</div>';if(cap)cap.textContent='';return}
-  const W=el.clientWidth||900,H=el.clientHeight||320,wide=W>=720,P={l:54,r:wide?216:14,t:14,b:28},pb=ST.D?.kalshi?.playbook?.id;
+  const W=el.clientWidth||900,H=el.clientHeight||320,wide=W>=720,P={l:54,r:wide?262:14,t:14,b:28},pb=ST.D?.kalshi?.playbook?.id;
   const first=l=>l.since||l.eq[0][0],x1=Math.max(Date.now(),...L0.map(l=>l.eq.length?l.eq[l.eq.length-1][0]:0)),rg=KXL.rg;
   const t0=rg==='1d'?x1-86400000:rg==='7d'?x1-7*86400000:rg==='all'?Math.min(...L0.map(first)):Math.max(...L0.map(first));
   const L=L0.map(l=>{let base=start;for(const q of l.eq){if(q[0]<=t0)base=q[1];else break}const s=Math.max(t0,first(l)),pts=[[s,0]];for(const q of l.eq)if(q[0]>t0)pts.push([q[0],+(q[1]-base).toFixed(2)]);pts.push([x1,pts[pts.length-1][1]]);return {...l,pts,late:first(l)>t0+60000,end:pts[pts.length-1][1]}});
@@ -2526,7 +2531,7 @@ function kxRace(el,labs,start){if(!el)return;// MC 2026-11-10 a playbook that ha
   const path=l=>l.pts.map((q,i)=>i?`H${X(q[0]).toFixed(1)}V${Y(q[1]).toFixed(1)}`:`M${X(q[0]).toFixed(1)} ${Y(q[1]).toFixed(1)}`).join('');
   // end labels: sorted by where the line ends, pushed apart so they never sit on each other
   const lab=L.slice().sort((a,b)=>Y(a.end)-Y(b.end)).map(l=>({l,y:Y(l.end)}));for(let i=1;i<lab.length;i++)if(lab[i].y<lab[i-1].y+15)lab[i].y=lab[i-1].y+15;const over=lab.length?lab[lab.length-1].y-(H-P.b):0;if(over>0)for(let i=lab.length-1;i>=0;i--){lab[i].y=Math.min(lab[i].y,i===lab.length-1?H-P.b:lab[i+1].y-15)}
-  const xe=W-P.r,short=n=>n.length>24?n.slice(0,23)+'…':n;
+  const xe=W-P.r,short=n=>n.length>34?n.slice(0,33)+'…':n;
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-label="Labs profit over time">
    ${ticks.map(v=>`<g><line x1="${P.l}" x2="${xe}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${v===0?'var(--line2)':'var(--line)'}" ${v===0?'':'stroke-opacity=".6"'}/><text x="${P.l-10}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="${v===0?'var(--mute)':'var(--faint)'}" style="font-variant-numeric:tabular-nums">${$f(v)}</text></g>`).join('')}
    ${xt.map(([t,k])=>`<g><line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${P.t}" y2="${H-P.b}" stroke="var(--line)" stroke-opacity=".45"/><text x="${X(t).toFixed(1)}" y="${H-8}" font-size="11" fill="var(--faint)" text-anchor="middle">${k}</text></g>`).join('')}
@@ -3299,7 +3304,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.51',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.52',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
