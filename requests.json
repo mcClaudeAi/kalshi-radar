@@ -1,8 +1,25 @@
 {
   "updated": "Nov 11, 2026",
   "items": [
-    { "id": 3, "text": "On the Trades tab, in How it played out, show a trend line between 5 and 10 minutes and say whether the coin is trending up, neutral or down.", "status": "planned", "note": "Built on a branch: the replay draws a dashed trend line from the 5 to the 10 minute mark and says up, neutral or down and whether that runs with or against the bet. Using it to close a bet early at the 10 minute mark changes how trading works, so that part is the owner's call.", "version": "" },
-    { "id": 2, "text": "Add a daily profit lockout: stop trading once the day hits a profit target, so a good day isn't given back.", "status": "released", "version": "1.0.32", "note": "Settings, Stops: Daily profit target. Over the four months to Nov 9 a low target cost a lot of profit ($25 a day kept almost nothing), while $200 a day came out a little ahead of no target. Test it on paper before trusting it." },
-    { "id": 1, "text": "Inbox test", "status": "hidden", "note": "" }
+    {
+      "id": 3,
+      "text": "On the Trades tab, in How it played out, show a trend line between 5 and 10 minutes and say whether the coin is trending up, neutral or down.",
+      "status": "released",
+      "note": "Released in 1.0.59: open any trade and the replay shows the minute 5 to 10 trend, a dotted line carrying that pace to the close, and a card with the move, pace and how steady it was. Using the trend to close a bet early is not built; that changes how trading works.",
+      "version": "1.0.59"
+    },
+    {
+      "id": 2,
+      "text": "Add a daily profit lockout: stop trading once the day hits a profit target, so a good day isn't given back.",
+      "status": "released",
+      "version": "1.0.32",
+      "note": "Settings, Stops: Daily profit target. Over the four months to Nov 9 a low target cost a lot of profit ($25 a day kept almost nothing), while $200 a day came out a little ahead of no target. Test it on paper before trusting it."
+    },
+    {
+      "id": 1,
+      "text": "Inbox test",
+      "status": "hidden",
+      "note": ""
+    }
   ]
 }

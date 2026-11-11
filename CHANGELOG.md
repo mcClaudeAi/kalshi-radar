@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.59 (Nov 11, 2026): Trend in the trade replay
+See which way the coin was heading between minute 5 and minute 10, and what came next.
+- [new] Every trade replay shows the trend from minute 5 to minute 10: a shaded band, a line fitted to the coin's price in green when it ran with your bet, red when it ran against it, and a dotted line carrying that pace on to the close. The replay reveals it as it plays. (Request 3.)
+- [new] A trend card under the replay: whether the move ran with or against the bet, its size, its pace per minute and how steady it was. Once the trade settles it says whether the last five minutes kept to the trend or turned, and how the bet ended.
+
 ## 1.0.58 (Nov 11, 2026): Paper runs you can see past and undo
 Analytics follows your paper run, with the full history one tap away.
 - [new] On Analytics, a This run / All trades switch for the paper account, shown while a run is going. This run is the default, so the daily P&L starts when you reset the paper bank; All trades shows the days before it too.

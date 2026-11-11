@@ -975,6 +975,16 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @media(max-width:900px){.kl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kl-k b{font-size:22px}}
 @media(max-width:520px){.kl-w{grid-template-columns:minmax(0,1fr)}.kl-bar{grid-row:auto;grid-column:1;margin-top:4px}}
 </style>
+<style id="ktrend">
+/* MC 2026-11-11 trend card under the trade replay (request 3) */
+.kt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:10px;padding:14px 16px;border-radius:14px;border:1px solid color-mix(in srgb,var(--kc) 35%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--kc) 12%,var(--s1)),var(--s1) 55%);position:relative;overflow:hidden}
+.kt-main{min-width:0}.kt-main b,.kt-main span{white-space:normal;overflow-wrap:anywhere}.kt-with{--kc:var(--good)}.kt-against{--kc:var(--bad)}.kt-flat{--kc:var(--faint)}
+.kt-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--kc);background:color-mix(in srgb,var(--kc) 16%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--kc) 30%,transparent) inset}
+.kt-main small,.kt-stats small{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}.kt-main b{display:block;font-size:15px;color:var(--ink);margin-top:2px}.kt-main span{display:block;font-size:12.5px;color:var(--mute);margin-top:3px;line-height:1.45}
+.kt-stats{display:flex;gap:18px}.kt-stats>div{min-width:62px}.kt-stats b{display:block;font-size:14px;color:var(--ink);margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}.kt-stats i{font-style:normal;font-size:11px;color:var(--faint);margin-left:1px}
+.kt-bar{display:block;height:4px;border-radius:99px;background:color-mix(in srgb,var(--ink) 10%,transparent);margin-top:5px;overflow:hidden}.kt-bar i{display:block;height:100%;border-radius:99px;background:var(--kc)}
+@media(max-width:640px){.kt{grid-template-columns:auto minmax(0,1fr)}.kt-stats{grid-column:1/-1;justify-content:space-between;padding-top:10px;border-top:1px solid var(--line)}}
+</style>
 <style id="krun">.kx-runat{display:block;margin:12px 0 4px;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--mute)}.kx-runat input{display:block;width:100%;margin-top:6px;height:42px;border-radius:11px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);font:600 14px inherit;padding:0 12px;box-sizing:border-box}.kx-runat span{display:block;margin-top:6px;font-weight:500;letter-spacing:0;color:var(--faint)}</style>
 <style id="kpn">
 .pn-note{font-size:13px;line-height:1.55;color:var(--mute);padding:4px 0 12px}.pn-note b{color:var(--ink)}.pn-err{font-size:12.5px;color:var(--bad);padding:0 0 12px}
@@ -2374,6 +2384,11 @@ function kxPlayBuild(host,tk,t){const P=KXP[tk],pts=P.pts,open=t.close-15*60000,
   const zone=(a,b,colr)=>`<rect x="${PD.l}" y="${Math.min(a,b)}" width="${iw}" height="${Math.abs(b-a)}" fill="${colr}" opacity=".09"/>`;
   const d=pts.filter(p=>p[0]>=x0-30).map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');
   const kd=P.kal.length>1?P.kal.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+(PD.t+(1-p[1])*ih).toFixed(1)).join(''):'';
+  // MC 2026-11-11 request 3: a trend line fitted to the coin price between 5 and 10 minutes, and a line of copy saying whether it ran
+  // up, neutral or down and with or against the side we hold. Reads the chart only; nothing here closes a trade early
+  const tr=kxTrend(pts,x0+300,x0+600,t),tx0=X(x0+300),tx1=X(x0+600),ty0=Y(tr?.a??0),ty1=Y(tr?.b??0),txe=X(x1),tye=tr?Math.min(PD.t+ih,Math.max(PD.t,Y(tr.proj))):0;
+  const tband=tr?`<defs><linearGradient id="ktg${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tr.colr}" stop-opacity=".16"/><stop offset="1" stop-color="${tr.colr}" stop-opacity=".02"/></linearGradient></defs><rect x="${tx0.toFixed(1)}" y="${PD.t}" width="${(tx1-tx0).toFixed(1)}" height="${ih}" fill="url(#ktg${id})"/><line x1="${tx0.toFixed(1)}" x2="${tx0.toFixed(1)}" y1="${PD.t}" y2="${PD.t+ih}" stroke="${tr.colr}" stroke-opacity=".25"/><line x1="${tx1.toFixed(1)}" x2="${tx1.toFixed(1)}" y1="${PD.t}" y2="${PD.t+ih}" stroke="${tr.colr}" stroke-opacity=".25"/><text x="${((tx0+tx1)/2).toFixed(1)}" y="${PD.t+12}" text-anchor="middle" font-size="9.5" font-weight="700" letter-spacing=".08em" fill="${tr.colr}" opacity=".85">TREND</text>`:'';
+  const td=tr?`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${txe.toFixed(1)}" y2="${tye.toFixed(1)}" stroke="${tr.colr}" stroke-width="1.6" stroke-dasharray="2 5" stroke-linecap="round" opacity=".7"/><line x1="${tx0.toFixed(1)}" y1="${ty0.toFixed(1)}" x2="${tx1.toFixed(1)}" y2="${ty1.toFixed(1)}" stroke="${tr.colr}" stroke-width="9" stroke-linecap="round" opacity=".16"/><line x1="${tx0.toFixed(1)}" y1="${ty0.toFixed(1)}" x2="${tx1.toFixed(1)}" y2="${ty1.toFixed(1)}" stroke="${tr.colr}" stroke-width="2.6" stroke-linecap="round"/><circle cx="${tx1.toFixed(1)}" cy="${ty1.toFixed(1)}" r="4" fill="${tr.colr}" stroke="var(--bg)" stroke-width="2"/><circle cx="${txe.toFixed(1)}" cy="${tye.toFixed(1)}" r="3" fill="none" stroke="${tr.colr}" stroke-width="1.5" opacity=".8"/>`:'';
   const fy=t.final!=null?Y(t.final):null,near=fy!=null&&Math.abs(fy-ty)<15,fly=near?(fy<=ty?ty-9:ty+17):fy+4,tly=near?(fy<=ty?ty+17:ty-7):ty+4;
   const fin=t.final!=null?`<line x1="${X(x1-60)}" x2="${X(x1)}" y1="${fy}" y2="${fy}" stroke="${t.won?'var(--good)':'var(--bad)'}" stroke-width="3" stroke-linecap="round"/><text x="${PD.l+iw+6}" y="${fly}" font-size="11" font-weight="700" fill="${t.won?'var(--good)':'var(--bad)'}">${esc(kxFmt(t.final,t.strike).replace('$',''))}</text>`:'';
   host.innerHTML=`<div class="kp"><svg viewBox="0 0 ${W} ${H}" height="${H}" class="kx-playsvg"><defs><clipPath id="kpc${id}"><rect id="kpr${id}" x="0" y="0" width="${W}" height="${H}"/></clipPath></defs>
@@ -2382,15 +2397,33 @@ function kxPlayBuild(host,tk,t){const P=KXP[tk],pts=P.pts,open=t.close-15*60000,
     <line x1="${PD.l}" x2="${PD.l+iw}" y1="${ty}" y2="${ty}" stroke="var(--ink)" stroke-dasharray="5 4" opacity=".55"/><text x="${PD.l+iw+6}" y="${tly}" font-size="11" fill="var(--faint)">target</text>
     <line x1="${X(t.t/1000)}" x2="${X(t.t/1000)}" y1="${PD.t}" y2="${PD.t+ih}" stroke="var(--kx)" stroke-dasharray="2 3" opacity=".7"/><text x="${X(t.t/1000)}" y="${PD.t-4}" font-size="10" fill="var(--kx)" text-anchor="middle">bought ${kxC(t.px)}</text>
     <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.5" opacity=".16"/>
-    <g clip-path="url(#kpc${id})">${kd?`<path d="${kd}" fill="none" stroke="var(--kx)" stroke-width="1.4" opacity=".55"/>`:''}<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></g>
+    <g clip-path="url(#kpc${id})">${tband}${kd?`<path d="${kd}" fill="none" stroke="var(--kx)" stroke-width="1.4" opacity=".55"/>`:''}<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>${td}</g>
     <line id="kpl${id}" x1="0" x2="0" y1="${PD.t}" y2="${PD.t+ih}" stroke="var(--kx)" stroke-width="1.2" opacity=".9" style="display:none"/><circle id="kpd${id}" r="5" fill="var(--ink)" stroke="#060913" stroke-width="2" style="display:none"/>
     ${P.s==null||P.s>=x1?fin:''}<g id="kpf${id}" style="display:${P.s==null||P.s>=x1?'none':'inline'}">${fin}</g>
     ${[0,5,10,15].map(m=>`<text x="${X(x0+m*60)}" y="${H-5}" font-size="10" fill="var(--faint)" text-anchor="${m===0?'start':m===15?'end':'middle'}">${m===0?esc(tm(x0)):m===15?'close':m+'m'}</text>`).join('')}</svg>
    <div class="kp-hud" id="kph${id}"></div>
    <div class="kp-ctl"><button class="kp-btn" id="kpb${id}" onclick="event.stopPropagation();kxPlayToggle('${esc(tk)}')" aria-label="Play">▶</button><input type="range" min="0" max="1000" value="${P.s==null?1000:Math.round((P.s-x0)/(x1-x0)*1000)}" id="kps${id}" oninput="kxPlaySeek('${esc(tk)}',this.value/1000)" onclick="event.stopPropagation()" aria-label="Scrub">
     <div class="kx-seg sm">${[15,30,60].map(v=>`<button aria-selected="${P.dur===v}" onclick="event.stopPropagation();kxPlayDur('${esc(tk)}',${v})">${v}s</button>`).join('')}</div></div>
-   <div class="note" style="margin-top:6px">${P.fine?'Coin price second by second':'Coin price by the minute'} (Coinbase) against Kalshi's target; the shaded last minute is the 60-second average Kalshi settles on${t.final!=null?` (it came to ${esc(kxFmt(t.final,t.strike))})`:''}${kd?'. The faint blue line is what Kalshi charged for our side, 0 to 100%':''}.</div></div>`;
+   <div class="note" style="margin-top:6px">${P.fine?'Coin price second by second':'Coin price by the minute'} (Coinbase) against Kalshi's target; the shaded last minute is the 60-second average Kalshi settles on${t.final!=null?` (it came to ${esc(kxFmt(t.final,t.strike))})`:''}${kd?'. The faint blue line is what Kalshi charged for our side, 0 to 100%':''}.${tr?' '+tr.text+' The dotted line runs that pace on to the close.':''}</div>${kxTrendCard(tr,t)}</div>`;
   kxPlayPaint(tk,t);if(P.playing)kxPlayLoop(tk)}
+// MC 2026-11-11 least-squares line through the coin price over one stretch of the window (seconds in, price out). Neutral when the
+// fitted move over the stretch is under 0.02% of the target, otherwise up or down; the color says with (green) or against (red) the bet
+function kxTrend(pts,s0,s1,t){const Q=pts.filter(p=>p[0]>=s0&&p[0]<=s1);if(Q.length<3||!(t.strike>0))return null;const n=Q.length,mx=Q.reduce((a,p)=>a+p[0],0)/n,my=Q.reduce((a,p)=>a+p[1],0)/n;
+  let sxx=0,sxy=0,syy=0;for(const p of Q){sxx+=(p[0]-mx)**2;sxy+=(p[0]-mx)*(p[1]-my);syy+=(p[1]-my)**2}if(!sxx)return null;const m=sxy/sxx,a=my+m*(s0-mx),b=my+m*(s1-mx),pct=(b-a)/t.strike*100,r2=syy?sxy*sxy/(sxx*syy):0;
+  // MC 2026-11-11 premium pass on request 3: the fit also gives its pace (% a minute), how cleanly the price followed it (r2), where it
+  // would land at the close if it kept going, and, once settled, whether the last five minutes kept to it or turned
+  const dir=Math.abs(pct)<.02?0:pct>0?1:-1,withBet=dir===0?null:(dir>0)===(t.side==='yes'),side=t.side.toUpperCase(),x1=t.close/1000,proj=a+m*(x1-s0),projWin=t.side==='yes'?proj>=t.strike:proj<t.strike;
+  const p10=[...pts].reverse().find(p=>p[0]<=s1)?.[1],held=t.final!=null&&p10!=null&&dir!==0?Math.sign(t.final-p10)===dir:null;
+  const steady=r2>=.6?'Steady':r2>=.3?'Uneven':'Choppy';
+  return {a,b,m,dir,withBet,pct,pace:pct/((s1-s0)/60),r2,steady,proj,projWin,held,p10,colr:dir===0?'var(--faint)':withBet?'var(--good)':'var(--bad)',
+    text:`Trend line: between 5 and 10 minutes the coin trended ${dir===0?'neutral':dir>0?'up':'down'} (${pct>=0?'+':''}${pct.toFixed(2)}% over the stretch)${dir===0?', no lean for or against the '+side+' bet':withBet?', with the '+side+' bet':', against the '+side+' bet'}.`}}
+// the trend card under the replay: direction, size, pace, how clean the move was, which way it pointed for the bet, and what came next
+function kxTrendCard(tr,t){if(!tr)return '';const side=t.side.toUpperCase(),arrow=tr.dir>0?'M5 15 15 5M8 5h7v7':tr.dir<0?'M5 5l10 10M15 8v7H8':'M4 10h12M12 6l4 4-4 4',k=tr.dir===0?'flat':tr.withBet?'with':'against';
+  const lean=tr.dir===0?`No lean for the ${side} bet`:tr.withBet?`Running with the ${side} bet`:`Running against the ${side} bet`,sg=v=>(v>=0?'+':'−')+Math.abs(v).toFixed(v===tr.pace?3:2)+'%';
+  const after=tr.held==null?(t.final==null?`<span>If it kept this pace it would close ${tr.projWin?'on the winning side':'on the losing side'} of the target.</span>`:''):`<span>${tr.held?'The last five minutes kept to it.':'The last five minutes turned the other way.'} ${t.won?'The bet won.':'The bet lost.'}</span>`;
+  return `<div class="kt kt-${k}"><div class="kt-ic"><svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${arrow}"/></svg></div>
+    <div class="kt-main"><small>Trend, minute 5 to 10</small><b>${lean}</b>${after}</div>
+    <div class="kt-stats"><div><small>Move</small><b>${sg(tr.pct)}</b></div><div><small>Pace</small><b>${sg(tr.pace)}<i>/min</i></b></div><div><small>Shape</small><b>${tr.steady}</b><span class="kt-bar"><i style="width:${Math.round(Math.max(.04,tr.r2)*100)}%"></i></span></div></div></div>`}
 function kxPlayTrade(tk){const K=ST.D?.kalshi;return [...(K?.recent||[]),...(K?.pending||[])].find(x=>x.tk===tk)}
 function kxPlayPaint(tk,t){const P=KXP[tk];if(!P?.geo)return;t=t||kxPlayTrade(tk);if(!t)return;const g=P.geo,id=g.id,s=P.s??g.x1,$i=x=>document.getElementById(x+id);if(!$i('kph'))return;
   const r=$i('kpr');r.setAttribute('width',Math.max(0,g.X(s)));const ln=$i('kpl'),dt=$i('kpd'),showHead=P.s!=null&&P.s<g.x1;ln.style.display=dt.style.display=showHead?'':'none';
@@ -3367,7 +3400,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.58',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.59',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
