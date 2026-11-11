@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.70 (Nov 11, 2026): Clearer skip reasons
+Trade cards say plainly why a playbook skipped a coin.
+- [fixed] A coin skipped for its price under an under-95¢ playbook now says so ("paid 95.1¢, needs under 95¢"). It used to show its moves-clear reading, which had passed, so the skip looked like a volatility call.
+- [improved] "Passed by" now reads "Skipped by", since "passed" could mean either.
+
 ## 1.0.69 (Nov 11, 2026): Live books on Kalshi subaccounts
 Run as many separate live bankrolls as you like, each on its own Kalshi subaccount.
 - [new] Subaccount books, on the Live account page. Add a book and the dashboard uses your main Kalshi key to create a subaccount and a key locked to it. The locked key can only trade that subaccount and can't move money; it is stored encrypted in your dashboard and never shown. Already have a subaccount? Link it with a locked key instead.
