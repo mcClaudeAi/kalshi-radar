@@ -1350,10 +1350,12 @@ const BTP=[['rule','The rule','#4CC9F0','Every 90¢+ leader at 10 minutes left.'
  ['mv95','Margin vs volatility, under 95¢','#FFD60A','Margin vs volatility and Skip 95¢ together.',t=>t.z==null?null:t.z>=1&&t.px<0.95],['six95','6 or more coins, under 95¢','#577590','6 or more coins and Skip 95¢ together.',t=>t.same>=6&&t.px<0.95]];
 function btLoad(){if(BT.d||Date.now()-BT.at<60000)return;BT.at=Date.now();fetch(KR_BT+'?t='+Math.floor(Date.now()/3600000),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.rows){const f=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}),n=v=>v==null?null:v/100;
     BT.d={from:j.from,to:j.to,built:j.built,rows:j.rows.map((r,i)=>{const at=r[0]*60000;return {i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],same:r[4],win:r[5],z:n(r[6]),z2:n(r[7]),z10:n(r[8]),pl:r[9]==null?null:r[9]/1000}}).sort((a,b)=>a.at-b.at||(b.z??-9)-(a.z??-9))};BT.err=false}else BT.err=true;if(ST.tab==='kbt')render()}).catch(()=>{BT.err=true;if(ST.tab==='kbt')render()})}
-function btRun(rows,size,loss,win,lockAt=0,lockKeep=0){return BTP.map(([id,name,color,desc,f])=>{const lr={},hi={};let net=0,pk=0,dd=0,n=0,won=0,nr=0,stops=0,worst=0;const day={},stopped={},eq=[],mo={},ds={},seq=[],tp={};
-  for(const t of rows){const v=f(t);if(v==null){nr++;continue}if(!v)continue;const dn=day[t.d]||0;if((loss>0&&dn<=-loss)||(win>0&&dn>=win)){if(!stopped[t.d]){stopped[t.d]=1;stops++}continue}
+// MC 2026-11-11 the stops read the day as it stood when the window opened (all of a window's coins are bought together, before
+// any settles); it used to update coin by coin, which made tight daily stops look far better than they could be
+function btRun(rows,size,loss,win,lockAt=0,lockKeep=0){return BTP.map(([id,name,color,desc,f])=>{const lr={},hi={},wsn={};let net=0,pk=0,dd=0,n=0,won=0,nr=0,stops=0,worst=0;const day={},stopped={},eq=[],mo={},ds={},seq=[],tp={};
+  for(const t of rows){const v=f(t);if(v==null){nr++;continue}if(!v)continue;const dn=wsn[t.at]??(wsn[t.at]=day[t.d]||0);if((loss>0&&dn<=-loss)||(win>0&&dn>=win)){if(!stopped[t.d]){stopped[t.d]=1;stops++}continue}
     let sz=size;if(lockAt>0){if(lr[t.at]==null)lr[t.at]=(hi[t.d]||0)>=lockAt?dn-(hi[t.d]||0)*lockKeep/100:Infinity;if(lr[t.at]<t.px*1.01)continue;sz=Math.min(size,lr[t.at])}
-    const k=Math.floor(sz/t.px),fee=Math.ceil(0.07*k*t.px*(1-t.px)*100)/100,p=(t.won?k:0)-k*t.px-fee;n++;if(t.won)won++;net+=p;day[t.d]=dn+p;hi[t.d]=Math.max(hi[t.d]||0,day[t.d]);if(lockAt>0&&isFinite(lr[t.at]))lr[t.at]-=k*t.px+fee;worst=Math.min(worst,day[t.d]);pk=Math.max(pk,net);dd=Math.max(dd,pk-net);eq.push([t.at+600000,net]);const m=t.d.slice(0,7);mo[m]=(mo[m]||0)+p;const x=ds[t.d]||(ds[t.d]=[0,0,0]);x[0]++;if(t.won)x[1]++;x[2]+=p;seq.push([t.d,p,t.at]);tp[t.i]=p}
+    const k=Math.floor(sz/t.px),fee=Math.ceil(0.07*k*t.px*(1-t.px)*100)/100,p=(t.won?k:0)-k*t.px-fee;n++;if(t.won)won++;net+=p;day[t.d]=(day[t.d]||0)+p;hi[t.d]=Math.max(hi[t.d]||0,day[t.d]);if(lockAt>0&&isFinite(lr[t.at]))lr[t.at]-=k*t.px+fee;worst=Math.min(worst,day[t.d]);pk=Math.max(pk,net);dd=Math.max(dd,pk-net);eq.push([t.at+600000,net]);const m=t.d.slice(0,7);mo[m]=(mo[m]||0)+p;const x=ds[t.d]||(ds[t.d]=[0,0,0]);x[0]++;if(t.won)x[1]++;x[2]+=p;seq.push([t.d,p,t.at]);tp[t.i]=p}
   return {id,name,color,desc,n,won,net,dd,nr,stops,worst,eq,mo,ds,seq,tp,stopped,days:Object.keys(day).length}})}
 // MC 2026-11-10 asked for the same evening the tab shipped: break it down by week and by day, and drill from a month into its
 // weeks and from a week into its days, per playbook. Periods run down the side and playbooks across, so 120 days still fit.
@@ -3359,7 +3361,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.54',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.55',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

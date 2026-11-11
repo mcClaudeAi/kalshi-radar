@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.55 (Nov 11, 2026): Stops judged as the window opens
+A backtest and paper-book fix that makes tight daily stops honest.
+- [fixed] All of a window's coins are bought at the same moment, before any of them settles, but the paper book, Labs and the Backtest applied the day's result coin by coin. A daily stop could skip the third coin because the first two had already lost, which the real tracker can never know. Every stop (daily loss, profit target, give-back, bank drawdown, profit protection) now reads the day as it stood when the window opened. Tight stops look noticeably worse than before; the default $250 stop barely changes.
+
 ## 1.0.54 (Nov 10, 2026): Protect today's profit
 One bad window can no longer take a good day back under the line you set.
 - [new] Setting: Protect profit from ($) and Keep (% of the day's high), under Stops. Once the day's high reaches the amount, each window may only stake today's profit less the share of the high you keep. With 0% a window can take the day back to even, never below. The window's coins share that budget, clearest first; a coin that does not fit in full is bought smaller, and one that cannot fit a contract is skipped. Applies to the paper book, Labs and live. Off by default.

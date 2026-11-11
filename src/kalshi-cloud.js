@@ -721,7 +721,7 @@ export function createKalshi(state, env, keep) {
     // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
     // own analytics, and one whose market the mark trade already holds is dropped.
     const lates = [...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker));
-    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {};
+    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {}, wSnap = {};
     for (const r of rowsAll) {
       const late = !!r.late;
       if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
@@ -732,15 +732,19 @@ export function createKalshi(state, env, keep) {
       // profit has reached giveBackMin, stop for the day if it falls to giveBackPct of today's peak. Bank drawdown: stop for the
       // day once the bank is bankDdPct under its all-time high. Each stays on for the rest of that ET day once it trips.
       const dk = etDay(r.close); if (dayPeak[dk] == null) dayPeak[dk] = 0;
-      const gb = K.giveBackPct > 0 && (stopDay[dk] === 'giveback' || (dayPeak[dk] >= (K.giveBackMin ?? 25) && (dayNet[dk] || 0) <= dayPeak[dk] * K.giveBackPct / 100));
+      // MC 2026-11-11 every stop reads the day as it stood when the window opened. All of a window's coins are bought at the same
+      // moment, before any of them settles, but the book used to apply the day's result coin by coin, so a stop could skip the
+      // third coin because the first two lost: knowledge the real tracker never has. It flattered tight stops in the backtests.
+      const ws = wSnap[w] || (wSnap[w] = { net: dayNet[dk] || 0, peak: dayPeak[dk], bal });
+      const gb = K.giveBackPct > 0 && (stopDay[dk] === 'giveback' || (ws.peak >= (K.giveBackMin ?? 25) && ws.net <= ws.peak * K.giveBackPct / 100));
       // MC 2026-11-09 the drawdown stop measures against its own reference high, not the all-time peak: the day after it trips
       // the reference resets to the bank as it stands, or a bank that fell under the line could never trade its way back (the
       // smoke test showed 13 trades in four months with the all-time peak as the line)
       if (ddRef == null) ddRef = bal; if (ddLastDay && ddLastDay !== dk && stopDay[ddLastDay] === 'bankdd') ddRef = bal; ddLastDay = dk; ddRef = Math.max(ddRef, bal);
-      const bd = K.bankDdPct > 0 && (stopDay[dk] === 'bankdd' || bal <= ddRef * (1 - K.bankDdPct / 100));
+      const bd = K.bankDdPct > 0 && (stopDay[dk] === 'bankdd' || ws.bal <= ddRef * (1 - K.bankDdPct / 100));
       // MC 2026-11-10 daily profit lockout (request R-2): once the day is up by dailyWinUsd, the rest of the day is skipped
-      const tw = K.dailyWinUsd > 0 && (dayNet[dk] || 0) >= K.dailyWinUsd;
-      const haltWhy = K.dailyLossUsd > 0 && (dayNet[dk] || 0) <= -K.dailyLossUsd ? 'daily' : tw ? 'target' : gb ? 'giveback' : bd ? 'bankdd' : null, halted = !!haltWhy;
+      const tw = K.dailyWinUsd > 0 && ws.net >= K.dailyWinUsd;
+      const haltWhy = K.dailyLossUsd > 0 && ws.net <= -K.dailyLossUsd ? 'daily' : tw ? 'target' : gb ? 'giveback' : bd ? 'bankdd' : null, halted = !!haltWhy;
       if (haltWhy && haltWhy !== 'daily' && !stopDay[dk]) stopDay[dk] = haltWhy;
       const c30 = K.coldDays > 0 ? net30(coin(r.series), r.at) : { x: 0, k: 0 }, cold = K.coldDays > 0 && c30.x < 0;
       const px = r.avgN || r.ask, sid = stratAt(K.strat, r.at), lab = sid === 'rule' ? null : labs0.find(l => l.id === sid);
@@ -756,7 +760,7 @@ export function createKalshi(state, env, keep) {
       // four-month history with a $200 target, starting at $100 and keeping 0%: more green days on every playbook; more profit on
       // Margin vs volatility and v2, much less on the plain rule (it stakes many coins a window and runs out of budget). Off by default.
       let lockCut = false, szUse = sizeUsd;
-      if (K.lockAt > 0 && !capped0) { if (lockRem[w] == null) lockRem[w] = (dayPeak[dk] || 0) >= K.lockAt ? (dayNet[dk] || 0) - (dayPeak[dk] || 0) * (K.lockKeep || 0) / 100 : Infinity; if (lockRem[w] < px + fee(px, 1)) lockCut = true; else szUse = Math.min(sizeUsd, lockRem[w]); }
+      if (K.lockAt > 0 && !capped0) { if (lockRem[w] == null) lockRem[w] = ws.peak >= K.lockAt ? ws.net - ws.peak * (K.lockKeep || 0) / 100 : Infinity; if (lockRem[w] < px + fee(px, 1)) lockCut = true; else szUse = Math.min(sizeUsd, lockRem[w]); }
       const capped = capped0 || lockCut, n = Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
       const t = { lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
@@ -826,21 +830,21 @@ export function createKalshi(state, env, keep) {
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
     const sim = (lab, from, baseline) => {
-      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}; let ddRef = bank, ddLast = null;
+      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}; let ddRef = bank, ddLast = null;
       const trades = lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         if (!t.done || t.close < from) continue;
         if (t.win > K.maxPerWindow || t.off) continue;
         const f = baseline ? true : lab.filter(t); if (f == null) continue;
-        const dk = etDay(t.close);
-        if (K.dailyLossUsd > 0 && (day[dk] || 0) <= -K.dailyLossUsd) continue;
+        const dk = etDay(t.close), ws = wS[t.close] || (wS[t.close] = { net: day[dk] || 0, pk: dayPk[dk] || 0, bank });   // the day as the window opened
+        if (K.dailyLossUsd > 0 && ws.net <= -K.dailyLossUsd) continue;
         if (stopD[dk]) continue; if (dayPk[dk] == null) dayPk[dk] = 0;
         if (ddLast && ddLast !== dk && stopD[ddLast] === 'bankdd') ddRef = bank; ddLast = dk; ddRef = Math.max(ddRef, bank);
-        if (K.dailyWinUsd > 0 && (day[dk] || 0) >= K.dailyWinUsd) continue;
-        if (K.giveBackPct > 0 && dayPk[dk] >= (K.giveBackMin ?? 25) && (day[dk] || 0) <= dayPk[dk] * K.giveBackPct / 100) { stopD[dk] = 'giveback'; continue; }
-        if (K.bankDdPct > 0 && bank <= ddRef * (1 - K.bankDdPct / 100)) { stopD[dk] = 'bankdd'; continue; }
+        if (K.dailyWinUsd > 0 && ws.net >= K.dailyWinUsd) continue;
+        if (K.giveBackPct > 0 && ws.pk >= (K.giveBackMin ?? 25) && ws.net <= ws.pk * K.giveBackPct / 100) { stopD[dk] = 'giveback'; continue; }
+        if (K.bankDdPct > 0 && ws.bank <= ddRef * (1 - K.bankDdPct / 100)) { stopD[dk] = 'bankdd'; continue; }
         let size = lab.size && !baseline ? lab.size(bank, t, { peak, start: K.startUsd }) : K.sizeUsd, lockCut = false;
-        if (K.lockAt > 0 && f) { if (lockR[t.close] == null) lockR[t.close] = (dayPk[dk] || 0) >= K.lockAt ? (day[dk] || 0) - (dayPk[dk] || 0) * (K.lockKeep || 0) / 100 : Infinity; if (lockR[t.close] < t.px + fee(t.px, 1)) lockCut = true; else size = Math.min(size, lockR[t.close]); }
+        if (K.lockAt > 0 && f) { if (lockR[t.close] == null) lockR[t.close] = ws.pk >= K.lockAt ? ws.net - ws.pk * (K.lockKeep || 0) / 100 : Infinity; if (lockR[t.close] < t.px + fee(t.px, 1)) lockCut = true; else size = Math.min(size, lockR[t.close]); }
         const k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = (t.won ? k : 0) - cost;
         if (!f) { sk++; skNet += t.rulePnl ?? t.pnl ?? 0; continue; }
         if (lockCut) continue; if (isFinite(lockR[t.close] ?? Infinity)) lockR[t.close] -= cost;
