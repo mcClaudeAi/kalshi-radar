@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.43 (Nov 10, 2026): Second look
+A playbook that keeps watching after the 10-minute mark.
+- [new] Playbook: Margin vs volatility + second look. Every coin used to get one look, at 10 minutes left, and one that qualified a minute or three later was never considered. This playbook is Margin vs volatility at the mark, plus a check every minute after it until 4 minutes are left: it buys a coin it does not already hold the first time the leader is priced 91¢ to 95¢ and is at least one normal 10-minute move past its target. One entry per market. It runs in Labs for everyone and in your paper book if you choose it. Live still trades at the mark only.
+- [improved] Second-look trades are marked in Trades and on the live board, with how many minutes were left when they were bought.
+- [fixed] In the home-screen app the header sits a little lower, clear of the clock, and the Settings save bar (with Unlock this device) is no longer half hidden behind the tab bar.
+
 ## 1.0.42 (Nov 10, 2026): Volatility readings from a source that answers
 The "no volatility reading" and out-of-date readings are traced to Coinbase rate limits and fixed.
 - [fixed] Coinbase's exchange service was refusing the tracker's requests (rate limit) or answering from a copy several minutes old. That is what caused "no volatility reading" and readings like 0.000% from the target. Readings now come from Coinbase's Advanced Trade service, which answers and is current. If it is busy, the price is taken from two other Coinbase services in turn, and a reading that still could not get a current price is marked and rebuilt afterwards.

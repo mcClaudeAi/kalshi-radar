@@ -26,6 +26,7 @@ const CBPID = { BTC: 'BTC-USD', ETH: 'ETH-USD', SOL: 'SOL-USD', XRP: 'XRP-USD', 
 const HOSTS = ['https://api.elections.kalshi.com', 'https://external-api.kalshi.com'];
 const SERIES = ['KXBTC15M', 'KXETH15M', 'KXSOL15M', 'KXXRP15M', 'KXDOGE15M', 'KXHYPE15M', 'KXBNB15M', 'KXZEC15M', 'KXNEAR15M'];
 const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
+const L2_LO = 0.91, L2_HI = 0.95, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 const HARD = { maxSize: 25, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0 };
@@ -76,6 +77,13 @@ function labDefs(K) {
     { id: 'vol2', name: 'Margin vs volatility v2', desc: 'Skips a coin that is less than one typical 10-minute move past its target at the trade check. The typical move is measured directly, from every 10-minute price change on Coinbase over the last 5 hours, instead of being scaled up from 1-minute moves (which overstated it and skipped trades that kept winning).', color: '#FF9EDB', filter: t => t.z10 == null ? null : t.z10 >= 1 },
     { id: 'edge', name: 'Beats the market', desc: 'Only buys when our win chance, from the coin\'s volatility and how far it is past the target, beats Kalshi\'s price plus the fee and a cent.', color: '#7CF5C8', filter: t => t.z == null ? null : winP(t.z) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
     { id: 'edge2', name: 'Beats the market v2', desc: 'Beats the market with two more checks: volatility is the larger of the last hour and the last 15 minutes, and a coin sliding back toward its target in the last 5 minutes has half that slide taken off its margin.', color: '#B9F27C', filter: t => t.z2 == null ? null : winP(t.z2) >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    // MC 2026-11-10 second look. Every coin used to get one look, at 10 minutes left; one that qualified a minute or three later
+    // (DOGE at 7:37 PM: under 90c at the mark, 92c with a clear lead soon after) was never considered. This playbook is Margin
+    // vs volatility at the mark, plus: each minute after it, down to 4 minutes left, a coin it does not already hold is bought
+    // the first time its leader is priced 91c to 95c and is at least one typical 10-minute move past the target on a current
+    // price. One entry per market. Paper and Labs only for now: live still places orders at the mark only. There is no history
+    // to backtest this on (the four-month data has one snapshot per trade), so Labs is the test.
+    { id: 'look2', name: 'Margin vs volatility + second look', late: true, desc: 'Margin vs volatility at the 10-minute mark, plus a second look: every minute after that, until 4 minutes are left, it buys a coin it does not already hold the first time the leader is priced 91¢ to 95¢ and is at least one normal 10-minute move past its target. Paper and Labs only; live still trades at the mark only.', color: '#FFB86B', filter: t => t.late ? (t.bTaken ? null : true) : t.z == null ? null : t.z >= 1 },
     // MC 2026-11-10 the self-learning playbook. pl is the model's win chance for this trade, frozen at the trade check from that
     // morning's fit (so it has never seen the trade it is judging). Same bar as Beats the market: price + fee + 1 cent.
     { id: 'learn', name: 'Learned', desc: 'Only buys when the self-learning model\'s win chance beats Kalshi\'s price plus the fee plus 1¢. The model refits every morning on every settled trade, starting from four months of history, and is only ever scored on trades it had not seen. See the Learning tab.', color: '#7CF0C8', filter: t => t.pl == null ? null : t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
@@ -214,6 +222,8 @@ export function createKalshi(state, env, keep) {
   const sql = state.storage.sql, kv = state.storage;
   sql.exec('CREATE TABLE IF NOT EXISTS kt (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS ko (tk TEXT PRIMARY KEY, at INTEGER, j TEXT)');
+  sql.exec('CREATE TABLE IF NOT EXISTS k2 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // second-look entries, kept apart from the mark records so nothing else counts them
+  let rec2 = new Map();
   let rec = null, L = null, cfgP = null, ctlL = null, scan = [], scanAt = 0, view = null, viewDirty = true, viewAt = 0;
   const st = { bal: null, balAt: 0, lastErr: null, errAt: 0, host: 0, sellAllDone: 0, stopped: null, keyOk: null, shard: {}, xferAt: 0, lastXfer: null, lastMark: 0 };
   const logs = [];
@@ -222,12 +232,14 @@ export function createKalshi(state, env, keep) {
   async function load() {
     if (rec) return;
     rec = new Map(); for (const r of sql.exec('SELECT j FROM kt')) { try { const j = JSON.parse(r.j); rec.set(j.ticker, j); } catch {} }
+    rec2 = new Map(); for (const r of sql.exec('SELECT j FROM k2')) { try { const j = JSON.parse(r.j); rec2.set(j.ticker, j); } catch {} }
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
   }
   const saveRec = r => sql.exec('INSERT OR REPLACE INTO kt (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
+  const saveRec2 = r => sql.exec('INSERT OR REPLACE INTO k2 (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
   const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.tk, x.at, JSON.stringify(x));
   const ctl = () => ({ enabled: ctlL.enabled === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
@@ -435,6 +447,8 @@ export function createKalshi(state, env, keep) {
     scan = out; scanAt = now;
     if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
+    if (now - mk > 70000 && st.lastMark >= mk) { try { await secondLook(now, out); } catch (e) { say('second look error: ' + e.message); } }
+    try { await settle2(now); } catch (e) { say('second look settle error: ' + e.message); }
     // live account upkeep
     const c = ctl();
     if (c.sellAllAt && c.sellAllAt > st.sellAllDone) { st.sellAllDone = c.sellAllAt; await kv.put('kst', { sellAllDone: st.sellAllDone }); say('LIVE sell-all requested'); try { await sellAll(); } catch (e) { fail('sell-all error: ' + e.message); } }
@@ -493,12 +507,44 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
       open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
     }
+    if (stratAt(K.strat, now) === 'look2') for (const r of rec2.values()) {
+      if (r.result || now > r.close + 300000 || baseTaken(r.ticker)) continue;
+      const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = rec.get(r.ticker)?.path?.at(-1), i = open.findIndex(o => o.tk === r.ticker), o = { late: 1, left: r.left, tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: rec.get(r.ticker)?.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: null };
+      if (i >= 0) open[i] = o; else open.push(o);
+    }
     return { at: scanAt || now, open, scan, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
   }
   async function publish(save) {
     const kl = JSON.stringify(kliveBody());
     if (viewDirty || !view || Date.now() - viewAt > 120000) { view = JSON.stringify(kalshiView()); viewDirty = false; viewAt = Date.now(); }
     await keep({ klive: kl, kview: view }, false);
+  }
+
+  // ---------- second look ----------
+  const baseTaken = tk => { const b = rec.get(tk); return !!(b && b.ask >= cfgP.minAsk && b.result !== 'void' && b.vol?.z >= 1); };
+  async function secondLook(now, out) {
+    let n = 0;
+    for (const o of out) {
+      const left = (o.close - now) / 60000; if (left > MIN_LEFT - 1 || left < L2_MIN_LEFT) continue;
+      if (rec2.has(o.tk) || !(o.lask >= L2_LO && o.lask <= L2_HI) || !(o.strike > 0) || baseTaken(o.tk)) continue;
+      if (++n > 4) break;   // at most four coins a minute: each costs an order book and a price
+      const b = book(await get(`/markets/${o.tk}/orderbook`)), ya = b.yesAsks[0]?.[0], na = b.noAsks[0]?.[0]; if (ya == null || na == null) continue;
+      const side = ya >= na ? 'yes' : 'no', asks = side === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0][0]; if (!(ask >= L2_LO && ask <= L2_HI)) continue;
+      const v = await volAt(o.coin, o.strike, side); console.log(`look2 ${o.coin} ${side} ${Math.round(ask * 100)}c ${left.toFixed(1)} min left: ${!v ? 'no reading' : v.src === 'stale' ? 'stale price' : v.z + ' moves clear'}`); if (!v || v.src === 'stale' || !(v.z >= 1)) continue;
+      const avgN = walk(asks, BOOK_N), series = activeSeries().find(x => coin(x) === o.coin) || rec.get(o.tk)?.series;
+      const r = { ticker: o.tk, late: 1, series, at: now, close: o.close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: o.strike, title: rec.get(o.tk)?.title || null, ya, na, depth: asks.reduce((a, x) => a + x[1], 0), vol: v, src: 'cloud' };
+      rec2.set(o.tk, r); saveRec2(r); viewDirty = true; say(`${o.tk} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- second look, ${left.toFixed(1)} min left`);
+    }
+  }
+  async function settle2(now) {
+    let k = 0;
+    for (const r of rec2.values()) {
+      if (r.result || now < r.close + 60000) continue;
+      const b = rec.get(r.ticker); let res = b?.result, fin0 = b?.final;
+      if (!res) { if (++k > 6) break; const j = await get(`/markets/${r.ticker}`); res = j?.market?.result; if (j?.market) fin0 = fin(j.market); }
+      if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.result = 'void'; saveRec2(r); viewDirty = true; } continue; }
+      r.result = res; r.won = res === r.side; r.final = fin0 ?? null; saveRec2(r); viewDirty = true; say(`settled ${r.ticker} (second look): ${r.won ? 'won' : 'LOST'}`);
+    }
   }
 
   // ---------- repair of stale volatility readings ----------
@@ -596,11 +642,17 @@ export function createKalshi(state, env, keep) {
     // count only trades after it, from the starting bank again. Earlier trades stay in the log for Analytics, Trades and the labs,
     // marked run:false. Asked for because changing a rule and wanting a clean $1,000 test meant fudging the balance before.
     const runFrom = K.paperFrom || 0; let runOn = !runFrom, ddRef = null, ddLastDay = null;
-    for (const r of rows) {
-      if (!(r.ask >= K.minAsk) || r.result === 'void') continue;
+    // MC 2026-11-10 second-look entries join the paper book only while "Margin vs volatility + second look" is the playbook, in
+    // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
+    // own analytics, and one whose market the mark trade already holds is dropped.
+    const lates = [...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker));
+    const rowsAll = lates.length ? [...rows, ...lates].sort((a, b) => a.at - b.at) : rows;
+    for (const r of rowsAll) {
+      const late = !!r.late;
+      if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
       if (!runOn && r.at >= runFrom) { runOn = true; bal = K.startUsd; peak = bal; ddRef = bal; maxDd = 0; balU = K.startUsd; eq.length = 0; eq.push([runFrom, bal]); }
       const inRun = runOn;
-      const w = r.close; perWin[w] = (perWin[w] || 0) + 1;
+      const w = r.close; if (!late) perWin[w] = (perWin[w] || 0) + 1;
       // MC 2026-11-09 two more stops beside the daily loss cap, both for keeping profit already made. Give-back: once today's
       // profit has reached giveBackMin, stop for the day if it falls to giveBackPct of today's peak. Bank drawdown: stop for the
       // day once the bank is bankDdPct under its all-time high. Each stays on for the rest of that ET day once it trips.
@@ -619,21 +671,23 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, sid = stratAt(K.strat, r.at), lab = sid === 'rule' ? null : labs0.find(l => l.id === sid);
       while (kI < kQ.length && kQ[kI].close <= r.at) { kAdd(kS, kQ[kI].px, kQ[kI].won); kI++; }
       const ko = kOf(kS, px);
-      const f = lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
+      const f = late ? true : lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
       const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }, { peak, start: K.startUsd }) : K.sizeUsd;
-      const off = (K.skipHours || []).includes(etHour(r.at)), capped = perWin[w] > K.maxPerWindow || halted || cold || off || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
-      const t = { tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
-        tk: r.ticker, left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
-        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
-      if (r.result) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
-      if (r.result) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
+      const off = (K.skipHours || []).includes(etHour(r.at)), capped = (!late && perWin[w] > K.maxPerWindow) || halted || (cold && !late) || off || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
+      const t = { late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+        left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
+        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
+      if (r.result && !late) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
+      if (r.result && !late) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
       if (!capped && r.result) { t.pnl = +((r.won ? n : 0) - cost).toFixed(2); dayNet[dk] = (dayNet[dk] || 0) + t.pnl; dayPeak[dk] = Math.max(dayPeak[dk], dayNet[dk]); if (inRun) { bal += t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); } }
       if (r.result && inRun) balU += (r.won ? n : 0) - cost;
       if (!capped && !r.result) open += cost;
       trades.push(t);
     }
-    const grpW = {}; for (const t of trades) { const g = t.close + t.side; grpW[g] = (grpW[g] || 0) + 1; } for (const t of trades) { t.same = grpW[t.close + t.side]; t.win = perWin[t.close]; }
-    const labs = runLabs(trades, K);
+    const grpW = {}; for (const t of trades) { if (t.late) continue; const g = t.close + t.side; grpW[g] = (grpW[g] || 0) + 1; } for (const t of trades) { t.same = grpW[t.close + t.side] || 1; t.win = perWin[t.close] || 1; }
+    // every second-look entry as a bare trade for the Labs line, whichever playbook the paper book is on
+    const lateT = [...rec2.values()].filter(r => r.result !== 'void').map(r => { const px = r.avgN || r.ask; return { late: 1, bTaken: baseTaken(r.ticker), tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), done: !!r.result, won: !!r.won, z: r.vol?.z ?? null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }; });
+    const labs = runLabs(trades, K, lateT);
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
     const byCoin = {}; for (const t of doneAll) { const b = byCoin[t.coin] = byCoin[t.coin] || { coin: t.coin, n: 0, won: 0, net: 0 }; b.n++; if (t.won) b.won++; b.net = +(b.net + t.pnl).toFixed(2); }
     const winLoss = {}; for (const t of done) { if (!t.won) winLoss[t.close] = (winLoss[t.close] || 0) + 1; }
@@ -682,11 +736,12 @@ export function createKalshi(state, env, keep) {
   // ---------- Labs: each idea as its own paper account over the same trades ----------
   // filter(t) returns true (take), false (skip) or null (can't tell yet: the lab starts at its first decidable trade and such
   // trades are left out of both the lab and its rule comparison). size(bank) returns the stake; the rule's own is fixed.
-  function runLabs(trades, K) {
-    const LABS = labDefs(K);
+  function runLabs(tradesIn, K, lateT = []) {
+    const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
     const sim = (lab, from, baseline) => {
       let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }; let ddRef = bank, ddLast = null;
+      const trades = lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         if (!t.done || t.close < from) continue;
         if (t.win > K.maxPerWindow || t.off) continue;
@@ -707,6 +762,7 @@ export function createKalshi(state, env, keep) {
       return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1) };
     };
     return LABS.map(lab => {
+      const trades = plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
       if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const r = sim(lab, first.close, false), b = lab.id === 'rule' ? null : sim(lab, first.close, true);
@@ -783,5 +839,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { volRepair, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
