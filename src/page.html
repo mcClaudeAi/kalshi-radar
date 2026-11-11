@@ -802,7 +802,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* MC 2026-11-09 the stat tiles had a hard-coded near-black background, unreadable in light mode; now a theme surface */
 .an-k{padding:12px 13px;border-radius:14px;background:color-mix(in srgb,var(--s2) 85%,transparent);border:1px solid var(--line);min-width:0;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
 :root[data-theme="light"] .an-k{background:var(--s3);box-shadow:none}
-.an-k span{display:block;font-size:11.5px;color:var(--mute);font-weight:600}.an-k b{display:block;font-size:19px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.an-k span{display:block;font-size:11.5px;color:var(--mute);font-weight:600}/* MC 2026-11-11 on narrower desktop windows the bigger amounts here were cut ("-$727.…"); the figure now scales down to fit its box */
+.an-k{container-type:inline-size}.an-k b{display:block;font-size:clamp(13px,17cqi,19px);font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .an-k small{display:block;font-size:11px;color:var(--faint);margin-top:3px;line-height:1.35}
 .an-card{margin-top:14px}.an-row{margin-top:0}.an-eqc{position:relative;height:300px;touch-action:pan-y}.an-ax{fill:var(--faint);font:500 10.5px 'JetBrains Mono',monospace}
 .an-tip{top:10px}
@@ -991,7 +992,8 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-st{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
 .kx-st>div{min-width:0;padding-right:14px;border-right:1px solid var(--line)}.kx-st>div:last-child{border-right:0;padding-right:0}
 .kx-st b{display:block;font-size:19px;font-weight:600;color:var(--ink);margin-top:4px;line-height:1.1}.kx-st b.pos{color:var(--good)}.kx-st b.neg{color:var(--bad)}.kx-st b em{font-style:normal;font-size:12px;color:var(--mute);font-family:"Sora",sans-serif}
-.kx-st small{display:block;font-size:11.5px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* MC 2026-11-11 the notes under these figures were cut off with "…" on the web (Drawdown lost half its line); they wrap now */
+.kx-st small{display:block;font-size:11.5px;color:var(--mute);margin-top:3px;line-height:1.35;overflow-wrap:anywhere}.kx-st .kx-go{all:unset;cursor:pointer;color:var(--kx);font-weight:600}.kx-st .kx-go:hover{text-decoration:underline}.kx-st .kx-go:focus-visible{outline:2px solid var(--kx);border-radius:4px}
 .kx-st .kx-sp{height:20px;margin-top:5px}.kx-st .kx-sp svg{width:100%;height:20px;display:block}.kx-st .kx-bar{margin-top:7px}
 /* countdown ring */
 .kx-next{display:flex;align-items:center;gap:14px;text-align:left;min-width:0;padding:12px 16px 12px 12px}
@@ -3003,7 +3005,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
     <div><div class="kx-ml">Average trade</div><b class="${cls(K.avg)}">${usd(K.avg)}</b><small>${lost} loss${lost===1?'':'es'}, streak of ${n0(K.streak)}</small></div>
     <div><div class="kx-ml">Drawdown</div><b class="${K.dd?'neg':''}">${K.dd?'-$'+Number(K.dd).toFixed(0):'$0'}</b><small>worst ever -$${Number(K.maxDd||0).toFixed(0)}, worst window ${K.worstWin} loss${K.worstWin===1?'':'es'}</small></div>
     <div><div class="kx-ml">Daily stop</div><b class="${stopPct>=1?'neg':''}">-$${stop}</b>${bar(stopPct,stopPct>.6?'var(--bad)':'var(--warn)')}<small>${stopPct>=1?'hit, paused until midnight ET':Math.round(stopPct*100)+'% of the way there'}</small></div>
-    <div><div class="kx-ml">Ready for live</div><b>${okN} <em>of ${chk.length}</em></b>${bar(chk.length?okN/chk.length:0,'var(--kx)')}<small>${okN===chk.length?'every check passes':'see Live account'}</small></div></div></section>
+    <div><div class="kx-ml">Ready for live</div><b>${okN} <em>of ${chk.length}</em></b>${bar(chk.length?okN/chk.length:0,'var(--kx)')}<small>${okN===chk.length?'every check passes':`<button class="kx-go" onclick="go('klive')">See Live account ›</button>`}</small></div></div></section>
 `,board:`  <div class="card kx-card" style="margin-top:16px"><h3>Live board<span class="r">coin price against Kalshi's target, streamed from Coinbase</span></h3><div class="kx-live" id="kxboard"></div></div>
 `,labs:`  ${sec('Labs','Every idea runs as its own paper account on the same trades as the rule. Nothing here changes the paper book or live trading. A lab earns a real test when it beats the rule over a few hundred trades, not a few days.')}
   <section class="kx-labs"><div class="kx-cxsw"><div><b>Cash out when the trend turns</b><span>${KXL.cx?'Every playbook below is replayed as if a trade whose trend ran against it by more than ${c.trendMin??0.15}% was sold at minute 10. Your paper book is not changed.':'Off: every trade is held to the end. Turn on to see every playbook with cash-out applied.'}${c.trendExit?' The paper setting is on, so the paper book already cashes out.':''}</span></div><div class="kx-seg" role="group"><button aria-pressed="${!KXL.cx}" onclick="kxLabCx(0)">Hold</button><button aria-pressed="${KXL.cx}" onclick="kxLabCx(1)">Cash out</button></div></div><div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div><div class="kx-rtop"><div class="kx-rcap" id="kxrcap"></div><div class="kx-rg">${[['match','Same start'],['1d','24h'],['7d','7 days'],['all','All']].map(([k,n])=>`<button data-rg="${k}" aria-pressed="${KXL.rg===k}" onclick="kxLabRange('${k}')">${n}</button>`).join('')}</div></div><div class="kx-race" id="kxrace"></div>
@@ -3772,7 +3774,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.71',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.72',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

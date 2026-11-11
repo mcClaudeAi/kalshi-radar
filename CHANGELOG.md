@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.72 (Nov 11, 2026): Home tiles fixed on the web
+Text that was cut off now shows in full, and a dead link works.
+- [fixed] The notes under the Home figures (Drawdown and the rest) wrap onto a second line instead of being cut off with "…".
+- [fixed] "See Live account" under Ready for live now opens the Live account page. It was plain text before.
+- [fixed] On Analytics, larger dollar amounts no longer get clipped in narrower browser windows; the figure shrinks to fit its box.
+
 ## 1.0.71 (Nov 11, 2026): Motion, glow and a floating dock
 A visual upgrade across the dashboard. Nothing about trading changes.
 - [new] Numbers roll to their new value when they change: the bank, today's result, cash and book totals.
