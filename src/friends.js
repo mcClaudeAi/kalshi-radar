@@ -69,7 +69,7 @@ export async function friendsPeer(st, req, ctx) {
     const t = Date.now(), r = (rate.get(f.id) || []).filter(x => t - x < 60000); if (r.length >= 40) return J({ ok: false, msg: 'Slow down.' }, 429); r.push(t); rate.set(f.id, r);
     const text = clean(body.text, MSG_MAX), mid = clean(body.mid, 40); if (!text || !mid) return J({ ok: false, msg: 'Empty message.' }, 400);
     const th = await thread(st, f.id); if (!th.some(m => m.m === mid)) { th.push({ m: mid, f: 0, t: text, at: t }); await st.put('fm:' + f.id, th.slice(-KEEP)); f.last = t; f.lastText = text.slice(0, 80); f.unread = (f.unread || 0) + 1; f.gone = false; await putAll(st, all);
-      await ctx.notify?.([{ kind: 'chat', title: f.alias || f.name || 'Friend', body: text.slice(0, 160), tag: 'chat-' + f.id, url: '/#kchat' }]); }
+      await ctx.notify?.([{ kind: 'chat', title: f.alias || f.name || 'Friend', body: text.slice(0, 160), tag: 'chat-' + f.id, url: '/#kchat:' + f.id }]); }
     return J({ ok: true });
   }
   if (p === '/f/meta' && post) { if (body.name) f.name = clean(body.name, 40); if ('share' in body) f.tShare = !!body.share; if ('live' in body) f.tLive = !!body.live; if ('read' in body) f.tRead = +body.read || 0; f.gone = false; await putAll(st, all); return J({ ok: true }); }

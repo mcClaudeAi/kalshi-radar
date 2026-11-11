@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.66 (Nov 11, 2026): Chat as a full conversation window
+The chat looks and works like a phone's messages app, and tapping a message notification opens it.
+- [new] On a phone, opening a friend takes the whole screen: their name at the top, the conversation in the middle, the message box at the bottom, following the keyboard. Back returns to your friends list.
+- [improved] Messages group by sender, with a time shown only when minutes have passed. Delivered or Read sits under your last message. Links are tappable. A message that didn't go through is marked with Try again.
+- [fixed] Tapping a message notification now opens that conversation. It used to open whatever page was showing.
+- [fixed] A new message arriving no longer closes the keyboard or clears what you were typing, and long messages no longer overlap the next one.
+
 ## 1.0.65 (Nov 11, 2026): Friends and chat fixes for phones
 Friends and chat fits a phone screen, and a refresh keeps you on it.
 - [fixed] If the friends list fails to load, Friends and chat now says why and offers Try again. It used to sit on Loading.

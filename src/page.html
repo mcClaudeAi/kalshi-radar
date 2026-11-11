@@ -519,6 +519,37 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 @media (max-width:760px){.fr-mh{display:none}.fr-main{height:calc(100dvh - 330px);min-height:300px}body:has(.fr-w.thr) .fr-intro p{display:none}body:has(.fr-w.thr) .fr-intro{margin-top:14px}.fr-th{padding:10px 12px;gap:8px}.fr-th>i{width:34px;height:34px}}
 .fr-comp .btn{border-radius:20px}
 @media (max-width:760px){.fr-w{grid-template-columns:1fr}.fr-w .mhide{display:none}.fr-backm{display:block}.fr-main{height:calc(100dvh - 210px);min-height:380px}.fr-bar{top:4px}.fr-m{max-width:86%}}
+
+/* MC 2026-11-11 the conversation window */
+.fr-th{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.fr-backm{all:unset;display:none;align-items:center;gap:2px;cursor:pointer;color:#3d9bff;padding:6px 6px 6px 0}.fr-backm svg{width:24px;height:24px}.fr-backm u{text-decoration:none;min-width:20px;padding:2px 6px;border-radius:99px;background:#3d9bff;color:#fff;font-size:11.5px;font-weight:700;text-align:center}
+.fr-who{flex:1;min-width:0;display:flex;align-items:center;gap:10px}.fr-who i{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;color:#fff;background:linear-gradient(135deg,#6f7cff,#3d9bff)}
+.fr-who span{min-width:0}.fr-who b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fr-who small{display:block;font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-it i{background:linear-gradient(135deg,#6f7cff,#3d9bff)}
+.fr-acts{display:flex;align-items:center;gap:4px;flex:none}
+.fr-ib{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line2);font-size:12.5px;font-weight:600;color:var(--ink)}.fr-ib svg{width:18px;height:18px}.fr-ib:hover{background:var(--s2)}.fr-ib:focus-visible{outline:2px solid #3d9bff}
+.fr-menu summary{display:grid;place-items:center;width:34px;height:34px;padding:0;border-radius:50%}.fr-menu summary svg{width:20px;height:20px}.fr-menu summary:hover{background:var(--s2)}
+.fr-menu>div span{padding:6px 10px 8px;font-size:11.5px;color:var(--faint);border-bottom:1px solid var(--line);margin-bottom:4px;overflow-wrap:anywhere}
+.fr-msgs{padding:10px 12px 12px;gap:0}.fr-msgs>*{flex:none}
+.fr-day{margin:14px 0 6px;font-size:11px;text-transform:none;letter-spacing:0;font-weight:600;color:var(--faint)}
+.fr-m{max-width:76%;display:block;margin-top:2px}.fr-m p{width:fit-content;max-width:100%;box-sizing:border-box}.fr-m.me p{margin-left:auto}.fr-m.me small{text-align:right}.fr-m.fgh{margin-top:9px}
+.fr-m p{padding:8px 13px;border-radius:19px;font-size:15.5px;line-height:1.35;background:var(--s3)}.fr-m.fgt p{border-bottom-left-radius:6px}
+.fr-m.me{align-self:flex-end;text-align:left}.fr-m.me p{border-radius:19px;background:linear-gradient(180deg,#3d9bff,#1f7cf2);color:#fff}.fr-m.me.fgt p{border-bottom-right-radius:6px}
+.fr-m.snd p{opacity:.6}.fr-m.fail p{background:color-mix(in srgb,var(--bad) 26%,var(--s3));color:var(--ink)}
+.fr-m small{margin:3px 6px 2px;font-size:10.5px;font-weight:600;color:var(--faint)}.fr-m small.bad{color:var(--bad)}.fr-m a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.fr-pick{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;min-height:160px}.fr-pick b{color:var(--ink);font-size:15px}.fr-pick i{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:26px;color:#fff;background:linear-gradient(135deg,#6f7cff,#3d9bff);margin-bottom:6px}
+.fr-comp{padding:8px 10px;align-items:stretch}
+.fr-in{flex:1;min-width:0;display:flex;align-items:flex-end;gap:6px;padding:4px 4px 4px 14px;border-radius:22px;border:1px solid var(--line2);background:var(--s2)}.fr-in:focus-within{border-color:color-mix(in srgb,#3d9bff 70%,var(--line2))}
+.fr-comp .fr-in textarea{flex:1;min-width:0;border:0;border-radius:0;background:none;outline:none;padding:6px 0;font-size:16px;line-height:1.3;max-height:120px}
+.fr-send{all:unset;box-sizing:border-box;flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:#1f7cf2;color:#fff;transition:background .15s,transform .1s}.fr-send svg{width:17px;height:17px}.fr-send:disabled{background:var(--s3);color:var(--faint);cursor:default}.fr-send:not(:disabled):active{transform:scale(.92)}
+@media (max-width:760px){.fr-backm{display:inline-flex}.fr-ib{width:36px;height:36px;padding:0;justify-content:center;border:0;color:#3d9bff}.fr-ib svg{width:22px;height:22px}
+ html.fr-full,html.fr-full body{overflow:hidden;overscroll-behavior:none}
+ html.fr-full .fr-main{position:fixed;left:0;right:0;top:0;height:100dvh;min-height:0;z-index:70;border:0;border-radius:0;background:var(--bg)}
+ html.fr-full .fr-th{display:grid;grid-template-columns:78px minmax(0,1fr) 78px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 8px;background:color-mix(in srgb,var(--s1) 86%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+ html.fr-full .fr-backm{justify-self:start;padding-left:2px}html.fr-full .fr-acts{justify-self:end}
+ html.fr-full .fr-who{flex-direction:column;gap:3px;text-align:center}html.fr-full .fr-who i{width:40px;height:40px}html.fr-full .fr-who span{max-width:100%}html.fr-full .fr-who b{font-size:13px}html.fr-full .fr-who small{font-size:10.5px}
+ html.fr-full .fr-comp{padding:8px 10px calc(env(safe-area-inset-bottom,0px) + 8px)}html.fr-full .fr-main.kb .fr-comp{padding-bottom:8px}
+ .fr-m{max-width:82%}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <style id="skin">
@@ -1308,7 +1339,7 @@ function beat(){const d=$('#dot'),a=$('#ago');if(!ST.last){a.textContent=ST.err?
 
 // ---------- views ----------
 function tabsHtml(){paintChrome()}
-function render(){const D=ST.D;if(!D)return;if(ST.fv&&(FV_HIDE.has(ST.tab)||!KXTABS.includes(ST.tab)))ST.tab='kalshi';paintChrome();
+function render(){const D=ST.D;if(!D)return;if(ST.tab!=='kchat')document.documentElement.classList.remove('fr-full');else if(!ST.fv&&$('#frw')){paintChrome();return}if(ST.fv&&(FV_HIDE.has(ST.tab)||!KXTABS.includes(ST.tab)))ST.tab='kalshi';paintChrome();
   const y=window.scrollY;const m=$('#main');const kv=v=>D=>kalshiV(D,v);m.innerHTML=frBar()+({overview,feed:feedV,wallet:walletV,live:liveV,open:openV,trades,whist,wallets,golive,tests,search,log:logV,controls:controlsV,kalshi:kalshiV,kchat:kxChatV,kcock:kxCockpitV,kan:kxAnalyticsV,ktrades:kv('ktrades'),klabs:kv('klabs'),klearn:kxLearnV,kbt:kxBtV,klive:kv('klive'),kset:kv('kset'),kreq:kxReqV,krel:kxRelV,kconn:kxConnV,paper:paperV,checks:checksV}[ST.tab]||kalshiV)(D);after[ST.tab]?.(D);if(!KXTABS.includes(ST.tab))kxStop();else{KX.lvSig='';kxLivePaint()}drawLiveCharts(D);drawMini();window.scrollTo(0,y)}
 const after={};
 // MC 2026-11-09 Requests: "I want the dashboard to do X" from any copy. Posts to the shared inbox worker, keeps the
@@ -1998,34 +2029,60 @@ async function frThread(id,full){const have=FR.msgs[id]||[],since=full?0:Math.ma
   const j=await getJ(`/api/friends/thread?id=${encodeURIComponent(id)}&since=${since}&read=1`);if(!j||!j.ok)return;
   const keep=full?[]:have.filter(m=>!j.msgs.some(x=>x.m===m.m)&&!(m.s==='failed'));const before=JSON.stringify(have);FR.msgs[id]=[...keep,...j.msgs].sort((a,b)=>a.at-b.at);FR.tRead=FR.tRead||{};FR.tRead[id]=j.tRead||0;
   if(JSON.stringify(FR.msgs[id])!==before&&FR.sel===id)frMsgs()}
-function frPaint(){const w=$('#frw');if(!w)return;const L=FR.list,me=FR.me||{};
-  if(!L){w.innerHTML=FR.err?`<div class="fr-card fr-hello"><h3>Friends didn't load</h3><p>${esc(FR.err)} If your dashboard just updated, give it a minute.</p><button class="btn" onclick="FR.err=null;frPaint();frSync()">Try again</button></div>`:'<div class="empty">Loading…</div>';return}
-  if(!me.name){w.innerHTML=`<div class="fr-card fr-hello"><h3>First, your name</h3><p>This is what friends see on their dashboard when you message them or share yours.</p><div class="fr-row"><input id="frme" maxlength="40" placeholder="Your first name" autocomplete="given-name"><button class="btn" onclick="frSetName()">Save</button></div></div>`;return}
-  const sel=L.find(f=>f.id===FR.sel)||null;if(!sel&&FR.sel)FR.sel=null;
-  const list=`<div class="fr-side ${sel&&FR.mob==='thread'?'mhide':''}"><div class="fr-me"><span>You appear as <b>${esc(me.name)}</b></span><button class="lnk" onclick="frRename()">Change</button></div>
-    ${L.length?L.map(f=>`<button class="fr-it ${FR.sel===f.id?'on':''}" onclick="frPick('${f.id}')"><i>${frIni(f.name)}</i><span><b>${esc(f.name)}</b><small>${f.gone?'Removed the connection':esc(f.lastText||(f.tShare?'Sharing their dashboard with you':'Connected'))}</small></span><em>${f.unread?`<u>${f.unread}</u>`:frWhen(f.last)}</em></button>`).join(''):'<div class="fr-none">No friends yet. Make an invite code and send it to someone who runs their own copy, or paste theirs.</div>'}
-    <div class="fr-add"><b>Add a friend</b><div class="fr-addb"><button class="btn sm" onclick="frInvite()">Make an invite code</button></div>${FR.code?`<div class="fr-code"><code id="frcode">${esc(FR.code.code)}</code><div class="fr-row"><button class="btn sm" onclick="frCopy()">Copy</button><span>Send this to your friend. It works once, for 24 hours.</span></div></div>`:''}
-    <div class="fr-row"><input id="frjoin" placeholder="Or paste their code (starts with KR1.)" autocomplete="off" spellcheck="false"><button class="btn sm" onclick="frJoin()">Connect</button></div></div></div>`;
-  w.classList.toggle('thr',!!sel&&FR.mob==='thread');w.innerHTML=list+`<div class="fr-main ${!sel||FR.mob!=='thread'?'mhide':''}" id="frmain">${sel?frThreadHtml(sel):'<div class="fr-pick">Pick a friend to chat with.</div>'}</div>`;
+// MC 2026-11-11 the chat is a conversation window now, closer to a phone's own messages app: on a phone it takes the whole screen
+// (over the header cards and the bottom bar) and follows the keyboard; bubbles group by sender with a time only when minutes
+// have passed; Delivered or Read sits under your last message. The list and the open conversation are painted separately, and
+// the conversation is only rebuilt when the friend or their sharing changes, so a new message arriving no longer rebuilds the
+// box you are typing in (it closed the keyboard). Was: one block rebuilt on every change.
+function frPaint(){const w=$('#frw');if(!w)return;const L=FR.list,me=FR.me||{},H=document.documentElement;
+  if(!L){FR.sig=null;H.classList.remove('fr-full');w.innerHTML=FR.err?`<div class="fr-card fr-hello"><h3>Friends didn't load</h3><p>${esc(FR.err)} If your dashboard just updated, give it a minute.</p><button class="btn" onclick="FR.err=null;frPaint();frSync()">Try again</button></div>`:'<div class="empty">Loading…</div>';return}
+  if(!me.name){FR.sig=null;H.classList.remove('fr-full');w.innerHTML=`<div class="fr-card fr-hello"><h3>First, your name</h3><p>This is what friends see on their dashboard when you message them or share yours.</p><div class="fr-row"><input id="frme" maxlength="40" placeholder="Your first name" autocomplete="given-name"><button class="btn" onclick="frSetName()">Save</button></div></div>`;return}
+  const sel=L.find(f=>f.id===FR.sel)||null;if(!sel&&FR.sel)FR.sel=null;const thr=!!sel&&FR.mob==='thread';
+  if(!$('#frside')){w.innerHTML='<div class="fr-side" id="frside"></div><div class="fr-main" id="frmain"></div>';FR.sig=null}
+  w.classList.toggle('thr',thr);H.classList.toggle('fr-full',thr&&innerWidth<=760);
+  const side=$('#frside'),main=$('#frmain'),ae=document.activeElement;
+  if(!(ae&&ae.tagName==='INPUT'&&side.contains(ae)&&ae.value))side.innerHTML=frSideHtml(L,me);   // a half-pasted code is left alone
+  side.classList.toggle('mhide',thr);main.classList.toggle('mhide',!thr);
+  const sig=sel?JSON.stringify([sel.id,sel.name,sel.share,sel.live,sel.tShare,sel.tLive,sel.gone,L.reduce((a,f)=>a+(f.id===sel.id?0:f.unread||0),0)]):'none';
+  if(sig!==FR.sig){const had=$('#frtxt'),foc=had&&document.activeElement===had,val=had?.value;FR.sig=sig;main.innerHTML=sel?frThreadHtml(sel,L):'<div class="fr-pick"><b>Your conversations</b>Pick a friend to open the chat.</div>';
+    if(sel&&val!=null&&$('#frtxt')){$('#frtxt').value=val;if(foc)$('#frtxt').focus();frTyped($('#frtxt'))}}
   if(sel){frMsgs();frFit()}}
-// MC 2026-11-11 on a phone the thread fills what is left between the header cards and the bottom bar, so the box to type in is
-// always on screen (a fixed height hid it behind the bar on smaller phones)
-function frFit(){const m=$('#frmain');if(!m)return;if(innerWidth>760){m.style.height='';return}const nb=$('#bnav')?.getBoundingClientRect().height||0,top=m.getBoundingClientRect().top+scrollY;m.style.height=Math.max(300,Math.round(innerHeight-top-nb-12))+'px';const e=$('#frmsgs');if(e)e.scrollTop=e.scrollHeight}
-addEventListener('resize',()=>{if(ST.tab==='kchat')frFit()});
-function frThreadHtml(f){return `<div class="fr-th"><button class="fr-backm" onclick="FR.mob='list';frPaint()" aria-label="Back">‹</button><i>${frIni(f.name)}</i><span><b>${esc(f.name)}</b><small>${esc(f.host)}${f.theirName&&f.alias?' · calls themselves '+esc(f.theirName):''}</small></span>
-   ${f.tShare&&!f.gone?`<button class="btn sm" onclick="frOpen('${f.id}')">View<span class="fr-mh"> dashboard</span></button>`:''}<details class="fr-menu"><summary aria-label="Options">⋯</summary><div><button onclick="frAlias('${f.id}')">Rename</button><button class="bad" onclick="frRemove('${f.id}')">Remove friend</button></div></details></div>
-  <details class="fr-share" ${FR.shOpen?'open':''} ontoggle="FR.shOpen=this.open"><summary><span>Sharing</span><em>${f.share?(f.live?'Your dashboard and live account':'Your dashboard, live private'):'Not sharing yours'} · ${f.gone?'they removed you':f.tShare?'they share theirs':'they don\'t share'}</em><b>›</b></summary><button class="pn-row" role="switch" aria-checked="${f.share}" onclick="frShare('${f.id}',{share:${!f.share}})"><span><b>Share my dashboard with ${esc(f.name)}</b><small>Paper book, trades, Labs and Analytics. Read only; they can't change anything.</small></span><i></i></button>
+function frSideHtml(L,me){return `<div class="fr-me"><span>You appear as <b>${esc(me.name)}</b></span><button class="lnk" onclick="frRename()">Change</button></div>
+    ${L.length?L.map(f=>`<button class="fr-it ${FR.sel===f.id?'on':''}" onclick="frPick('${f.id}')"><i>${frIni(f.name)}</i><span><b>${esc(f.name)}</b><small>${f.gone?'Removed the connection':esc(f.lastText||(f.tShare?'Sharing their dashboard with you':'Connected. Say hello.'))}</small></span><em>${f.unread?`<u>${f.unread}</u>`:frWhen(f.last)}</em></button>`).join(''):'<div class="fr-none">No friends yet. Make an invite code and send it to someone who runs their own copy, or paste theirs.</div>'}
+    <div class="fr-add"><b>Add a friend</b><div class="fr-addb"><button class="btn sm" onclick="frInvite()">Make an invite code</button></div>${FR.code?`<div class="fr-code"><code id="frcode">${esc(FR.code.code)}</code><div class="fr-row"><button class="btn sm" onclick="frCopy()">Copy</button><span>Send this to your friend. It works once, for 24 hours.</span></div></div>`:''}
+    <div class="fr-row"><input id="frjoin" placeholder="Or paste their code (starts with KR1.)" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm" onclick="frJoin()">Connect</button></div></div>`}
+function frThreadHtml(f,L){const un=(L||[]).reduce((a,x)=>a+(x.id===f.id?0:x.unread||0),0),first=esc(String(f.name).split(' ')[0]);
+  return `<div class="fr-th"><button class="fr-backm" onclick="frBackList()" aria-label="Back to friends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>${un?`<u>${un}</u>`:''}</button>
+   <div class="fr-who"><i>${frIni(f.name)}</i><span><b>${esc(f.name)}</b><small>${f.gone?'Removed the connection':f.tShare?'Shares their dashboard with you':'Connected'}</small></span></div>
+   <div class="fr-acts">${f.tShare&&!f.gone?`<button class="fr-ib" onclick="frOpen('${f.id}')" aria-label="View ${first}'s dashboard" title="View ${first}'s dashboard">${ico('eye')}<span class="fr-mh">Dashboard</span></button>`:''}<details class="fr-menu"><summary aria-label="Options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary><div><span>${esc(f.host)}${f.theirName&&f.alias?'<br>calls themselves '+esc(f.theirName):''}</span><button onclick="frAlias('${f.id}')">Rename</button><button class="bad" onclick="frRemove('${f.id}')">Remove friend</button></div></details></div></div>
+  <details class="fr-share" ${FR.shOpen?'open':''} ontoggle="FR.shOpen=this.open;frFit()"><summary><span>Sharing</span><em>${f.share?(f.live?'Your dashboard and live account':'Your dashboard, live private'):'Not sharing yours'}</em><b>›</b></summary><button class="pn-row" role="switch" aria-checked="${f.share}" onclick="frShare('${f.id}',{share:${!f.share}})"><span><b>Share my dashboard with ${first}</b><small>Paper book, trades, Labs and Analytics. Read only; they can't change anything.</small></span><i></i></button>
    ${f.share?`<button class="pn-row" role="switch" aria-checked="${f.live}" onclick="frShare('${f.id}',{live:${!f.live}})"><span><b>Include my live account</b><small>Your Kalshi cash and whether live trading is on. Off keeps it private.</small></span><i></i></button>`:''}
-   <div class="fr-them">${f.gone?`${esc(f.name)} removed this connection.`:f.tShare?`${esc(f.name)} shares their dashboard with you${f.tLive?', live account included':''}.`:`${esc(f.name)} is not sharing their dashboard with you.`}</div></details>
+   <div class="fr-them">${f.gone?`${first} removed this connection.`:f.tShare?`${first} shares their dashboard with you${f.tLive?', live account included':''}.`:`${first} is not sharing their dashboard with you.`}</div></details>
   <div class="fr-msgs" id="frmsgs"></div>
-  ${f.gone?'':`<form class="fr-comp" onsubmit="frSend('${f.id}');return false"><textarea id="frtxt" rows="1" maxlength="2000" placeholder="Message ${esc(String(f.name).split(' ')[0])}" oninput="FR.draft['${f.id}']=this.value;this.style.height='auto';this.style.height=Math.min(140,this.scrollHeight)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!matchMedia('(pointer:coarse)').matches){event.preventDefault();frSend('${f.id}')}">${esc(FR.draft[f.id]||'')}</textarea><button class="btn" aria-label="Send">Send</button></form>`}`}
-function frMsgs(){const e=$('#frmsgs');if(!e||!FR.sel)return;const M=FR.msgs[FR.sel]||[],near=e.scrollHeight-e.scrollTop-e.clientHeight<80||!e.dataset.n,tr=FR.tRead?.[FR.sel]||0;let lastDay='';
+  ${f.gone?'':`<form class="fr-comp" onsubmit="frSend('${f.id}');return false"><div class="fr-in"><textarea id="frtxt" rows="1" maxlength="2000" placeholder="Message ${first}" enterkeyhint="send" oninput="FR.draft['${f.id}']=this.value;frTyped(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!matchMedia('(pointer:coarse)').matches){event.preventDefault();frSend('${f.id}')}">${esc(FR.draft[f.id]||'')}</textarea><button class="fr-send" aria-label="Send" onpointerdown="event.preventDefault()" ${FR.draft[f.id]?'':'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button></div></form>`}`}
+function frTyped(ta){ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px';const b=ta.parentNode.querySelector('.fr-send');if(b)b.disabled=!ta.value.trim()}
+function frBackList(){FR.mob='list';frPaint();frSync()}
+const frStamp=t=>{const d=new Date(t),day=x=>x.toLocaleDateString('en-US',ET),tm=d.toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'}),now=new Date();return (day(d)===day(now)?'Today':day(d)===day(new Date(now-86400000))?'Yesterday':d.toLocaleDateString('en-US',{...ET,weekday:'short',month:'short',day:'numeric'}))+' '+tm};
+const frText=t=>esc(t).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)]/g,u=>`<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`).replace(/\n/g,'<br>');
+function frMsgs(){const e=$('#frmsgs');if(!e||!FR.sel)return;const M=FR.msgs[FR.sel]||[],near=e.scrollHeight-e.scrollTop-e.clientHeight<90||!e.dataset.n,tr=FR.tRead?.[FR.sel]||0,f=(FR.list||[]).find(x=>x.id===FR.sel);
   const lastMine=[...M].reverse().find(m=>m.me&&!m.s);
-  e.innerHTML=M.length?M.map(m=>{const d=new Date(m.at).toLocaleDateString('en-US',{...ET,weekday:'short',month:'short',day:'numeric'}),hd=d!==lastDay?`<div class="fr-day">${d}</div>`:'';lastDay=d;
-    return hd+`<div class="fr-m ${m.me?'me':''} ${m.s==='failed'?'fail':''}"><p>${esc(m.t).replace(/\n/g,'<br>')}</p><small>${new Date(m.at).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'})}${m.s==='sending'?' · sending':''}${m.s==='failed'?` · not delivered <button class="lnk" onclick="frRetry('${FR.sel}','${m.m}')">Retry</button>`:''}${m===lastMine&&tr>=m.at?' · seen':''}</small></div>`}).join(''):'<div class="fr-pick">No messages yet. Say hello.</div>';
+  e.innerHTML=M.length?M.map((m,i)=>{const p=M[i-1],n=M[i+1],gap=!p||m.at-p.at>10*60000,head=gap||p.me!==m.me,tail=!n||n.me!==m.me||n.at-m.at>10*60000;
+    const st=m.s==='sending'?'<small>Sending…</small>':m.s==='failed'?`<small class="bad">Not delivered. <button class="lnk" onclick="frRetry('${FR.sel}','${m.m}')">Try again</button></small>`:m===lastMine?`<small>${tr>=m.at?'Read':'Delivered'}</small>`:'';
+    return (gap?`<div class="fr-day">${frStamp(m.at)}</div>`:'')+`<div class="fr-m ${m.me?'me':''} ${head?'fgh':''} ${tail?'fgt':''} ${m.s==='failed'?'fail':''} ${m.s==='sending'?'snd':''}" title="${frStamp(m.at)}"><p>${frText(m.t)}</p>${st}</div>`}).join(''):`<div class="fr-pick"><i>${frIni(f?.name)}</i><b>${esc(f?.name||'')}</b>No messages yet. Say hello.</div>`;
   e.dataset.n=M.length;if(near)e.scrollTop=e.scrollHeight}
+// on a phone the open conversation is the screen: sized to what is visible, so it shrinks with the keyboard
+function frFit(){const m=$('#frmain');if(!m)return;const full=document.documentElement.classList.contains('fr-full');
+  if(!full){m.style.height='';m.style.top='';m.classList.remove('kb');return}const vv=window.visualViewport;m.style.height=Math.round(vv?vv.height:innerHeight)+'px';m.style.top=Math.round(vv?vv.offsetTop:0)+'px';m.classList.toggle('kb',!!vv&&vv.height<innerHeight-120);const e=$('#frmsgs');if(e&&e.scrollHeight-e.scrollTop-e.clientHeight<160)e.scrollTop=e.scrollHeight}
+addEventListener('resize',()=>{if(ST.tab==='kchat')frPaint()});
+if(window.visualViewport){visualViewport.addEventListener('resize',()=>{if(ST.tab==='kchat')frFit()});visualViewport.addEventListener('scroll',()=>{if(ST.tab==='kchat')frFit()})}
+// a notification (or a link) that points at a chat: #kchat or #kchat:<friend id>
+function frHash(h){const m=/^#kchat(?::([0-9a-f]+))?$/.exec(h||'');if(!m)return false;if(ST.fv){ST.fv=null;try{sessionStorage.removeItem('fr-fv')}catch{}ST.D=null;ST.last=0}
+  if(m[1]){FR.sel=m[1];FR.mob='thread';try{localStorage.setItem('fr-sel',m[1])}catch{}}ST.tab='kchat';try{localStorage.setItem('cr-tab','kchat');history.replaceState(null,'',location.pathname+location.search)}catch{}return true}
+function frGoto(h){if(!frHash(h))return;$('#drawer')?.classList.remove('on');if(!ST.D){load();return}render();frPaint();frSync().then(()=>{frPaint();if(FR.sel)frThread(FR.sel,true)})}
+frHash(location.hash);addEventListener('hashchange',()=>frGoto(location.hash));
+try{navigator.serviceWorker?.addEventListener('message',e=>{const u=String(e.data?.go||''),i=u.indexOf('#');if(i>=0)frGoto(u.slice(i))})}catch{}
 function frPick(id){FR.sel=id;FR.mob='thread';try{localStorage.setItem('fr-sel',id)}catch{}frPaint();frThread(id,true);const f=(FR.list||[]).find(x=>x.id===id);if(f&&f.unread){f.unread=0;frNav();paintChrome()}}
-async function frSend(id){const ta=$('#frtxt'),text=(ta?.value||'').trim();if(!text)return;ta.value='';FR.draft[id]='';ta.style.height='auto';
+async function frSend(id){const ta=$('#frtxt'),text=(ta?.value||'').trim();if(!text)return;ta.value='';FR.draft[id]='';frTyped(ta);
   const tmp={m:'tmp'+Date.now(),me:true,t:text,at:Date.now(),s:'sending'};(FR.msgs[id]=FR.msgs[id]||[]).push(tmp);frMsgs();
   const r=await api('/api/friends',{op:'send',id,text});const M=FR.msgs[id],i=M.indexOf(tmp);if(i>=0)M.splice(i,1);if(r.m)M.push(r.m);else M.push({...tmp,s:'failed'});frMsgs();if(!r.ok)toast(r.msg||'Not delivered.');ta?.focus()}
 async function frRetry(id,m){const r=await api('/api/friends',{op:'retry',id,m});if(r.m){const M=FR.msgs[id],i=M.findIndex(x=>x.m===m);if(i>=0)M[i]=r.m;frMsgs()}toast(r.ok?'Sent.':(r.msg||'Still not delivered.'))}
@@ -3457,7 +3514,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 (()=>{const standalone=()=>navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;if(!('ontouchstart' in window))return;
   let y0=null,x0=0,dy=0,el=null;const NEED=84;
   const pill=()=>{if(!el){el=document.createElement('div');el.id='ptr';el.innerHTML='<i></i><span></span>';document.body.appendChild(el)}return el};
-  const blocked=t=>!!document.querySelector('#modal.on,#drawer.on,#pal.on')||!!(t.closest&&t.closest('input,textarea,select,canvas,.kx-race'))||!!(t.closest&&t.closest('.fr-msgs')?.scrollTop>0);
+  const blocked=t=>!!document.querySelector('#modal.on,#drawer.on,#pal.on')||!!(t.closest&&t.closest('input,textarea,select,canvas,.kx-race'))||!!(t.closest&&t.closest('.fr-main'));
   addEventListener('touchstart',e=>{y0=null;if(!standalone()||e.touches.length!==1||scrollY>0||blocked(e.target))return;y0=e.touches[0].clientY;x0=e.touches[0].clientX;dy=0},{passive:true});
   addEventListener('touchmove',e=>{if(y0==null)return;const t=e.touches[0];dy=t.clientY-y0;if(dy<8||Math.abs(t.clientX-x0)>dy||scrollY>0){if(el)el.classList.remove('on');if(dy<0||scrollY>0)y0=null;return}
     const p=pill(),k=Math.min(1,dy/NEED);p.classList.add('on');p.classList.toggle('go',dy>=NEED);p.style.transform=`translate(-50%,${Math.min(64,dy*.5)}px)`;p.style.opacity=String(.3+.7*k);p.querySelector('i').style.transform=`rotate(${Math.round(k*300)}deg)`;p.querySelector('span').textContent=dy>=NEED?'Release to refresh':'Pull to refresh'},{passive:true});
@@ -3540,7 +3597,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.65',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.66',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

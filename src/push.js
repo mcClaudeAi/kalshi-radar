@@ -75,10 +75,11 @@ export async function pushApi(storage, op, b = {}, contact) {
 }
 // the service worker, served at /sw.js by both workers
 export const SW_JS = `// Kalshi Radar service worker: shows push notifications and opens the dashboard when one is tapped.
+// An open dashboard is told where the notification points (a chat, say) so it can go there; a closed one opens at that address.
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', e => { let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Kalshi Radar', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Kalshi Radar', { body: d.body || '', tag: d.tag || undefined, renotify: !!d.tag, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: d.url || '/' } })); });
 self.addEventListener('notificationclick', e => { e.notification.close(); const url = (e.notification.data && e.notification.data.url) || '/';
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => { for (const c of l) if ('focus' in c) return c.focus(); return self.clients.openWindow(url); })); });
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => { for (const c of l) if ('focus' in c) { c.postMessage({ go: url }); return c.focus(); } return self.clients.openWindow(url); })); });
 `;
