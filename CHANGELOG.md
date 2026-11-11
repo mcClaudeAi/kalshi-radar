@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.67 (Nov 11, 2026): Bottom bar stays at the bottom
+A fix for the iPhone home-screen app.
+- [fixed] The bottom bar could be left floating in the middle of the screen after typing, or get dragged up by scrolling past the end of a page. It now goes back into place when the keyboard closes and hides while the keyboard is up, and the page no longer bounces past its ends.
+
 ## 1.0.66 (Nov 11, 2026): Chat as a full conversation window
 The chat looks and works like a phone's messages app, and tapping a message notification opens it.
 - [new] On a phone, opening a friend takes the whole screen: their name at the top, the conversation in the middle, the message box at the bottom, following the keyboard. Back returns to your friends list.
