@@ -1326,6 +1326,7 @@ const BTP=[['rule','The rule','#49C8FF','Every 90¢+ leader at 10 minutes left.'
  ['vol','Margin vs volatility','#FF7AD9','At least 1 typical move past the target.',t=>t.z==null?null:t.z>=1],['vol2','Margin vs volatility v2','#FF9EDB','Same, with the 10-minute move measured directly.',t=>t.z10==null?null:t.z10>=1],
  ['edge','Beats the market','#7CE38B','Our win chance must beat price + fee + 1¢.',t=>t.z==null?null:kxWinZ(t.z)>=kxNeed(t.px)],['edge2','Beats the market v2','#D4F06B','Same, stricter volatility and drift.',t=>t.z2==null?null:kxWinZ(t.z2)>=kxNeed(t.px)],
  ['learn','Learned','#7CF0C8','The self-learning model\'s win chance must beat price + fee + 1¢. First 30 days are training, so it starts a month in.',t=>t.pl==null?null:t.pl>=kxNeed(t.px)],
+ ['two','Two moves clear','#9AD0FF','At least 2 typical moves past the target on both measures. Few trades, few losing days.',t=>t.z==null||t.z10==null?null:t.z>=2&&t.z10>=2],
  ['mv95','Margin vs volatility, under 95¢','#B79CFF','Margin vs volatility and Skip 95¢ together.',t=>t.z==null?null:t.z>=1&&t.px<0.95],['six95','6 or more coins, under 95¢','#5ED3C4','6 or more coins and Skip 95¢ together.',t=>t.same>=6&&t.px<0.95]];
 function btLoad(){if(BT.d||Date.now()-BT.at<60000)return;BT.at=Date.now();fetch(KR_BT+'?t='+Math.floor(Date.now()/3600000),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.rows){const f=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}),n=v=>v==null?null:v/100;
     BT.d={from:j.from,to:j.to,built:j.built,rows:j.rows.map((r,i)=>{const at=r[0]*60000;return {i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],same:r[4],win:r[5],z:n(r[6]),z2:n(r[7]),z10:n(r[8]),pl:r[9]==null?null:r[9]/1000}})};BT.err=false}else BT.err=true;if(ST.tab==='kbt')render()}).catch(()=>{BT.err=true;if(ST.tab==='kbt')render()})}
@@ -3294,7 +3295,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.48',KR_DATE='Nov 10, 2026';
+const KR_VERSION='1.0.49',KR_DATE='Nov 10, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

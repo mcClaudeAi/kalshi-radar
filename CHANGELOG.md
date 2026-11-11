@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.49 (Nov 10, 2026): Two moves clear
+The steadiest playbook the history supports.
+- [new] Playbook: Two moves clear. It only buys when the coin is at least two normal 10-minute moves past its target on both volatility measures, twice the bar Margin vs volatility uses. In the four-month history that meant about 7 trades a day, a 98% win rate and about 9 days in 10 finishing green, for roughly a fifth of Margin vs volatility's profit. It was picked on the first two months and held up on the last two. It still has losing days; no rule in the history avoided them. It is in Labs and on the Backtest page.
+
 ## 1.0.48 (Nov 10, 2026): Backtest: did the day reach your target?
 See which days got to a profit target, when, and what happened after.
 - [new] A fourth view on the Backtest period table, Reached target. Set an amount (it starts at $200). By day it shows whether each playbook's running profit got there and at what time, or the day's high point if it did not. By week and month it counts the days that did. The foot shows how many days reached it, how many reached it and then finished under, and the best high point of any day. Set the daily profit target at the top to the same amount to see what stopping there would have done. The table export includes it.
