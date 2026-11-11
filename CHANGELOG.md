@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.48 (Nov 10, 2026): Backtest: did the day reach your target?
+See which days got to a profit target, when, and what happened after.
+- [new] A fourth view on the Backtest period table, Reached target. Set an amount (it starts at $200). By day it shows whether each playbook's running profit got there and at what time, or the day's high point if it did not. By week and month it counts the days that did. The foot shows how many days reached it, how many reached it and then finished under, and the best high point of any day. Set the daily profit target at the top to the same amount to see what stopping there would have done. The table export includes it.
+
 ## 1.0.47 (Nov 10, 2026): Backtest export, and it stops jumping
 Save the backtest as a spreadsheet, and read the day table without it resetting.
 - [fixed] The Backtest and Release notes pages redrew every few seconds with the live data, which threw the day table back to the top while you were reading it. They now stay put once loaded.
