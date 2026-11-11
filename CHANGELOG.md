@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.50 (Nov 10, 2026): Margin vs volatility, under 95¢
+The backtest's best blend of profit and steadiness, as one playbook.
+- [new] Playbook: Margin vs volatility, under 95¢. Margin vs volatility plus a 95¢ price cap, selectable in Labs with one tap. Before, you had to build it in Your mix. In the four-month backtest it kept nearly all of Margin vs volatility's profit with a smaller worst drop and no losing month.
+
 ## 1.0.49 (Nov 10, 2026): Two moves clear
 The steadiest playbook the history supports.
 - [new] Playbook: Two moves clear. It only buys when the coin is at least two normal 10-minute moves past its target on both volatility measures, twice the bar Margin vs volatility uses. In the four-month history that meant about 7 trades a day, a 98% win rate and about 9 days in 10 finishing green, for roughly a fifth of Margin vs volatility's profit. It was picked on the first two months and held up on the last two. It still has losing days; no rule in the history avoided them. It is in Labs and on the Backtest page.
