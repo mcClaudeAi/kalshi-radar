@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.45 (Nov 10, 2026): Backtest by month, week and day
+Break the backtest down by period and drill in, playbook by playbook.
+- [new] The Backtest page has a period table: switch between Month, Week and Day, with every playbook side by side. Tap a month to open it by week, and a week to open it by day. Each row marks the best playbook, and the foot of the table shows the total, how many periods lost money and the worst one. Hover a cell for the trade count.
+
 ## 1.0.44 (Nov 10, 2026): Backtest page
 Every playbook run over the full history, side by side.
 - [new] Backtest page. Runs every playbook over the same history: each time the plain rule would have traded since these markets opened on Jul 9, 2026 (about 9,700 trades), with real order-book prices, real results, fees, and the Coinbase reading rebuilt for each trade check. Set the dollars per trade, the daily loss stop and the daily profit target and every playbook re-runs at once. Pick the whole history, the last 30, 60 or 90 days, or a single month. Shows profit over time, a results table (trades, win rate, net, per trade, worst drop, worst day, days stopped) and a month-by-month grid.
