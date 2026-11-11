@@ -1,0 +1,20 @@
+# Backtest data: every coin's leader at minute 10 over the last DAYS days, printed to the job log (public market data only).
+name: Minute-10 prices
+on:
+  workflow_dispatch:
+    inputs:
+      coins: { description: 'Coins, comma separated', default: 'BTC,ETH,SOL,XRP,DOGE,BNB,HYPE,ZEC,NEAR' }
+      days: { description: 'Days back', default: '123' }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        coin: ${{ fromJSON(format('["{0}"]', replace(github.event.inputs.coins, ',', '","'))) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node research/m10.mjs ${{ matrix.coin }} ${{ github.event.inputs.days }}
