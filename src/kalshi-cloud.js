@@ -29,10 +29,10 @@ const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
 const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 const HARD = { maxSize: 25, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
-const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0 };
+const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
 const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -346,7 +346,12 @@ export function createKalshi(state, env, keep) {
     st.stopped = null;
     // MC 2026-11-08 a sizing playbook (5% of the Kalshi cash) stays inside the $5 to $25 live band and the saved size is its ceiling
     let rS = null; if (lab?.size) { let run = 0, pk = 0; for (const x of [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } rS = { peak: bal + (pk - run), start: bal - run }; }
-    const sizeUsd = lab?.size ? Math.min(c.sizeUsd, HARD.maxSize, Math.max(5, lab.size(bal, { kf: r.kf, win: r.win }, rS))) : c.sizeUsd;
+    let sizeUsd = lab?.size ? Math.min(c.sizeUsd, HARD.maxSize, Math.max(5, lab.size(bal, { kf: r.kf, win: r.win }, rS))) : c.sizeUsd;
+    // MC 2026-11-10 protect today's profit on the live book too: today's settled live result and its high, less what this window
+    // already has riding. Under the $5 minimum order it skips.
+    if (cfgP.lockAt > 0) { const t2 = todayL().filter(x => x.pnl != null).sort((a, b) => a.at - b.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
+      if (pk >= cfgP.lockAt) { const riding = [...L.values()].filter(x => x.close === r.close && x.fill > 0 && !x.result).reduce((a, x) => a + (x.cost || 0), 0), room = run - pk * (cfgP.lockKeep || 0) / 100 - riding;
+        if (room < 5) return skip(`protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left`); sizeUsd = Math.min(sizeUsd, room); } }
     if ((st.shard[XI] ?? 0) < sizeUsd + 1) { st.xferAt = 0; await fund(c); }
     const maxPx = Math.min(0.99, +(r.ask + 0.01).toFixed(4)), n = Math.floor(sizeUsd / maxPx);
     if (n < 1) return;
@@ -427,6 +432,7 @@ export function createKalshi(state, env, keep) {
       let kS = null; if (sid === 'kelly' || (sid === 'mix' && cfgP.mixSize === 'kelly')) { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
       // MC 2026-11-09 schedule: hours (ET, by entry time) picked as off in Paper settings are skipped live too
       const offNow = (cfgP.skipHours || []).includes(etHour(now));
+      hits.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));   // clearest first, so profit protection gives them the room
       for (const r of hits) {
         if (offNow) { skipLive(r, `off schedule (${etHour(now)}:00 ET hour)`); continue; }
         if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hits.length; }
@@ -696,7 +702,10 @@ export function createKalshi(state, env, keep) {
   // ---------- the Kalshi tab (same shape as notify.js kalshiView) ----------
   function kalshiView() {
     learnFill(Date.now() - 90000);
-    const K = cfgP, rows = [...rec.values()].sort((a, b) => a.at - b.at), sum = l => +l.reduce((a, t) => a + t.pnl, 0).toFixed(2);
+    // MC 2026-11-10 within a window the clearest coins come first (most moves past the target), so when profit protection limits
+    // how much a window may stake, it is the strongest trades that get the room
+    const byClear = (a, b) => a.at - b.at || ((b.vol?.z ?? -9) - (a.vol?.z ?? -9));
+    const K = cfgP, rows = [...rec.values()].sort(byClear), sum = l => +l.reduce((a, t) => a + t.pnl, 0).toFixed(2);
     const H = [], net30 = (c, at) => { let x = 0, k = 0; for (const h of H) if (h.coin === c && h.close <= at && h.close > at - K.coldDays * 86400000) { x += h.pnl; k++; } return { x, k }; };
     const perWin = {}, dayNet = {}, dayPeak = {}, stopDay = {}, trades = [], labs0 = labDefs(K), winN = {};
     // MC 2026-11-08 the active playbook (K.strat log) filters and sizes the paper book from the moment it was switched on;
@@ -712,7 +721,7 @@ export function createKalshi(state, env, keep) {
     // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
     // own analytics, and one whose market the mark trade already holds is dropped.
     const lates = [...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker));
-    const rowsAll = lates.length ? [...rows, ...lates].sort((a, b) => a.at - b.at) : rows;
+    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {};
     for (const r of rowsAll) {
       const late = !!r.late;
       if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
@@ -739,8 +748,18 @@ export function createKalshi(state, env, keep) {
       const ko = kOf(kS, px);
       const f = late ? true : lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
       const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }, { peak, start: K.startUsd }) : K.sizeUsd;
-      const off = (K.skipHours || []).includes(etHour(r.at)), capped = (!late && perWin[w] > K.maxPerWindow) || halted || (cold && !late) || off || !!strat, n = Math.floor(sizeUsd / px), cost = +(n * px + fee(px, n)).toFixed(2);
-      const t = { late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+      const off = (K.skipHours || []).includes(etHour(r.at)), capped0 = (!late && perWin[w] > K.maxPerWindow) || halted || (cold && !late) || off || !!strat;
+      // MC 2026-11-10 protect today's profit (Steven's request). Once the day's high reaches lockAt, a window may stake no more than
+      // today's profit minus lockKeep% of the day's high, so the worst a window can do is take the day back to that floor (keep 0:
+      // back to even). The budget is fixed when the window's first trade comes up and shared across its coins, clearest first; a
+      // coin that does not fit in full is bought smaller, and one that cannot buy a single contract is skipped. Tested on the
+      // four-month history with a $200 target, starting at $100 and keeping 0%: more green days on every playbook; more profit on
+      // Margin vs volatility and v2, much less on the plain rule (it stakes many coins a window and runs out of budget). Off by default.
+      let lockCut = false, szUse = sizeUsd;
+      if (K.lockAt > 0 && !capped0) { if (lockRem[w] == null) lockRem[w] = (dayPeak[dk] || 0) >= K.lockAt ? (dayNet[dk] || 0) - (dayPeak[dk] || 0) * (K.lockKeep || 0) / 100 : Infinity; if (lockRem[w] < px + fee(px, 1)) lockCut = true; else szUse = Math.min(sizeUsd, lockRem[w]); }
+      const capped = capped0 || lockCut, n = Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
+      if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
+      const t = { lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result && !late) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
@@ -807,7 +826,7 @@ export function createKalshi(state, env, keep) {
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
     const sim = (lab, from, baseline) => {
-      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }; let ddRef = bank, ddLast = null;
+      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}; let ddRef = bank, ddLast = null;
       const trades = lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         if (!t.done || t.close < from) continue;
@@ -820,8 +839,11 @@ export function createKalshi(state, env, keep) {
         if (K.dailyWinUsd > 0 && (day[dk] || 0) >= K.dailyWinUsd) continue;
         if (K.giveBackPct > 0 && dayPk[dk] >= (K.giveBackMin ?? 25) && (day[dk] || 0) <= dayPk[dk] * K.giveBackPct / 100) { stopD[dk] = 'giveback'; continue; }
         if (K.bankDdPct > 0 && bank <= ddRef * (1 - K.bankDdPct / 100)) { stopD[dk] = 'bankdd'; continue; }
-        const size = lab.size && !baseline ? lab.size(bank, t, { peak, start: K.startUsd }) : K.sizeUsd, k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = (t.won ? k : 0) - cost;
+        let size = lab.size && !baseline ? lab.size(bank, t, { peak, start: K.startUsd }) : K.sizeUsd, lockCut = false;
+        if (K.lockAt > 0 && f) { if (lockR[t.close] == null) lockR[t.close] = (dayPk[dk] || 0) >= K.lockAt ? (day[dk] || 0) - (dayPk[dk] || 0) * (K.lockKeep || 0) / 100 : Infinity; if (lockR[t.close] < t.px + fee(t.px, 1)) lockCut = true; else size = Math.min(size, lockR[t.close]); }
+        const k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = (t.won ? k : 0) - cost;
         if (!f) { sk++; skNet += t.rulePnl ?? t.pnl ?? 0; continue; }
+        if (lockCut) continue; if (isFinite(lockR[t.close] ?? Infinity)) lockR[t.close] -= cost;
         n++; if (t.won) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; dayPk[dk] = Math.max(dayPk[dk], day[dk]); peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);
         if (dk === todayK) { td.n++; if (t.won) td.won++; td.net += pnl; }
       }

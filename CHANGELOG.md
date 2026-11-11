@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.54 (Nov 10, 2026): Protect today's profit
+One bad window can no longer take a good day back under the line you set.
+- [new] Setting: Protect profit from ($) and Keep (% of the day's high), under Stops. Once the day's high reaches the amount, each window may only stake today's profit less the share of the high you keep. With 0% a window can take the day back to even, never below. The window's coins share that budget, clearest first; a coin that does not fit in full is bought smaller, and one that cannot fit a contract is skipped. Applies to the paper book, Labs and live. Off by default.
+- [new] The same two boxes on the Backtest page. At $50 a trade with a $200 target and protection from $100, every playbook finished green on more days; Margin vs volatility and v2 also made more, the plain rule made much less. Try your numbers there before turning it on.
+- [improved] Within a window, the clearest coins (furthest past their targets) are now considered first, in paper and live.
+- [improved] Trade details say when a trade was skipped or bought smaller to protect the day's profit.
+
 ## 1.0.53 (Nov 10, 2026): Push notifications
 Your phone is told when positions open and when they settle.
 - [new] Push notifications from the home-screen app, set up under Settings, Notifications. One message when a window's positions open (coins, prices, amount committed, when it settles, the playbook) and one when the window settles (how many won and lost, the net, each coin's result, today's total and the bank). One message per 15-minute window, never one per coin.
