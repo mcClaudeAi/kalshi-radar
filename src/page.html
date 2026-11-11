@@ -644,6 +644,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .kx-pk .kx-pkn{text-align:right;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}.kx-pk .kx-pkn em{display:block;font-style:normal;font-size:10.5px;color:var(--faint);font-weight:500}
 .kx-pk .kx-pkon{grid-column:1/-1;font-size:11px;color:var(--c);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 @media(max-width:640px){.kx-race{height:230px}}
+.kx-cxsw{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}.kx-cxsw>div:first-child{min-width:0;flex:1 1 240px}.kx-cxsw b{display:block;font-size:14px}.kx-cxsw span{display:block;font-size:12px;color:var(--mute);margin-top:2px}.kx-seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}.kx-seg button{border:0;background:none;color:var(--mute);font:inherit;font-size:13px;padding:6px 14px;border-radius:999px;cursor:pointer}.kx-seg button[aria-pressed=true]{background:var(--kx);color:#fff}
 .kx-rl{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12.5px;color:var(--ink2)}
 .kx-rlh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}.kx-rln{font-size:11.5px;color:var(--faint)}
 .kx-rl button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 9px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c) 45%,var(--line));background:color-mix(in srgb,var(--c) 10%,transparent);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:opacity .15s,background .15s}.kx-rl button:hover{background:color-mix(in srgb,var(--c) 18%,transparent)}
@@ -2594,6 +2595,11 @@ function kxLabSpark(eq,colr,start){if(!eq||eq.length<2)return '<svg viewBox="0 0
 // MC 2026-11-10 the race chart's legend was already a toggle but looked like a label and forgot its state; now it is a filter bar
 // with All, None and "only this" (double-click or long-press), remembered on this device
 const KXL={off:new Set((()=>{try{return JSON.parse(localStorage.getItem('kx-laboff')||'[]')}catch{return []}})()),rg:(()=>{try{const r=localStorage.getItem('kx-labrg');return ['match','1d','7d','all'].includes(r)?r:'match'}catch{return 'match'}})()};
+// MC 2026-11-11 Cash out switch for the whole Labs page: every playbook replayed as if trades whose trend turned against the bet
+// were sold at the minute-10 bid, so the effect shows before the paper setting goes on. Remembered on this device only.
+KXL.cx=(()=>{try{return localStorage.getItem('kx-labcx')==='1'}catch{return false}})();
+const kxLX=labs=>KXL.cx?(labs||[]).map(l=>l.cx?{...l,...l.cx}:l):(labs||[]);
+function kxLabCx(on){KXL.cx=!!on;try{localStorage.setItem('kx-labcx',on?'1':'0')}catch{}render()}
 const kxLabSave=()=>{try{localStorage.setItem('kx-laboff',JSON.stringify([...KXL.off]))}catch{}};
 // MC 2026-11-10 Labs chart redone. Was: every line drawn as its own balance from its own start date, so the rule (running since
 // the first day) sat hundreds of dollars away from playbooks that only began when their readings did, and the picture said nothing
@@ -2645,7 +2651,7 @@ function kxRace(el,labs,start){if(!el)return;// MC 2026-11-10 a playbook that ha
     el.addEventListener('pointermove',move);el.addEventListener('pointerdown',move);el.addEventListener('pointerleave',leave);el.addEventListener('pointercancel',leave)}}
 function kxLabRange(r){KXL.rg=r;try{localStorage.setItem('kx-labrg',r)}catch{}kxLabToggle(null)}
 function kxLabSet(mode,id){const ids=(ST.D?.kalshi?.labs||[]).map(l=>l.id);if(mode==='all')KXL.off.clear();else if(mode==='none')ids.forEach(x=>KXL.off.add(x));else if(mode==='only'){ids.forEach(x=>KXL.off.add(x));KXL.off.delete(id);KXL.off.delete('rule')}kxLabSave();kxLabToggle(null)}
-function kxLabToggle(id){if(id)KXL.off.has(id)?KXL.off.delete(id):KXL.off.add(id);kxLabSave();const K=ST.D?.kalshi;if(K)kxRace($('#kxrace'),K.labs,K.cfg?.startUsd||1000);document.querySelectorAll('[data-lab]').forEach(b=>b.setAttribute('aria-pressed',String(!KXL.off.has(b.dataset.lab))))}
+function kxLabToggle(id){if(id)KXL.off.has(id)?KXL.off.delete(id):KXL.off.add(id);kxLabSave();const K=ST.D?.kalshi;if(K)kxRace($('#kxrace'),kxLX(K.labs),K.cfg?.startUsd||1000);document.querySelectorAll('[data-lab]').forEach(b=>b.setAttribute('aria-pressed',String(!KXL.off.has(b.dataset.lab))))}
 // MC 2026-11-11 the evidence for cashing out on a turning trend: every rule trade checked at the 10-minute mark, split by which way the
 // trend ran, and for the ones running against, holding to the close against selling right then, at the saved size, fees in
 function kxTrendX(K){const S=K.trendx;if(!S)return '';const c=K.cfg||{},A=S.against,d0=v=>(v<0?'-$':'+$')+Math.abs(v).toFixed(2),pc=(a,b)=>b?(100*a/b).toFixed(1)+'%':'–',diff=A.cashNet-A.holdNet;
@@ -2677,7 +2683,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
   const c=K.cfg||{},wr=K.n?K.won/K.n:0,lost=K.n-K.won,dms=x=>new Date(x).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),dd=x=>new Date(x).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'});
   const rec=K.recent||[],bc=K.byCoin||[],mx=Math.max(1,...bc.map(b=>Math.abs(b.net))),be=K.breakEven||.935,chk=K.checks||[],okN=chk.filter(x=>x.ok).length,start=c.startUsd||1000,labs=K.labs||[];
   const todayNet=K.today?.net||0,stop=c.dailyLossUsd??250,stopPct=Math.min(1,Math.max(0,-todayNet/stop)),lv=K.live?.live||null;
-  after[view]=D=>{const K=D.kalshi;if($('#kxheq'))kxHeroLine($('#kxheq'),(K.eq||[]),start);if($('#kxrace'))kxRace($('#kxrace'),K.labs,start);if($('#kxroll'))kxRoll($('#kxroll'),K.roll,be);
+  after[view]=D=>{const K=D.kalshi;if($('#kxheq'))kxHeroLine($('#kxheq'),(K.eq||[]),start);if($('#kxrace'))kxRace($('#kxrace'),kxLX(K.labs),start);if($('#kxroll'))kxRoll($('#kxroll'),K.roll,be);
     if($('#kxdaily'))barChart($('#kxdaily'),(K.daily||[]).map(d=>({label:new Date(d.d+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'}),v:d.net,color:d.net>=0?'var(--good)':'var(--bad)',sub:`${d.n} trades, ${d.won} won${d.halted?', stop hit':''}`})),{h:190});
     kxStart();for(const id of KXO)kxPlayLoad(id)};
   const tile=(l,v,sub,extra='')=>`<div class="kx-t"><div class="lbl">${l}</div><div class="mid">${v}</div><div class="sub">${sub}</div>${extra}</div>`;
@@ -2703,10 +2709,10 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
     <div><div class="kx-ml">Ready for live</div><b>${okN} <em>of ${chk.length}</em></b>${bar(chk.length?okN/chk.length:0,'var(--kx)')}<small>${okN===chk.length?'every check passes':'see Live account'}</small></div></div></section>
 `,board:`  <div class="card kx-card" style="margin-top:16px"><h3>Live board<span class="r">coin price against Kalshi's target, streamed from Coinbase</span></h3><div class="kx-live" id="kxboard"></div></div>
 `,labs:`  ${sec('Labs','Every idea runs as its own paper account on the same trades as the rule. Nothing here changes the paper book or live trading. A lab earns a real test when it beats the rule over a few hundred trades, not a few days.')}
-  <section class="kx-labs"><div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div><div class="kx-rtop"><div class="kx-rcap" id="kxrcap"></div><div class="kx-rg">${[['match','Same start'],['1d','24h'],['7d','7 days'],['all','All']].map(([k,n])=>`<button data-rg="${k}" aria-pressed="${KXL.rg===k}" onclick="kxLabRange('${k}')">${n}</button>`).join('')}</div></div><div class="kx-race" id="kxrace"></div>
+  <section class="kx-labs"><div class="kx-cxsw"><div><b>Cash out when the trend turns</b><span>${KXL.cx?'Every playbook below is replayed as if a trade whose trend turned against it was sold at minute 10. Your paper book is not changed.':'Off: every trade is held to the end. Turn on to see every playbook with cash-out applied.'}${c.trendExit?' The paper setting is on, so the paper book already cashes out.':''}</span></div><div class="kx-seg" role="group"><button aria-pressed="${!KXL.cx}" onclick="kxLabCx(0)">Hold</button><button aria-pressed="${KXL.cx}" onclick="kxLabCx(1)">Cash out</button></div></div><div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div><div class="kx-rtop"><div class="kx-rcap" id="kxrcap"></div><div class="kx-rg">${[['match','Same start'],['1d','24h'],['7d','7 days'],['all','All']].map(([k,n])=>`<button data-rg="${k}" aria-pressed="${KXL.rg===k}" onclick="kxLabRange('${k}')">${n}</button>`).join('')}</div></div><div class="kx-race" id="kxrace"></div>
    <div class="kx-rlh"><span class="kx-ml">Show on the chart</span><button class="btn sm ghost" onclick="kxLabSet('all')">All</button><button class="btn sm ghost" onclick="kxLabSet('none')">None</button><span class="kx-rln">Tap to show or hide. Double-click (or press and hold) to show only that one against the rule.</span></div>
-   <div class="kx-rl">${labs.map(l=>`<button data-lab="${esc(l.id)}" aria-pressed="${!KXL.off.has(l.id)}" style="--c:${l.color}" onclick="kxLabToggle('${esc(l.id)}')" ondblclick="kxLabSet('only','${esc(l.id)}')" oncontextmenu="kxLabSet('only','${esc(l.id)}');return false"><i></i>${esc(l.name)}</button>`).join('')}</div>
-   <div class="kx-lgrid">${labs.filter(l=>l.id!=='rule').map(l=>kxLabCard(l,start)).join('')}</div>${kxTrendX(K)}${kxLook2(K)}</section>
+   <div class="kx-rl">${kxLX(labs).map(l=>`<button data-lab="${esc(l.id)}" aria-pressed="${!KXL.off.has(l.id)}" style="--c:${l.color}" onclick="kxLabToggle('${esc(l.id)}')" ondblclick="kxLabSet('only','${esc(l.id)}')" oncontextmenu="kxLabSet('only','${esc(l.id)}');return false"><i></i>${esc(l.name)}</button>`).join('')}</div>
+   <div class="kx-lgrid">${kxLX(labs).filter(l=>l.id!=='rule').map(l=>kxLabCard(l,start)).join('')}</div>${kxTrendX(K)}${kxLook2(K)}</section>
 `,scan:`  <div class="card kx-card" style="margin-top:16px"><h3>Scanner, all 9 coins this window<span class="r">closest to qualifying first</span></h3><div class="kx-sbh"><span>Coin</span><span>Leader</span><span>Last 15 min</span><span>Price</span><span>vs target</span></div><div class="kx-sbw" id="kxscan"></div></div>
 `,trades:`   <div class="card"><h3>Trades<span class="r">one day at a time, tap a row for the full story</span></h3><div id="kxtrades">${kxTradesTbl(K)}</div>
     <div class="kx-cmp"><div><div class="lbl">Markets watched</div><b>${n0(K.seen)}</b></div><div><div class="lbl">Met the rule</div><b>${n0(K.rule)}</b></div><div><div class="lbl">Leaders under ${Math.round((c.minAsk||.9)*100)}¢, not taken</div><b class="${cls(K.under?.c)}">${K.under?.n?(K.under.c>0?'+':'')+K.under.c+'¢':'–'}</b><span class="sub" style="display:block">${K.under?.n?`${K.under.won} of ${K.under.n} won, per contract`:''}</span></div></div>
@@ -3409,7 +3415,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.61',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.62',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

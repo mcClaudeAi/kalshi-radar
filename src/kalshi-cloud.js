@@ -813,6 +813,10 @@ export function createKalshi(state, env, keep) {
       const cashed = !!(K.trendExit && !late && r.exit?.dir < 0 && r.exit.px != null && r.at < r.exit.at);
       if (cashed) { t.cashed = 1; t.exitPx = r.exit.px; t.exitPct = r.exit.pct; t.heldWon = r.result ? !!r.won : null; t.done = true; t.won = n * r.exit.px - fee(r.exit.px, n) - cost > 0; }
       if (r.exit) { t.trend = r.exit.dir; t.trendPct = r.exit.pct; }
+      // MC 2026-11-11 the Labs cash-out switch needs every trade's sale price whether or not the setting is on, plus how it would
+      // have ended if held, so each playbook can be replayed both ways. xPx is set only when the trend turned against the bet
+      // after the buy; fin and hw are the settled result untouched by a paper cash-out.
+      t.xPx = !late && r.exit?.dir < 0 && r.exit.px != null && r.at < r.exit.at ? r.exit.px : null; t.fin = !!r.result; t.hw = !!r.won;
       if (!capped && (r.result || cashed)) { t.pnl = +(cashed ? n * r.exit.px - fee(r.exit.px, n) - cost : (r.won ? n : 0) - cost).toFixed(2); dayNet[dk] = (dayNet[dk] || 0) + t.pnl; dayPeak[dk] = Math.max(dayPeak[dk], dayNet[dk]); if (inRun) { bal += t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); } }
       if (r.result && inRun) balU += (r.won ? n : 0) - cost;
       if (!capped && !r.result) open += cost;
@@ -877,11 +881,15 @@ export function createKalshi(state, env, keep) {
   function runLabs(tradesIn, K, lateT = []) {
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
-    const sim = (lab, from, baseline) => {
+    // MC 2026-11-11 cash, when set, sells every trade whose trend turned against it at the minute-10 bid (the Cash out when the
+    // trend turns setting) and holds the rest; unset, every trade is held to settlement. Either way the result does not depend on
+    // what the paper setting is, so the Labs switch shows both before the setting goes on.
+    const sim = (lab, from, baseline, cash = false) => {
       let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}; let ddRef = bank, ddLast = null;
       const trades = lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
-        if (!t.done || t.close < from) continue;
+        const cx = cash && !t.late && t.xPx != null, held = t.hw ?? t.won;
+        if (!(cx || (t.fin ?? t.done)) || t.close < from) continue;
         if (t.win > K.maxPerWindow || t.off) continue;
         const f = baseline ? true : lab.filter(t); if (f == null) continue;
         const dk = etDay(t.close), ws = wS[t.close] || (wS[t.close] = { net: day[dk] || 0, pk: dayPk[dk] || 0, bank });   // the day as the window opened
@@ -893,11 +901,11 @@ export function createKalshi(state, env, keep) {
         if (K.bankDdPct > 0 && ws.bank <= ddRef * (1 - K.bankDdPct / 100)) { stopD[dk] = 'bankdd'; continue; }
         let size = lab.size && !baseline ? lab.size(bank, t, { peak, start: K.startUsd }) : K.sizeUsd, lockCut = false;
         if (K.lockAt > 0 && f) { if (lockR[t.close] == null) lockR[t.close] = ws.pk >= K.lockAt ? ws.net - ws.pk * (K.lockKeep || 0) / 100 : Infinity; if (lockR[t.close] < t.px + fee(t.px, 1)) lockCut = true; else size = Math.min(size, lockR[t.close]); }
-        const k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = t.cashed ? k * t.exitPx - fee(t.exitPx, k) - cost : (t.won ? k : 0) - cost;
+        const k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = cx ? k * t.xPx - fee(t.xPx, k) - cost : (held ? k : 0) - cost, ok = cx ? pnl > 0 : held;
         if (!f) { sk++; skNet += t.rulePnl ?? t.pnl ?? 0; continue; }
         if (lockCut) continue; if (isFinite(lockR[t.close] ?? Infinity)) lockR[t.close] -= cost;
-        n++; if (t.won) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; dayPk[dk] = Math.max(dayPk[dk], day[dk]); peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);
-        if (dk === todayK) { td.n++; if (t.won) td.won++; td.net += pnl; }
+        n++; if (ok) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; dayPk[dk] = Math.max(dayPk[dk], day[dk]); peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);
+        if (dk === todayK) { td.n++; if (ok) td.won++; td.net += pnl; }
       }
       const step = Math.max(1, Math.ceil(eq.length / 120));
       return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1) };
@@ -906,8 +914,9 @@ export function createKalshi(state, env, keep) {
       const trades = plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
       if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
-      const r = sim(lab, first.close, false), b = lab.id === 'rule' ? null : sim(lab, first.close, true);
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, since: first.close, ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null };
+      const both = cash => { const r = sim(lab, first.close, false, cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash);
+        return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, since: first.close, ...both(false), cx: both(true) };
     });
   }
 

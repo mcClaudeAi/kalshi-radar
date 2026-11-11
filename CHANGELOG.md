@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.62 (Nov 11, 2026): See cash-out on every playbook before turning it on
+A Hold or Cash out switch on Labs replays every playbook both ways.
+- [new] Labs has a Hold / Cash out switch at the top. On Cash out, every playbook's line, net, win rate and drop are replayed as if each trade whose trend turned against it had been sold at the 10-minute mark. Compare the two before turning on the paper setting. Your paper book is never changed by the switch.
+
 ## 1.0.61 (Nov 11, 2026): Cash out when the trend turns
 Test selling a trade at the 10-minute mark when the trend runs against it.
 - [new] Setting under Stops: Cash out when the trend turns. At the 10-minute mark of every window, the tracker fits the trend line from minute 5 to minute 10. With the bet or flat, the trade is held. Against the bet, the position is sold right then at the price Kalshi's buyers are paying, fee included. It applies to every playbook. Paper only for now; live keeps holding.
