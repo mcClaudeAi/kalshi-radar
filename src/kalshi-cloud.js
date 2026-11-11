@@ -100,6 +100,9 @@ function labDefs(K) {
     // MC 2026-11-10 the self-learning playbook. pl is the model's win chance for this trade, frozen at the trade check from that
     // morning's fit (so it has never seen the trade it is judging). Same bar as Beats the market: price + fee + 1 cent.
     { id: 'learn', name: 'Learned', desc: 'Only buys when the self-learning model\'s win chance beats Kalshi\'s price plus the fee plus 1¢. The model refits every morning on every settled trade, starting from four months of history, and is only ever scored on trades it had not seen. See the Learning tab.', color: '#E0AAFF', filter: t => t.pl == null ? null : t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    // MC 2026-11-11 buys at minute 10 instead of at the mark, and only when the 5-to-10 trend line is with the bet or flat. Labs
+    // only (m10Only): it runs on its own minute-10 prices, never on the mark's trades, and can't be picked for paper or live.
+    { id: 'tr10', name: 'Wait for the trend', m10Only: true, desc: `Skips the 10-minutes-left buy. At 5 minutes left it buys the leader if it costs ${Math.round((K.minAsk ?? 0.9) * 100)}¢ to 98¢ and the trend line from minute 5 to minute 10 runs with the bet or is flat. Higher prices than the mark, so smaller wins; the question is whether fewer losses make up for it.`, color: '#E9C46A', filter: t => !!t.m10 && t.px >= K.minAsk && t.px <= 0.98 && t.dir >= 0 },
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#6C757D', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
 }
@@ -238,7 +241,8 @@ export function createKalshi(state, env, keep) {
   sql.exec('CREATE TABLE IF NOT EXISTS kt (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS ko (tk TEXT PRIMARY KEY, at INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS k2 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // second-look entries, kept apart from the mark records so nothing else counts them
-  let rec2 = new Map();
+  sql.exec('CREATE TABLE IF NOT EXISTS k3 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // every coin's price and trend at minute 10, for the Wait for the trend lab
+  let rec2 = new Map(), rec3 = new Map();
   let rec = null, L = null, cfgP = null, ctlL = null, scan = [], scanAt = 0, view = null, viewDirty = true, viewAt = 0;
   const st = { bal: null, balAt: 0, lastErr: null, errAt: 0, host: 0, sellAllDone: 0, stopped: null, keyOk: null, shard: {}, xferAt: 0, lastXfer: null, lastMark: 0 };
   const logs = [];
@@ -248,6 +252,7 @@ export function createKalshi(state, env, keep) {
     if (rec) return;
     rec = new Map(); for (const r of sql.exec('SELECT j FROM kt')) { try { const j = JSON.parse(r.j); rec.set(j.ticker, j); } catch {} }
     rec2 = new Map(); for (const r of sql.exec('SELECT j FROM k2')) { try { const j = JSON.parse(r.j); rec2.set(j.ticker, j); } catch {} }
+    rec3 = new Map(); for (const r of sql.exec('SELECT j FROM k3')) { try { const j = JSON.parse(r.j); rec3.set(j.ticker, j); } catch {} }
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
@@ -255,6 +260,7 @@ export function createKalshi(state, env, keep) {
   }
   const saveRec = r => sql.exec('INSERT OR REPLACE INTO kt (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
   const saveRec2 = r => sql.exec('INSERT OR REPLACE INTO k2 (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
+  const saveRec3 = r => sql.exec('INSERT OR REPLACE INTO k3 (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
   const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.tk, x.at, JSON.stringify(x));
   const ctl = () => ({ enabled: ctlL.enabled === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
@@ -469,6 +475,8 @@ export function createKalshi(state, env, keep) {
     if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
+    try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
+    try { await settle3(now); } catch (e) { say('minute 10 settle error: ' + e.message); }
     // MC 2026-11-10 was also gated on st.lastMark >= mk, which lives in memory: the object is dropped from memory between
     // minutes often enough that the second look never ran once in its first three windows. The clock alone decides now.
     if (now - mk > 70000) { try { await secondLook(now, out); } catch (e) { say('second look error: ' + e.message); } }
@@ -592,16 +600,24 @@ export function createKalshi(state, env, keep) {
   // trendExit on, the paper book books those trades at the sale price, fee included. Paper only: live keeps holding.
   // Second-look entries are left out (most are bought after minute 10). Tried and dropped: a projection to the close; the owner
   // wants the straight 5-to-10 line first and to refine the projection later.
+  // the least-squares slope of Coinbase's 1-minute closes from minute 5 to minute 10 of a window, per second; kept a few windows so
+  // the cash-out check and the minute-10 prices share one candle request per coin
+  const slopes = new Map();
+  async function slopeOf(c, closeMs) {
+    const key = c + ':' + closeMs; if (slopes.has(key)) return slopes.get(key);
+    const close = closeMs / 1000, x0 = close - 900, pid = CBPID[c]; if (!pid) return null;
+    let pts = []; try { pts = (await advCandles(pid, x0 + 240, x0 + 600)).map(k => [k[0] + 60, k[4]]).filter(p => p[0] >= x0 + 300 && p[0] <= x0 + 600); } catch (e) { console.log(`trend ${c}: ${e.message}`); return null; }
+    if (pts.length < 3) { console.log(`trend ${c}: only ${pts.length} points`); return null; }
+    const n = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / n, my = pts.reduce((a, p) => a + p[1], 0) / n; let sxx = 0, sxy = 0; for (const p of pts) { sxx += (p[0] - mx) ** 2; sxy += (p[0] - mx) * (p[1] - my); }
+    const slope = sxx ? sxy / sxx : 0; slopes.set(key, slope); for (const k of slopes.keys()) if (+k.split(':')[1] < closeMs - 2 * Q) slopes.delete(k);
+    return slope;
+  }
   async function trendCheck(now) {
     const due = [...rec.values()].filter(r => !r.exit && r.ask >= KEEP_ASK && r.strike > 0 && r.result !== 'void' && r.close - now <= 330000 && r.close - now >= 200000);
     if (!due.length) return;
     const byCoin = {}; for (const r of due) (byCoin[coin(r.series)] = byCoin[coin(r.series)] || []).push(r);
     for (const [c, list] of Object.entries(byCoin)) {
-      const close = list[0].close / 1000, x0 = close - 900, pid = CBPID[c]; if (!pid) continue;
-      let pts = []; try { pts = (await advCandles(pid, x0 + 240, x0 + 600)).map(k => [k[0] + 60, k[4]]).filter(p => p[0] >= x0 + 300 && p[0] <= x0 + 600); } catch (e) { console.log(`trend ${c}: ${e.message}`); continue; }
-      if (pts.length < 3) { console.log(`trend ${c}: only ${pts.length} points`); continue; }
-      const n = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / n, my = pts.reduce((a, p) => a + p[1], 0) / n; let sxx = 0, sxy = 0; for (const p of pts) { sxx += (p[0] - mx) ** 2; sxy += (p[0] - mx) * (p[1] - my); }
-      const slope = sxx ? sxy / sxx : 0;
+      const slope = await slopeOf(c, list[0].close); if (slope == null) continue;
       for (const r of list) {
         const pct = slope * 300 / r.strike * 100 * (r.side === 'yes' ? 1 : -1), dir = Math.abs(pct) < 0.02 ? 0 : pct > 0 ? 1 : -1, x = { at: now, pct: +pct.toFixed(4), dir };
         if (dir < 0) { try { const b = bids(await get(`/markets/${r.ticker}/orderbook`)), mine = r.side === 'yes' ? b.yes : b.no; if (mine.length) { x.best = mine[0][0]; const avg = walk(mine, BOOK_N); x.px = +(avg ?? mine[0][0]).toFixed(4); x.depth = mine.reduce((a, q) => a + q[1], 0); } } catch (e) { console.log(`trend ${r.ticker}: book ${e.message}`); } }
@@ -646,6 +662,37 @@ export function createKalshi(state, env, keep) {
     }
     const inWin = out.filter(o => { const l = (o.close - now) / 60000; return l <= MIN_LEFT - 1 && l >= L2_MIN_LEFT; }); if (inWin.length) console.log(`look2 minute: ${inWin.length} coins, prices ${inWin.map(o => o.coin + ' ' + (o.lask == null ? '-' : Math.round(o.lask * 100))).join(', ')}; read ${n}`);
     if (touched) { for (const k of Object.keys(l2log)) if (l2log[k].close < now - 4 * Q) delete l2log[k]; await kv.put('kl2', l2log); viewDirty = true; }
+  }
+  // MC 2026-11-11 asked whether the trend line could decide the buy itself. It can't at the 10-minutes-left mark: the line runs
+  // from minute 5 to minute 10, after that buy. So this tests buying later instead: at minute 10 (5 minutes left), every coin's
+  // leader is priced from Kalshi's order book (the average over 100 contracts, same as every buy) next to its trend line, whether
+  // or not anything was bought at the mark. The Wait for the trend lab buys the ones priced at least the minimum price and at most
+  // 98c whose line runs with the bet or is flat, and settles them like second-look entries. Nothing is bought for real or on
+  // paper; it is Labs only, so there is something to judge it on. Higher prices at minute 10 mean smaller wins, which is the
+  // question it answers. Up to 9 order books a window, one per coin.
+  async function minute10(now, out) {
+    for (const o of out) {
+      const left = o.close - now; if (left > 330000 || left < 200000 || rec3.has(o.tk) || !(o.strike > 0)) continue;
+      const slope = await slopeOf(o.coin, o.close); if (slope == null) continue;
+      let b; try { b = book(await get(`/markets/${o.tk}/orderbook`)); } catch (e) { console.log(`m10 ${o.coin}: ${e.message}`); continue; }
+      const ya = b.yesAsks[0]?.[0], na = b.noAsks[0]?.[0]; if (ya == null || na == null) continue;
+      const side = ya >= na ? 'yes' : 'no', asks = side === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0][0], avgN = walk(asks, BOOK_N);
+      const pct = slope * 300 / o.strike * 100 * (side === 'yes' ? 1 : -1), dir = Math.abs(pct) < 0.02 ? 0 : pct > 0 ? 1 : -1, m = rec.get(o.tk);
+      const r = { ticker: o.tk, m10: 1, series: activeSeries().find(x => coin(x) === o.coin) || m?.series, at: now, close: o.close, side, ask, avgN: avgN == null ? null : +avgN.toFixed(4), ya, na, strike: o.strike, pct: +pct.toFixed(4), dir, mark: m ? { side: m.side, ask: m.ask } : null };
+      rec3.set(o.tk, r); saveRec3(r); viewDirty = true;
+      console.log(`m10 ${o.coin} ${side} ${Math.round(ask * 100)}c trend ${pct >= 0 ? '+' : ''}${pct.toFixed(3)}% ${dir > 0 ? 'with' : dir < 0 ? 'against' : 'flat'}`);
+    }
+    for (const [k, r] of rec3) if (r.close < now - 21 * 86400000) { rec3.delete(k); sql.exec('DELETE FROM k3 WHERE tk = ?', k); }
+  }
+  async function settle3(now) {
+    let k = 0;
+    for (const r of rec3.values()) {
+      if (r.result || now < r.close + 60000) continue;
+      const b = rec.get(r.ticker) || rec2.get(r.ticker); let res = b?.result;
+      if (!res) { if (++k > 6) break; const j = await get(`/markets/${r.ticker}`); res = j?.market?.result; }
+      if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.result = 'void'; saveRec3(r); viewDirty = true; } continue; }
+      r.result = res; r.won = res === r.side; saveRec3(r); viewDirty = true;
+    }
   }
   async function settle2(now) {
     let k = 0;
@@ -828,7 +875,8 @@ export function createKalshi(state, env, keep) {
     const grpW = {}; for (const t of trades) { if (t.late) continue; const g = t.close + t.side; grpW[g] = (grpW[g] || 0) + 1; } for (const t of trades) { t.same = grpW[t.close + t.side] || 1; t.win = perWin[t.close] || 1; }
     // every second-look entry as a bare trade for the Labs line, whichever playbook the paper book is on
     const lateT = [...rec2.values()].filter(r => r.result !== 'void').map(r => { const px = r.avgN || r.ask; return { late: 1, bTaken: baseTaken(r.ticker), tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), done: !!r.result, won: !!r.won, z: r.vol?.z ?? null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }; });
-    const labs = runLabs(trades, K, lateT);
+    const m10T = [...rec3.values()].filter(r => r.result !== 'void').map(r => ({ m10: 1, tk: r.ticker + ':10', t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +(r.avgN || r.ask).toFixed(3), done: !!r.result, won: !!r.won, dir: r.dir, pct: r.pct, z: null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }));
+    const labs = runLabs(trades, K, lateT, m10T);
     pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
     const byCoin = {}; for (const t of doneAll) { const b = byCoin[t.coin] = byCoin[t.coin] || { coin: t.coin, n: 0, won: 0, net: 0 }; b.n++; if (t.won) b.won++; b.net = +(b.net + t.pnl).toFixed(2); }
@@ -881,7 +929,7 @@ export function createKalshi(state, env, keep) {
   // ---------- Labs: each idea as its own paper account over the same trades ----------
   // filter(t) returns true (take), false (skip) or null (can't tell yet: the lab starts at its first decidable trade and such
   // trades are left out of both the lab and its rule comparison). size(bank) returns the stake; the rule's own is fixed.
-  function runLabs(tradesIn, K, lateT = []) {
+  function runLabs(tradesIn, K, lateT = [], m10T = []) {
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
     // MC 2026-11-11 cash, when set, sells every trade whose trend turned against it at the minute-10 bid (the Cash out when the
@@ -889,7 +937,7 @@ export function createKalshi(state, env, keep) {
     // what the paper setting is, so the Labs switch shows both before the setting goes on.
     const sim = (lab, from, baseline, cash = false) => {
       let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}; let ddRef = bank, ddLast = null;
-      const trades = lab.late && !baseline ? withLate : plain;
+      const trades = lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         const cx = cash && !t.late && t.xPx != null, held = t.hw ?? t.won;
         if (!(cx || (t.fin ?? t.done)) || t.close < from) continue;
@@ -914,12 +962,12 @@ export function createKalshi(state, env, keep) {
       return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1) };
     };
     return LABS.map(lab => {
-      const trades = plain;
+      const trades = lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
-      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
+      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!lab.m10Only, since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash);
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, since: first.close, ...both(false), cx: both(true) };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!lab.m10Only, since: first.close, ...both(false), cx: both(true) };
     });
   }
 
@@ -959,6 +1007,7 @@ export function createKalshi(state, env, keep) {
       // books apply it from now on and the history before it stays as it was.
       const id = String(a.id || 'rule'), book = a.book === 'live' ? 'live' : 'paper';
       if (!LAB_IDS.includes(id)) return { ok: false, msg: 'Unknown playbook.' };
+      if (labDefs(cfgP).find(l => l.id === id).m10Only) return { ok: false, msg: 'Wait for the trend runs in Labs only for now.' };
       const name = labDefs(cfgP).find(l => l.id === id).name, now = Date.now();
       if (book === 'paper') {
         if (stratAt(cfgP.strat, now) === id) return { ok: false, msg: `Paper already runs ${name}.` };
@@ -994,5 +1043,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { trendCheck, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

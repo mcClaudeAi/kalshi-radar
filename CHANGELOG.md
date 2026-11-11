@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.64 (Nov 11, 2026): Test buying on the trend line
+A new Labs playbook waits for the trend before buying.
+- [new] Wait for the trend, in Labs. The trend line runs from minute 5 to minute 10, after the usual buy, so it can't decide that buy. This tests buying later instead: at 5 minutes left, every coin's price is read from Kalshi's order book next to its trend line, and the playbook buys the leader when it costs from your minimum price up to 98¢ and the trend runs with the bet or is flat. It shows how that compares with the rule over the same windows.
+- [new] Every coin is priced at minute 10 whether or not anything was bought at the mark, so the test covers coins the rule passed on too. Labs only for now: it can't be picked for paper or live until it has a record.
+
 ## 1.0.63 (Nov 11, 2026): Friends, chat and shared dashboards
 Connect with a friend who runs their own copy, chat on the dashboard and look at each other's dashboards.
 - [new] Friends and chat, in a new Shared dashboards section of the menu. Make an invite code and send it to a friend, or paste theirs. Once connected you can message each other right on the dashboard, with push notifications for new messages on devices that have notifications on.
