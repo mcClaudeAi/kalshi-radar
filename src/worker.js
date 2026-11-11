@@ -183,7 +183,7 @@ export class Store {
     }
     if (p === '/api/klive') { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return new Response(h || 'null', { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
     if (p === '/api/cmd' && post) {
-      const ok = ['kalshiSet', 'kalshiLive', 'kalshiStrat'].includes(body.type);
+      const ok = ['kalshiSet', 'kalshiLive', 'kalshiStrat', 'kalshiBook'].includes(body.type);
       let res; try { res = ok ? await this.K.command(body.type, body.args || {}) : { ok: false, msg: 'Not available in this edition.' }; } catch (e) { res = { ok: false, msg: e.message }; }
       const list = (await this.state.storage.get('cmds')) || [];
       const c = { id: rand(8), type: body.type, label: String(body.label || '').slice(0, 120), at: Date.now(), status: res.ok ? 'done' : 'failed', msg: String(res.msg || '').slice(0, 300), done: Date.now(), device: S.name };

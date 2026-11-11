@@ -2,6 +2,15 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.69 (Nov 11, 2026): Live books on Kalshi subaccounts
+Run as many separate live bankrolls as you like, each on its own Kalshi subaccount.
+- [new] Subaccount books, on the Live account page. Add a book and the dashboard uses your main Kalshi key to create a subaccount and a key locked to it. The locked key can only trade that subaccount and can't move money; it is stored encrypted in your dashboard and never shown. Already have a subaccount? Link it with a locked key instead.
+- [new] Each book has its own playbook, $ per trade, daily loss cap, cash floor and live switch, and its own trades, today and all-time totals. Turning a book on, selling its positions and moving money are all hold-to-confirm.
+- [new] Move money between the main account and any book. Transfers stay inside your Kalshi account. Moving a book's money out brings back what sits on the crypto side too, once nothing is open.
+- [improved] The live size limit is now $50 a trade (was $25), for the main live book and every subaccount book.
+- [improved] Paper stops that already govern live trading (profit target, give-back, protect profit, benched coins, off hours) apply to every book too.
+- Subaccounts are a Kalshi API feature for Direct accounts on the Advanced API tier or above.
+
 ## 1.0.68 (Nov 11, 2026): Cash out and Wait for the trend in Backtest
 Both trend ideas can now be tested on four months of history.
 - [new] Backtest has a Trend turns against the bet choice: Hold to the close, or Cash out at minute 10, with the Cash out only past (%) line next to it. With cash out on, every playbook sells the trades whose trend ran against them past that line, at what they would have sold for at minute 10, fee included.

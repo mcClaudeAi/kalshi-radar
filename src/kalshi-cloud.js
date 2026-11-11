@@ -1,4 +1,5 @@
 import { feats, fit, predict, logit, LEARN_F, LEARN_NAME } from './learn.js';
+import { createBooks } from './books.js';
 import { SEED } from './learn-seed.js';
 // MC 2026-11-07 Kalshi tracker moved off the PC (asked to run it somewhere other than his computer; Cloudflare picked over a $5 VPS).
 // This is kalshi-paper.mjs + kalshi-live-lib.mjs + notify.js's kalshiView, rebuilt to run inside the dashboard's Durable Object:
@@ -27,7 +28,8 @@ const HOSTS = ['https://api.elections.kalshi.com', 'https://external-api.kalshi.
 const SERIES = ['KXBTC15M', 'KXETH15M', 'KXSOL15M', 'KXXRP15M', 'KXDOGE15M', 'KXHYPE15M', 'KXBNB15M', 'KXZEC15M', 'KXNEAR15M'];
 const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
 const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
-const HARD = { maxSize: 25, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
+// MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
+const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendMin: 0.15 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
@@ -257,6 +259,7 @@ export function createKalshi(state, env, keep) {
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
+    await books.load();
   }
   const saveRec = r => sql.exec('INSERT OR REPLACE INTO kt (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
   const saveRec2 = r => sql.exec('INSERT OR REPLACE INTO k2 (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
@@ -298,6 +301,8 @@ export function createKalshi(state, env, keep) {
   }
   async function kreq(method, p, body) { for (let a = 0; a < 4; a++) { const r = await kreq1(method, p, body); if (r?.status !== 429 || a === 3) return r; await sleep(700 * (a + 1)); } }
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
+  // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
+  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
 
   // ---------- bench: a coin sits out while its rule trades over the last cold days netted below zero ($50 a trade) ----------
@@ -352,7 +357,7 @@ export function createKalshi(state, env, keep) {
     if (bal == null) { fail(`no order for ${r.ticker}: could not read the balance`); return; }
     const floor = c.minBank ?? HARD.minBank; if (bal < floor) return skip(`cash $${bal.toFixed(2)} is under the $${floor} floor`);
     st.stopped = null;
-    // MC 2026-11-08 a sizing playbook (5% of the Kalshi cash) stays inside the $5 to $25 live band and the saved size is its ceiling
+    // MC 2026-11-08 a sizing playbook (5% of the Kalshi cash) stays inside the $5 to HARD.maxSize live band and the saved size is its ceiling
     let rS = null; if (lab?.size) { let run = 0, pk = 0; for (const x of [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } rS = { peak: bal + (pk - run), start: bal - run }; }
     let sizeUsd = lab?.size ? Math.min(c.sizeUsd, HARD.maxSize, Math.max(5, lab.size(bal, { kf: r.kf, win: r.win }, rS))) : c.sizeUsd;
     // MC 2026-11-10 protect today's profit on the live book too: today's settled live result and its high, less what this window
@@ -405,7 +410,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-08 every settled live trade in the paper history's compact shape, for the dashboard's Live analytics tab
       hist: all.filter(x => x.fill > 0 && x.result).slice(0, 2000).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0]),
       recent: all.slice(0, 150).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: !!x.sold, strat: x.strat || null })),
-      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) } };
+      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view() };
   }
 
   // ---------- the rule: record the leader at the 10-minute mark ----------
@@ -434,6 +439,12 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-08 live orders go after the scan so the active playbook can see the whole window (how many coins qualified,
     // each coin's volatility reading). Was: order per coin inside the loop under the plain rule.
     learnFill(now + 1);
+    // the playbook check for one hit, shared by the main live book and the subaccount books
+    let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
+    const gate = (sid, r) => { const lab = labDefs(cfgP).find(l => l.id === sid); if (!lab || lab.m10Only) return { ok: false, why: 'playbook not available live' };
+      if (sid === 'kelly' || (sid === 'mix' && cfgP.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = hits.length; }
+      const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
+      return f === true ? { ok: true, lab } : { ok: false, why: `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}` }; };
     const c = ctl();
     if (c.enabled && hits.length) {
       const sid = stratAt(c.strat, now), lab = labDefs(cfgP).find(l => l.id === sid);
@@ -449,6 +460,7 @@ export function createKalshi(state, env, keep) {
         else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
     }
+    if (hits.length) { hits.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9)); try { await books.onMark(hits, now, gate, cfgP, coldSet(now)); } catch (e) { say('books error: ' + e.message); } }
     } finally { entryBusy = false; }
     if (n) viewDirty = true;
     return n;
@@ -486,6 +498,7 @@ export function createKalshi(state, env, keep) {
     if (c.sellAllAt && c.sellAllAt > st.sellAllDone) { st.sellAllDone = c.sellAllAt; await kv.put('kst', { sellAllDone: st.sellAllDone }); say('LIVE sell-all requested'); try { await sellAll(); } catch (e) { fail('sell-all error: ' + e.message); } }
     if (hasKeys() && (c.enabled || now - st.balAt > 5 * 60000)) { try { await balance(); } catch (e) { fail(e.message); } }
     if (c.enabled && st.balAt) { try { await fund(c); } catch (e) { fail('funding error: ' + e.message); } }
+    try { await books.upkeep(now); } catch (e) { say('books upkeep error: ' + e.message); }
     const a = await state.storage.getAlarm(), want = nextAlarm(now); if (!a || a < now || a > want) await state.storage.setAlarm(want);
     await publish(true);
   }
@@ -507,6 +520,7 @@ export function createKalshi(state, env, keep) {
       r.path = thin(r.path); saveRec(r); viewDirty = true;
       if (r.ask >= cfgP.minAsk) say(`settled ${r.ticker}: ${r.won ? 'won' : 'LOST'}`);
       try { onSettle(r); } catch (e) { fail('settle error: ' + e.message); }
+      try { books.onSettle(r); } catch (e) { say('books settle error: ' + e.message); }
       any = true;
     }
     if (any) { st.balAt = 0; }
@@ -991,7 +1005,7 @@ export function createKalshi(state, env, keep) {
     if (type === 'kalshiLive') {
       const next = { ...ctlL }, ch = [];
       if (a.enabled === true || a.enabled === false) { if (next.enabled !== a.enabled) ch.push(a.enabled ? 'live trading ON' : 'live trading OFF'); next.enabled = a.enabled; }
-      if (a.sizeUsd != null && isFinite(+a.sizeUsd)) { const v = Math.min(25, Math.max(5, Math.round(+a.sizeUsd))); if (v !== next.sizeUsd) ch.push(`size $${next.sizeUsd} -> $${v}`); next.sizeUsd = v; }
+      if (a.sizeUsd != null && isFinite(+a.sizeUsd)) { const v = Math.min(HARD.maxSize, Math.max(5, Math.round(+a.sizeUsd))); if (v !== next.sizeUsd) ch.push(`size $${next.sizeUsd} -> $${v}`); next.sizeUsd = v; }
       if (a.dailyLossUsd != null && isFinite(+a.dailyLossUsd)) { const v = Math.min(500, Math.max(10, Math.round(+a.dailyLossUsd))); if (v !== next.dailyLossUsd) ch.push(`daily loss cap $${next.dailyLossUsd} -> $${v}`); next.dailyLossUsd = v; }
       if (a.minBank != null && isFinite(+a.minBank)) { const v = Math.min(100000, Math.max(0, Math.round(+a.minBank))); if (v !== (next.minBank ?? HARD.minBank)) ch.push(`cash floor $${next.minBank ?? HARD.minBank} -> $${v}`); next.minBank = v; }
       if (a.sellAll === true) { next.sellAllAt = Date.now(); ch.push('sell all open live positions'); }
@@ -1001,6 +1015,10 @@ export function createKalshi(state, env, keep) {
       if (a.sellAll === true) { st.sellAllDone = next.sellAllAt; await kv.put('kst', { sellAllDone: st.sellAllDone }); try { await sellAll(); } catch (e) { fail('sell-all error: ' + e.message); } }
       await publish(true);
       return { ok: true, msg: `Kalshi live: ${ch.join(', ')}. Applied in the cloud right away.` };
+    }
+    if (type === 'kalshiBook') {
+      if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
+      const r = await books.command(a || {}, LAB_IDS.filter(id => !labDefs(cfgP).find(l => l.id === id).m10Only)); viewDirty = true; await publish(true); return r;
     }
     if (type === 'kalshiStrat') {
       // MC 2026-11-08 switch the paper book or the live gate to a lab (or back to the rule), logged with a timestamp so the
@@ -1043,5 +1061,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { books, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
