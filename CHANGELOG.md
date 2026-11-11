@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.63 (Nov 11, 2026): Friends, chat and shared dashboards
+Connect with a friend who runs their own copy, chat on the dashboard and look at each other's dashboards.
+- [new] Friends and chat, in a new Shared dashboards section of the menu. Make an invite code and send it to a friend, or paste theirs. Once connected you can message each other right on the dashboard, with push notifications for new messages on devices that have notifications on.
+- [new] Shared dashboards. Each friend sharing with you gets their own row in the menu. Tap it to see their dashboard, read only: Home, Trades, Labs, Analytics and more, with a bar at the top saying whose it is and a button back to yours. Nothing can be changed from there.
+- [new] You choose what each friend sees: your dashboard on or off, and separately whether your live account (Kalshi cash and the live switch) is included. It starts shared with the live account private. Kalshi keys and sign-in never leave your dashboard.
+- [improved] Cash out when the trend turns now only sells when the trend runs against the bet by more than 0.15% (up 0.15% on a NO, down 0.15% on a YES), at Steven's request. A gentler slope against the bet is held. The number is a setting under Stops, and Labs replays every past trade at whatever it is set to.
+- [improved] The Labs cash-out panel splits trades running against the bet into those under the line (held) and those past it (sold).
+
 ## 1.0.62 (Nov 11, 2026): See cash-out on every playbook before turning it on
 A Hold or Cash out switch on Labs replays every playbook both ways.
 - [new] Labs has a Hold / Cash out switch at the top. On Cash out, every playbook's line, net, win rate and drop are replayed as if each trade whose trend turned against it had been sold at the 10-minute mark. Compare the two before turning on the paper setting. Your paper book is never changed by the switch.

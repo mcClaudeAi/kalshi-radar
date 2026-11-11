@@ -29,10 +29,10 @@ const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
 const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 const HARD = { maxSize: 25, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
-const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0 };
+const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendMin: 0.15 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
 const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendMin: [0.02, 1] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -606,15 +606,15 @@ export function createKalshi(state, env, keep) {
         const pct = slope * 300 / r.strike * 100 * (r.side === 'yes' ? 1 : -1), dir = Math.abs(pct) < 0.02 ? 0 : pct > 0 ? 1 : -1, x = { at: now, pct: +pct.toFixed(4), dir };
         if (dir < 0) { try { const b = bids(await get(`/markets/${r.ticker}/orderbook`)), mine = r.side === 'yes' ? b.yes : b.no; if (mine.length) { x.best = mine[0][0]; const avg = walk(mine, BOOK_N); x.px = +(avg ?? mine[0][0]).toFixed(4); x.depth = mine.reduce((a, q) => a + q[1], 0); } } catch (e) { console.log(`trend ${r.ticker}: book ${e.message}`); } }
         r.exit = x; saveRec(r); viewDirty = true;
-        console.log(`trend ${c} ${r.side} ${pct >= 0 ? '+' : ''}${pct.toFixed(3)}% ${dir > 0 ? 'with' : dir < 0 ? 'AGAINST, sell at ' + (x.px != null ? (x.px * 100).toFixed(1) + 'c' : 'no bid') : 'flat'}`);
+        console.log(`trend ${c} ${r.side} ${pct >= 0 ? '+' : ''}${pct.toFixed(3)}% ${dir > 0 ? 'with' : dir < 0 ? 'against, bid ' + (x.px != null ? (x.px * 100).toFixed(1) + 'c' : 'none') : 'flat'}`);
       }
     }
   }
   // what cashing out would have done against holding, on every settled rule trade that was checked, at the saved size
   function trendStats(K) {
-    const S = { since: null, n: 0, with: { n: 0, won: 0 }, flat: { n: 0, won: 0 }, against: { n: 0, heldWon: 0, holdNet: 0, cashNet: 0, noBid: 0 } };
+    const S = { min: K.trendMin ?? 0.15, since: null, n: 0, with: { n: 0, won: 0 }, flat: { n: 0, won: 0 }, mild: { n: 0, won: 0 }, against: { n: 0, heldWon: 0, holdNet: 0, cashNet: 0, noBid: 0 } };
     for (const r of rec.values()) { const x = r.exit; if (!x || !r.result || r.result === 'void' || !(r.ask >= K.minAsk)) continue; S.n++; S.since = S.since == null ? r.close : Math.min(S.since, r.close);
-      if (x.dir > 0) { S.with.n++; if (r.won) S.with.won++; } else if (x.dir === 0) { S.flat.n++; if (r.won) S.flat.won++; }
+      if (x.dir > 0) { S.with.n++; if (r.won) S.with.won++; } else if (x.dir === 0) { S.flat.n++; if (r.won) S.flat.won++; } else if (x.pct > -S.min) { S.mild.n++; if (r.won) S.mild.won++; }
       else { const a = S.against, px = r.avgN || r.ask, k = Math.floor(K.sizeUsd / px), cost = k * px + fee(px, k); a.n++; if (r.won) a.heldWon++; a.holdNet += (r.won ? k : 0) - cost; if (x.px == null) { a.noBid++; a.cashNet += (r.won ? k : 0) - cost; } else a.cashNet += k * x.px - fee(x.px, k) - cost; } }
     S.against.holdNet = +S.against.holdNet.toFixed(2); S.against.cashNet = +S.against.cashNet.toFixed(2); return S;
   }
@@ -810,13 +810,16 @@ export function createKalshi(state, env, keep) {
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result && !late) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
       if (r.result && !late) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
-      const cashed = !!(K.trendExit && !late && r.exit?.dir < 0 && r.exit.px != null && r.at < r.exit.at);
+      // MC 2026-11-11 Steven: only sell when the line runs against the bet by more than trendMin (0.15%: up 0.15% on a NO, down 0.15%
+      // on a YES); a gentle slope against is held. Every against trade still has its sale price saved, so changing it replays the past.
+      const steep = r.exit?.dir < 0 && r.exit.pct <= -(K.trendMin ?? 0.15);
+      const cashed = !!(K.trendExit && !late && steep && r.exit.px != null && r.at < r.exit.at);
       if (cashed) { t.cashed = 1; t.exitPx = r.exit.px; t.exitPct = r.exit.pct; t.heldWon = r.result ? !!r.won : null; t.done = true; t.won = n * r.exit.px - fee(r.exit.px, n) - cost > 0; }
       if (r.exit) { t.trend = r.exit.dir; t.trendPct = r.exit.pct; }
       // MC 2026-11-11 the Labs cash-out switch needs every trade's sale price whether or not the setting is on, plus how it would
       // have ended if held, so each playbook can be replayed both ways. xPx is set only when the trend turned against the bet
       // after the buy; fin and hw are the settled result untouched by a paper cash-out.
-      t.xPx = !late && r.exit?.dir < 0 && r.exit.px != null && r.at < r.exit.at ? r.exit.px : null; t.fin = !!r.result; t.hw = !!r.won;
+      t.xPx = !late && steep && r.exit.px != null && r.at < r.exit.at ? r.exit.px : null; t.fin = !!r.result; t.hw = !!r.won;
       if (!capped && (r.result || cashed)) { t.pnl = +(cashed ? n * r.exit.px - fee(r.exit.px, n) - cost : (r.won ? n : 0) - cost).toFixed(2); dayNet[dk] = (dayNet[dk] || 0) + t.pnl; dayPeak[dk] = Math.max(dayPeak[dk], dayNet[dk]); if (inRun) { bal += t.pnl; peak = Math.max(peak, bal); maxDd = Math.max(maxDd, peak - bal); eq.push([r.close, +bal.toFixed(2)]); } }
       if (r.result && inRun) balU += (r.won ? n : 0) - cost;
       if (!capped && !r.result) open += cost;
@@ -927,7 +930,7 @@ export function createKalshi(state, env, keep) {
     if (who.locked && (ctlL.enabled === true || !(type === 'kalshiSet' || (type === 'kalshiStrat' && a?.book === 'paper')))) return { ok: false, msg: ctlL.enabled === true ? 'Live trading is on, so settings need an unlocked device.' : 'That needs an unlocked device.' };
     if (type === 'kalshiSet') {
       const out = {}, ch = [];
-      for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }
+      for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'mixMaxPx' || k === 'trendMin' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }
       if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, cur = cfgP.coins || null; if (JSON.stringify(v) !== JSON.stringify(cur)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
       if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cfgP.mixSame ?? 3, hi = out.mixSameMax ?? cfgP.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }
       if (['fixed', 'pct', 'kelly', 'ratchet'].includes(a.mixSize) && a.mixSize !== (cfgP.mixSize || 'fixed')) { out.mixSize = a.mixSize; ch.push(`mix sizing ${a.mixSize}`); }

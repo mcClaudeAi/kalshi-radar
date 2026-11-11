@@ -2,6 +2,7 @@ import PAGE from './page.html';
 import { createKalshi } from './kalshi-cloud.js';
 import { ICONS } from './icons.js';
 import { pushApi, pushSend, SW_JS } from './push.js';
+import { friendsPeer, friendsOwner } from './friends.js';
 // Kalshi Radar, the plug-and-play edition of the Curve Radar Kalshi dashboard (Cloudflare Worker + one Durable Object).
 //
 // MC 2026-11-08 asked for a version someone else can run with nothing but a Cloudflare account and their own Kalshi key, with every
@@ -127,6 +128,9 @@ export class Store {
     const u = new URL(req.url), p = u.pathname, post = req.method === 'POST';
     if (p === '/k/tick') { await this.loadKeys(); await this.K.tick(); await this.notify(); return new Response('ok'); }
     // state-changing calls must come from the page itself (SameSite=Strict cookie + this header, which a form post can't set)
+    // MC 2026-11-11 a friend's dashboard calling in (friends.js checks the pair id and secret); no session or page header here
+    const fctx = { origin: u.origin, view: async () => { let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; } return kv; }, live: async () => { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return h; }, notify: ev => pushSend(this.state.storage, ev) };
+    if (p.startsWith('/f/')) return friendsPeer(this.state.storage, req, fctx);
     if (post && req.headers.get('x-cr') !== '1') return J({ ok: false, msg: 'bad request' }, 400);
     const body = post ? await req.json().catch(() => ({})) : {};
     const A = await this.auth();
@@ -172,6 +176,7 @@ export class Store {
       return J({ ok: true, msg: 'Passcode changed. Other devices were signed out.' });
     }
 
+    if (p.startsWith('/api/friends')) return friendsOwner(this.state.storage, req, body, fctx);
     if (p === '/data') {
       let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; }
       return new Response(`{"lite":{"at":${Date.now()},"copyOff":true,"mode":"paper","edition":"kalshi"},"heavy":null,"kx":${kv || 'null'}}`, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -239,7 +244,7 @@ export default {
     if (u.pathname === '/sw.js') return new Response(SW_JS, { headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache', 'service-worker-allowed': '/' } });
     if (u.pathname === '/manifest.webmanifest') return new Response(JSON.stringify({ name: 'Kalshi Radar', short_name: 'Kalshi Radar', start_url: '/', display: 'standalone', background_color: '#060a16', theme_color: '#060a16', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=86400' } });
     if (u.pathname === '/' || u.pathname === '/index.html') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SEC } });
-    if (u.pathname === '/data' || u.pathname.startsWith('/api/')) return stub.fetch(req);
+    if (u.pathname === '/data' || u.pathname.startsWith('/api/') || u.pathname.startsWith('/f/')) return stub.fetch(req);
     if (u.pathname === '/favicon.ico') return new Response(null, { status: 204 });
     return new Response('Not found', { status: 404 });
   },
