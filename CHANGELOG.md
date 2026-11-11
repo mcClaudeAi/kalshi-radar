@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.56 (Nov 11, 2026): Analytics keeps your history
+Starting a new paper run no longer empties the daily P&L and the calendar.
+- [fixed] Analytics only counted the current paper run, though Settings says earlier trades stay there. Starting a new run made every earlier day vanish from the daily P&L, the calendar and the rest of the page. It now shows every paper trade.
+- [new] On Analytics, an All trades / This run switch for the paper account, shown while a run is going.
+- [new] A new paper run can be undone: Settings, Paper run, Undo, puts the run back where it started before.
+
 ## 1.0.55 (Nov 11, 2026): Stops judged as the window opens
 A backtest and paper-book fix that makes tight daily stops honest.
 - [fixed] All of a window's coins are bought at the same moment, before any of them settles, but the paper book, Labs and the Backtest applied the day's result coin by coin. A daily stop could skip the third coin because the first two had already lost, which the real tracker can never know. Every stop (daily loss, profit target, give-back, bank drawdown, profit protection) now reads the day as it stood when the window opened. Tight stops look noticeably worse than before; the default $250 stop barely changes.
