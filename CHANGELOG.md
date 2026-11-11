@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.47 (Nov 10, 2026): Backtest export, and it stops jumping
+Save the backtest as a spreadsheet, and read the day table without it resetting.
+- [fixed] The Backtest and Release notes pages redrew every few seconds with the live data, which threw the day table back to the top while you were reading it. They now stay put once loaded.
+- [new] Two exports on the Backtest page. Export this table saves the month, week or day table for every playbook (net, worst drop, trades, won, days stopped). Export every trade saves each trade in the window with its readings and what each playbook made on it. Both open in Excel or Sheets and use the dollars per trade and stops you have set.
+
 ## 1.0.46 (Nov 10, 2026): Backtest drawdown by day, week and month
 See how deep each playbook fell inside every period, and where the daily stop cut a day short.
 - [new] The Backtest period table has three views: Net profit, Worst drop and Win rate. Worst drop is the deepest fall from a high point inside each day, week or month, per playbook, with the deepest and the typical one at the foot.
