@@ -2,6 +2,15 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.71 (Nov 11, 2026): Motion, glow and a floating dock
+A visual upgrade across the dashboard. Nothing about trading changes.
+- [new] Numbers roll to their new value when they change: the bank, today's result, cash and book totals.
+- [new] Pages rise into place when you change tabs and charts wipe in from the left. A shimmer shows while the first data loads.
+- [new] On a phone the bottom bar is a floating glass dock, with a pill that slides to the tab you are on.
+- [new] When a trade you took settles, a chip drops in with the coin, the result and the amount, and today's figure pulses green or red. Works for paper, live and subaccount books.
+- [new] A soft light follows your cursor or finger across cards, the Home hero has a slow moving glow, and the countdown ring has a halo that speeds up near the trade check.
+- [improved] All of it turns off automatically if your device is set to reduce motion.
+
 ## 1.0.70 (Nov 11, 2026): Clearer skip reasons
 Trade cards say plainly why a playbook skipped a coin.
 - [fixed] A coin skipped for its price under an under-95¢ playbook now says so ("paid 95.1¢, needs under 95¢"). It used to show its moves-clear reading, which had passed, so the skip looked like a volatility call.

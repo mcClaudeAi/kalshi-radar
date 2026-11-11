@@ -1239,6 +1239,44 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  .kx-lab{flex:initial}.kx-lab p{min-height:0}
  .ck-coins{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}.ck-coins .ck-coin{min-width:0}
 }
+
+/* ===================== MC 2026-11-11 motion, glow, dock and settle moments =====================
+   Asked for a more modern feel (21st.dev style). Those components are React, so the same effects are done here in plain CSS and a
+   small script (the fx block at the end of the page). Nothing replays on the 10-second data refresh: entrances run on a tab
+   change only, numbers roll only when their value changes. All of it switches off under prefers-reduced-motion (the global
+   rule above already shortens every animation and transition). */
+#main.fx-in>*{animation:fxup .42s cubic-bezier(.2,.8,.2,1) both}#main.fx-in>*:nth-child(2){animation-delay:.04s}#main.fx-in>*:nth-child(3){animation-delay:.08s}#main.fx-in>*:nth-child(4){animation-delay:.12s}#main.fx-in>*:nth-child(n+5){animation-delay:.16s}
+@keyframes fxup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fx-reveal{animation:fxreveal .9s cubic-bezier(.3,.7,.2,1) both}@keyframes fxreveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.fx-sk{display:grid;gap:14px;padding:6px 0}.fx-sk i{display:block;border-radius:18px;border:1px solid var(--line);background:linear-gradient(100deg,var(--s1) 30%,color-mix(in srgb,var(--s3) 80%,var(--s1)) 50%,var(--s1) 70%);background-size:220% 100%;animation:fxsh 1.3s linear infinite}
+.fx-sk i:nth-child(1){height:230px}.fx-sk i:nth-child(2){height:120px}.fx-sk i:nth-child(3){height:180px}@keyframes fxsh{from{background-position:120% 0}to{background-position:-120% 0}}
+.fx-tick{transition:color .25s}
+/* glow */
+#fxglow{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(320px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--kx) 13%,transparent),transparent 62%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--kx) 30%,transparent);-webkit-mask:radial-gradient(520px circle at var(--mx,50%) var(--my,50%),#000 30%,transparent 75%);mask:radial-gradient(520px circle at var(--mx,50%) var(--my,50%),#000 30%,transparent 75%)}
+.kx-hero2::before{content:"";position:absolute;inset:-30%;z-index:0;pointer-events:none;opacity:.5;background:radial-gradient(28% 34% at 22% 30%,color-mix(in srgb,var(--hero,var(--kx)) 34%,transparent),transparent 70%),radial-gradient(24% 30% at 78% 22%,color-mix(in srgb,var(--proven) 30%,transparent),transparent 70%),radial-gradient(30% 34% at 60% 85%,color-mix(in srgb,var(--kx) 22%,transparent),transparent 70%);filter:blur(28px)}
+@media (prefers-reduced-motion:no-preference){.kx-hero2::before{animation:fxaur 26s ease-in-out infinite alternate}}
+@keyframes fxaur{0%{transform:translate3d(-4%,-3%,0) rotate(0deg) scale(1)}50%{transform:translate3d(5%,4%,0) rotate(8deg) scale(1.08)}100%{transform:translate3d(-2%,6%,0) rotate(-6deg) scale(1.03)}}
+.kx-ring{isolation:isolate}.kx-ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;z-index:-1;opacity:.5;filter:blur(7px);background:conic-gradient(from 0deg,transparent 0 55%,color-mix(in srgb,var(--kx) 70%,transparent) 80%,transparent 100%)}
+@media (prefers-reduced-motion:no-preference){.kx-ring::before{animation:fxspin 5s linear infinite}.kx-next.soon .kx-ring::before{animation-duration:1.6s;opacity:.85;background:conic-gradient(from 0deg,transparent 0 45%,color-mix(in srgb,var(--good) 80%,transparent) 80%,transparent 100%)}}
+@keyframes fxspin{to{transform:rotate(360deg)}}
+.kx-ring .fg{transition:stroke-dashoffset 1s linear,stroke .3s;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--kx) 85%,transparent))}
+/* settle moments */
+#fxsettle{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:98;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(92vw,420px)}
+.fx-chip{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:10px 16px 10px 12px;border-radius:99px;font-size:13.5px;font-weight:650;color:var(--ink);background:color-mix(in srgb,var(--s1) 86%,transparent);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid color-mix(in srgb,var(--c) 55%,var(--line));box-shadow:0 10px 34px rgba(0,0,0,.4),0 0 26px color-mix(in srgb,var(--c) 30%,transparent);animation:fxchip 3.6s cubic-bezier(.2,.9,.2,1) both}
+.fx-chip i{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:13px;color:#fff;background:var(--c)}.fx-chip b{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--c)}.fx-chip small{color:var(--mute);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.fx-chip::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,color-mix(in srgb,var(--c) 34%,transparent) 50%,transparent 70%);transform:translateX(-100%);animation:fxsweep 1.1s .15s ease-out both}
+@keyframes fxchip{0%{opacity:0;transform:translateY(-16px) scale(.94)}8%{opacity:1;transform:none}86%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-10px) scale(.97)}}@keyframes fxsweep{to{transform:translateX(100%)}}
+.fx-win{animation:fxpulse 1.4s ease-out both;--c:var(--good)}.fx-loss{animation:fxpulse 1.4s ease-out both;--c:var(--bad)}
+@keyframes fxpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 60%,transparent)}30%{box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 28%,transparent),0 0 30px color-mix(in srgb,var(--c) 40%,transparent)}100%{box-shadow:0 0 0 0 transparent}}
+/* floating dock */
+@media (max-width:760px){
+ .bnav{left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));border:1px solid color-mix(in srgb,var(--line2) 80%,transparent);border-radius:26px;padding:6px;gap:0;background:color-mix(in srgb,var(--s1) 72%,transparent);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);box-shadow:0 14px 40px rgba(0,0,0,.5),inset 0 1px 0 color-mix(in srgb,#fff 8%,transparent)}
+ .bnav button{position:relative;z-index:1;background:none!important;border-radius:20px;padding:8px 0 7px;transition:color .2s,transform .18s cubic-bezier(.3,1.6,.5,1)}.bnav button:active{transform:scale(.9)}
+ .bnav button svg{transition:transform .3s cubic-bezier(.3,1.6,.5,1),color .2s}.bnav button.fx-on{color:var(--ink)}.bnav button.fx-on svg{color:var(--kx);transform:translateY(-1px) scale(1.08)}
+ .bnav .fx-pill{position:absolute;top:6px;bottom:6px;left:0;width:0;border-radius:20px;z-index:0;pointer-events:none;background:linear-gradient(180deg,color-mix(in srgb,var(--kx) 24%,transparent),color-mix(in srgb,var(--kx) 10%,transparent));border:1px solid color-mix(in srgb,var(--kx) 34%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--kx) 22%,transparent);transition:transform .42s cubic-bezier(.3,1.35,.5,1),width .3s,opacity .2s}
+ body{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+ #fxsettle{top:calc(env(safe-area-inset-top,0px) + 66px)}
+}
 </style>
 </head>
 <body>
@@ -3608,6 +3646,55 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
   const chk=()=>{const now=vv.height<innerHeight-120;if(now!==open){open=now;document.documentElement.classList.toggle('kb-open',now);if(!now)nudge()}};
   vv.addEventListener('resize',chk);addEventListener('focusout',()=>setTimeout(()=>{chk();if(!open)nudge()},120));addEventListener('orientationchange',()=>setTimeout(nudge,300));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(nudge,60)})})();
+
+// ===================== MC 2026-11-11 fx: motion, glow, dock and settle moments (styles under the same date) =====================
+// Hooks render, go and paintChrome instead of touching the views. Everything is wrapped so a failure here never stops the page.
+(()=>{const FX={val:new Map(),seen:null,who:null,spot:null},calm=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const safe=f=>function(){try{return f.apply(this,arguments)}catch(e){console.log('fx',e&&e.message)}};
+  // --- numbers roll from their last value to the new one (plain-text money and percent figures only) ---
+  const ROLL=['.kx-bal','.kp b','.kb-sum b','.kx-lvs .mid','.kb-st b'],NUM=/^([^\d+\-−]*)([+\-−]?)(\$?)([\d,]+(?:\.\d+)?)(.*)$/s;
+  function roll(){if(calm)return;const tab=(ST.fv?.id||'')+ST.tab;ROLL.forEach(sel=>document.querySelectorAll(sel).forEach((el,i)=>{if(el.children.length)return;const txt=el.textContent,m=NUM.exec(txt);if(!m)return;
+    const key=tab+'|'+sel+'|'+i,to=(m[2]&&m[2]!=='+'?-1:1)*parseFloat(m[4].replace(/,/g,'')),dec=(m[4].split('.')[1]||'').length,had=FX.val.get(key);FX.val.set(key,{v:to,t:txt});
+    if(!had||had.t===txt||!isFinite(to)||Math.abs(to-had.v)<Math.pow(10,-dec)/2)return;
+    const from=had.v,t0=performance.now(),dur=650,plus=m[2]==='+',fmt=v=>m[1]+(v<0?'-':plus?'+':'')+m[3]+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec,useGrouping:m[4].includes(',')||Math.abs(v)>=1000&&txt.includes(',')})+m[5];
+    el._fx=t0;const step=now=>{if(el._fx!==t0||!el.isConnected)return;const p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=p<1?fmt(from+(to-from)*e):txt;if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step)}))}
+  // --- a tab change: content rises in, charts wipe in from the left ---
+  function enter(){const m=$('#main');if(!m||calm)return;m.classList.remove('fx-in');void m.offsetWidth;m.classList.add('fx-in');setTimeout(()=>m.classList.remove('fx-in'),900);
+    requestAnimationFrame(()=>m.querySelectorAll('svg,canvas').forEach(c=>{const r=c.getBoundingClientRect();if(r.width<220||r.height<60)return;c.classList.remove('fx-reveal');void c.getBoundingClientRect();c.classList.add('fx-reveal');setTimeout(()=>c.classList.remove('fx-reveal'),1000)}))}
+  // --- settle moments: a chip drops in when a taken trade settles, and anything on screen for that trade pulses ---
+  function settles(){const K=ST.D?.kalshi;if(!K)return;const who=ST.fv?.id||'me',lv=KX.live?.live||K.live?.live||{};
+    const rows=[...(K.recent||[]).filter(t=>t.done&&!t.capped&&t.pnl!=null).map(t=>({k:'p:'+t.tk,tk:t.tk,coin:t.coin,side:t.side,won:t.cashed?t.pnl>0:!!t.won,pnl:t.pnl,book:'Paper'})),
+      ...(lv.recent||[]).filter(x=>x.result&&x.fill>0&&x.pnl!=null).map(x=>({k:'l:'+x.tk,tk:x.tk,coin:x.coin,side:x.side,won:x.pnl>0,pnl:x.pnl,book:'Live'})),
+      ...(lv.books||[]).flatMap(b=>(b.recent||[]).filter(x=>x.result&&x.fill>0&&x.pnl!=null).map(x=>({k:'b:'+b.id+x.tk,tk:x.tk,coin:x.coin,side:x.side,won:x.pnl>0,pnl:x.pnl,book:b.name})))];
+    if(FX.who!==who||!FX.seen){FX.who=who;FX.seen=new Set(rows.map(r=>r.k));return}
+    const fresh=rows.filter(r=>!FX.seen.has(r.k));fresh.forEach(r=>FX.seen.add(r.k));if(!fresh.length||ST.fv||document.hidden)return;
+    let host=$('#fxsettle');if(!host){host=document.createElement('div');host.id='fxsettle';host.setAttribute('aria-live','polite');document.body.appendChild(host)}
+    fresh.slice(0,3).forEach((r,i)=>setTimeout(()=>{const c=document.createElement('div');c.className='fx-chip';c.style.setProperty('--c',r.won?'var(--good)':'var(--bad)');
+      c.innerHTML=`<i>${r.won?'✓':'✕'}</i><span>${esc(r.coin)} ${esc(String(r.side||'').toUpperCase())} ${r.won?'won':'lost'}</span><b>${r.pnl>=0?'+':'-'}$${Math.abs(r.pnl).toFixed(2)}</b><small>${esc(r.book)}</small>`;host.appendChild(c);setTimeout(()=>c.remove(),3700)},i*350));
+    const any=fresh[0],cl=any.won?'fx-win':'fx-loss';document.querySelectorAll('.kp').forEach(e=>{if(/today/i.test(e.textContent)){e.classList.remove('fx-win','fx-loss');void e.offsetWidth;e.classList.add(cl);setTimeout(()=>e.classList.remove(cl),1500)}});
+    fresh.forEach(r=>document.querySelectorAll(`[onclick*="kxT('${CSS.escape(r.tk)}')"]`).forEach(e=>{const k=r.won?'fx-win':'fx-loss';e.classList.add(k);setTimeout(()=>e.classList.remove(k),1500)}))}
+  // --- floating dock: one pill slides under the active tab (More when the tab is not on the bar) ---
+  function dock(){const n=$('#bnav');if(!n||!n.children.length)return;let pill=n.querySelector('.fx-pill');if(!pill){pill=document.createElement('span');pill.className='fx-pill';if(FX.px!=null){pill.style.transition='none';pill.style.transform=`translateX(${FX.px}px)`;pill.style.width=FX.pw+'px'}n.appendChild(pill)}
+    const btns=[...n.querySelectorAll('button')],on=btns.find(b=>b.getAttribute('aria-current')==='page')||btns[btns.length-1];btns.forEach(b=>b.classList.toggle('fx-on',b===on));
+    requestAnimationFrame(()=>{if(!on.offsetWidth){return}void pill.offsetWidth;pill.style.transition='';pill.style.width=on.offsetWidth+'px';pill.style.transform=`translateX(${on.offsetLeft}px)`;FX.px=on.offsetLeft;FX.pw=on.offsetWidth})}
+  // --- the light that follows the pointer over cards ---
+  // one shared overlay laid over whichever card is under the pointer, so no card's own background or border is touched
+  // (first tried a background on the card itself; most cards already have a gradient there, so it only showed on a few)
+  const SPOT='.card,.kb-card,.kx-lab,.kx-pos,.kx-sb,.kx-hero2,.fr-side,.kx-next';let glow=null;
+  function spot(e){const c=e.target.closest?.(SPOT);if(!c){unspot();return}if(!glow){glow=document.createElement('div');glow.id='fxglow';document.body.appendChild(glow)}
+    const r=c.getBoundingClientRect();if(c!==FX.spot){FX.spot=c;glow.style.borderRadius=getComputedStyle(c).borderRadius}
+    glow.style.cssText+=`;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;opacity:1;--mx:${e.clientX-r.left}px;--my:${e.clientY-r.top}px`}
+  const unspot=()=>{FX.spot=null;if(glow)glow.style.opacity='0'};
+  if(!calm){document.addEventListener('pointermove',safe(spot),{passive:true});['pointerup','pointercancel'].forEach(v=>document.addEventListener(v,e=>{if(e.pointerType!=='mouse')unspot()},{passive:true}));document.addEventListener('mouseleave',unspot);addEventListener('scroll',unspot,{passive:true})}
+  // --- hooks ---
+  const r0=render,g0=go,p0=paintChrome,after2=safe(()=>{roll();settles()});
+  render=function(){const out=r0.apply(this,arguments);after2();return out};
+  go=function(k){const was=ST.tab+(ST.fv?.id||'');const out=g0.apply(this,arguments);if(ST.tab+(ST.fv?.id||'')!==was)safe(enter)();return out};
+  paintChrome=function(){const out=p0.apply(this,arguments);safe(dock)();return out};
+  addEventListener('resize',safe(dock));
+  // shimmer placeholders until the first data arrives
+  const m=$('#main');if(m&&!m.children.length&&!ST.D)m.innerHTML='<div class="fx-sk" aria-hidden="true"><i></i><i></i><i></i></div>';
+})();
 // ===================== MC 2026-11-08 plug-and-play edition: setup, sign-in, Connections =====================
 // The worker answers /api/me with {setup, authed}. No setup yet: a three-step wizard (passcode, paper account, Kalshi key).
 // Set up but signed out: a passcode screen. Everything else is the normal Kalshi dashboard plus a Connections tab.
@@ -3685,7 +3772,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.70',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.71',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
