@@ -26,7 +26,7 @@ const CBPID = { BTC: 'BTC-USD', ETH: 'ETH-USD', SOL: 'SOL-USD', XRP: 'XRP-USD', 
 const HOSTS = ['https://api.elections.kalshi.com', 'https://external-api.kalshi.com'];
 const SERIES = ['KXBTC15M', 'KXETH15M', 'KXSOL15M', 'KXXRP15M', 'KXDOGE15M', 'KXHYPE15M', 'KXBNB15M', 'KXZEC15M', 'KXNEAR15M'];
 const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
-const L2_LO = 0.91, L2_HI = 0.95, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
+const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 const HARD = { maxSize: 25, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0 };
@@ -447,7 +447,9 @@ export function createKalshi(state, env, keep) {
     scan = out; scanAt = now;
     if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
-    if (now - mk > 70000 && st.lastMark >= mk) { try { await secondLook(now, out); } catch (e) { say('second look error: ' + e.message); } }
+    // MC 2026-11-10 was also gated on st.lastMark >= mk, which lives in memory: the object is dropped from memory between
+    // minutes often enough that the second look never ran once in its first three windows. The clock alone decides now.
+    if (now - mk > 70000) { try { await secondLook(now, out); } catch (e) { say('second look error: ' + e.message); } }
     try { await settle2(now); } catch (e) { say('second look settle error: ' + e.message); }
     // live account upkeep
     const c = ctl();
@@ -522,19 +524,31 @@ export function createKalshi(state, env, keep) {
 
   // ---------- second look ----------
   const baseTaken = tk => { const b = rec.get(tk); return !!(b && b.ask >= cfgP.minAsk && b.result !== 'void' && b.vol?.z >= 1); };
+  // MC 2026-11-10 asked the same evening: "9 coins passed this round, did the recheck take them?" There was nowhere to see it.
+  // Each minute's verdict per coin is now kept (the latest one per market, last few windows) and shown on the Labs page: bought,
+  // or the reason it was not (price outside 91c to 95c, not far enough past the target, no current price).
+  let l2log = null;
   async function secondLook(now, out) {
-    let n = 0;
+    if (!l2log) l2log = (await kv.get('kl2')) || {};
+    let n = 0, touched = false; const note = (o, side, ask, left, why, took) => { l2log[o.tk] = { coin: o.coin, close: o.close, side, ask, left: +left.toFixed(1), why, took: !!took, at: now }; touched = true; };
     for (const o of out) {
       const left = (o.close - now) / 60000; if (left > MIN_LEFT - 1 || left < L2_MIN_LEFT) continue;
-      if (rec2.has(o.tk) || !(o.lask >= L2_LO && o.lask <= L2_HI) || !(o.strike > 0) || baseTaken(o.tk)) continue;
+      if (rec2.has(o.tk)) continue;
+      if (baseTaken(o.tk)) { note(o, rec.get(o.tk).side, rec.get(o.tk).ask, left, 'held', false); continue; }
+      if (!(o.strike > 0) || o.lask == null) continue;
+      if (!(o.lask >= L2_LO && o.lask <= L2_HI)) { note(o, o.leader, o.lask, left, o.lask > L2_HI ? 'over' : 'under', false); continue; }
       if (++n > 4) break;   // at most four coins a minute: each costs an order book and a price
       const b = book(await get(`/markets/${o.tk}/orderbook`)), ya = b.yesAsks[0]?.[0], na = b.noAsks[0]?.[0]; if (ya == null || na == null) continue;
-      const side = ya >= na ? 'yes' : 'no', asks = side === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0][0]; if (!(ask >= L2_LO && ask <= L2_HI)) continue;
-      const v = await volAt(o.coin, o.strike, side); console.log(`look2 ${o.coin} ${side} ${Math.round(ask * 100)}c ${left.toFixed(1)} min left: ${!v ? 'no reading' : v.src === 'stale' ? 'stale price' : v.z + ' moves clear'}`); if (!v || v.src === 'stale' || !(v.z >= 1)) continue;
+      const side = ya >= na ? 'yes' : 'no', asks = side === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0][0]; if (!(ask >= L2_LO && ask <= L2_HI)) { note(o, side, ask, left, ask > L2_HI ? 'over' : 'under', false); continue; }
+      const v = await volAt(o.coin, o.strike, side); console.log(`look2 ${o.coin} ${side} ${Math.round(ask * 100)}c ${left.toFixed(1)} min left: ${!v ? 'no reading' : v.src === 'stale' ? 'stale price' : v.z + ' moves clear'}`);
+      if (!v || v.src === 'stale') { note(o, side, ask, left, 'noprice', false); continue; }
+      if (!(v.z >= 1)) { note(o, side, ask, left, 'close:' + v.z, false); continue; }
       const avgN = walk(asks, BOOK_N), series = activeSeries().find(x => coin(x) === o.coin) || rec.get(o.tk)?.series;
       const r = { ticker: o.tk, late: 1, series, at: now, close: o.close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: o.strike, title: rec.get(o.tk)?.title || null, ya, na, depth: asks.reduce((a, x) => a + x[1], 0), vol: v, src: 'cloud' };
-      rec2.set(o.tk, r); saveRec2(r); viewDirty = true; say(`${o.tk} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- second look, ${left.toFixed(1)} min left`);
+      rec2.set(o.tk, r); saveRec2(r); viewDirty = true; note(o, side, ask, left, 'bought:' + v.z, true); say(`${o.tk} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- second look, ${left.toFixed(1)} min left`);
     }
+    const inWin = out.filter(o => { const l = (o.close - now) / 60000; return l <= MIN_LEFT - 1 && l >= L2_MIN_LEFT; }); if (inWin.length) console.log(`look2 minute: ${inWin.length} coins, prices ${inWin.map(o => o.coin + ' ' + (o.lask == null ? '-' : Math.round(o.lask * 100))).join(', ')}; read ${n}`);
+    if (touched) { for (const k of Object.keys(l2log)) if (l2log[k].close < now - 4 * Q) delete l2log[k]; await kv.put('kl2', l2log); viewDirty = true; }
   }
   async function settle2(now) {
     let k = 0;
@@ -729,7 +743,7 @@ export function createKalshi(state, env, keep) {
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
       eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
-      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
+      look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: rec.get(tk)?.result ? (rec.get(tk).result === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 
@@ -771,8 +785,10 @@ export function createKalshi(state, env, keep) {
   }
 
   // ---------- dashboard commands, applied here ----------
-  async function command(type, a) {
+  async function command(type, a, who = {}) {
     await load();
+    // MC 2026-11-10 a locked device may change paper settings and the paper playbook, and nothing else, and only while live is off
+    if (who.locked && (ctlL.enabled === true || !(type === 'kalshiSet' || (type === 'kalshiStrat' && a?.book === 'paper')))) return { ok: false, msg: ctlL.enabled === true ? 'Live trading is on, so settings need an unlocked device.' : 'That needs an unlocked device.' };
     if (type === 'kalshiSet') {
       const out = {}, ch = [];
       for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }

@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.44 (Nov 10, 2026): Backtest page
+Every playbook run over the full history, side by side.
+- [new] Backtest page. Runs every playbook over the same history: each time the plain rule would have traded since these markets opened on Jul 9, 2026 (about 9,700 trades), with real order-book prices, real results, fees, and the Coinbase reading rebuilt for each trade check. Set the dollars per trade, the daily loss stop and the daily profit target and every playbook re-runs at once. Pick the whole history, the last 30, 60 or 90 days, or a single month. Shows profit over time, a results table (trades, win rate, net, per trade, worst drop, worst day, days stopped) and a month-by-month grid.
+- [fixed] The second look was not running: it waited on a flag kept in memory that does not survive between minutes. It now goes by the clock, and the Labs page lists its verdict for each coin over the last few windows.
+
 ## 1.0.43 (Nov 10, 2026): Second look
 A playbook that keeps watching after the 10-minute mark.
 - [new] Playbook: Margin vs volatility + second look. Every coin used to get one look, at 10 minutes left, and one that qualified a minute or three later was never considered. This playbook is Margin vs volatility at the mark, plus a check every minute after it until 4 minutes are left: it buys a coin it does not already hold the first time the leader is priced 91¢ to 95¢ and is at least one normal 10-minute move past its target. One entry per market. It runs in Labs for everyone and in your paper book if you choose it. Live still trades at the mark only.
