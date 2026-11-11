@@ -549,8 +549,18 @@ export function createKalshi(state, env, keep) {
   // memory does not last between minutes. Nothing older than the lookback is sent, so turning notifications on does not replay
   // the day. The worker decides which devices get which message; this only writes them. Wording is plain and exact on purpose.
   let pnT = null, pnBank = null;
+  // MC 2026-11-11 temporary: the owner's Nov 10 paper trades stopped counting overnight and the dashboard is not reachable from
+  // the build session, so the tracker logs, once every few minutes, how the paper book is treating the last two ET days
+  let diagAt = 0;
+  function diag(now) {
+    if (now - diagAt < 4 * 60000) return; diagAt = now; if (!pnT) return;
+    const days = {}; for (const t of pnT) { const d = etDay(t.close); if (now - t.close > 3 * 86400000) continue; const x = days[d] = days[d] || { n: 0, booked: 0, run: 0, net: 0, why: {} }; x.n++;
+      if (!t.capped) { x.booked++; if (t.run) { x.run++; x.net += t.pnl || 0; } } else { const w = t.strat ? 'pb:' + (t.stratWhy || t.strat) : t.lock ? 'lock' : t.halted ? 'stop:' + (t.haltWhy || 'daily') : t.off ? 'off-hour' : t.cold ? 'cold' : 'cap'; x.why[w] = (x.why[w] || 0) + 1; } }
+    for (const x of Object.values(days)) x.net = +x.net.toFixed(2);
+    console.log('diag ' + JSON.stringify({ paperFrom: cfgP.paperFrom || 0, paperPrev: cfgP.paperPrev ?? null, strat: (cfgP.strat || []).slice(-4), size: cfgP.sizeUsd, loss: cfgP.dailyLossUsd, win: cfgP.dailyWinUsd, lockAt: cfgP.lockAt, lockKeep: cfgP.lockKeep, bank: pnBank, days }));
+  }
   async function events(now = Date.now()) {
-    await load(); if (!pnT) kalshiView();
+    await load(); if (!pnT) kalshiView(); try { diag(now); } catch (e) { console.log('diag error ' + e.message); }
     const seen = (await kv.get('kpn')) || {}, out = [], K = cfgP; let ch = false;
     const mark = k => { seen[k] = now; ch = true; }, usd = v => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), sg = v => (v < 0 ? '\u2212' : '+') + usd(v);
     const c1 = px => (px * 100).toFixed(1) + '\u00a2', sd = x => x === 'yes' ? 'Yes' : 'No', tm = t => new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) + ' ET';
@@ -725,7 +735,10 @@ export function createKalshi(state, env, keep) {
     for (const r of rowsAll) {
       const late = !!r.late;
       if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
-      if (!runOn && r.at >= runFrom) { runOn = true; bal = K.startUsd; peak = bal; ddRef = bal; maxDd = 0; balU = K.startUsd; eq.length = 0; eq.push([runFrom, bal]); }
+      // MC 2026-11-11 the run's first day starts from zero too. The daily stops used to count the whole ET day, including trades
+      // from before the run, so a run started at 2:59 PM after a morning down $160 was stopped the moment it began once the loss
+      // stop was lowered to $150 (and saving re-books the whole log, so the owner's Nov 10 run lost every trade overnight).
+      if (!runOn && r.at >= runFrom) { runOn = true; bal = K.startUsd; peak = bal; ddRef = bal; maxDd = 0; balU = K.startUsd; eq.length = 0; eq.push([runFrom, bal]); const d0 = etDay(runFrom); dayNet[d0] = 0; dayPeak[d0] = 0; delete stopDay[d0]; for (const k of Object.keys(wSnap)) if (+k > runFrom) delete wSnap[k]; }
       const inRun = runOn;
       const w = r.close; if (!late) perWin[w] = (perWin[w] || 0) + 1;
       // MC 2026-11-09 two more stops beside the daily loss cap, both for keeping profit already made. Give-back: once today's

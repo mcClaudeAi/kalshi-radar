@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.60 (Nov 11, 2026): A paper run starts its first day at zero
+Lowering the daily stop no longer wipes out the day a run began.
+- [fixed] The daily stops counted the whole ET day, including trades from before a paper run started. A run begun in the afternoon after a losing morning could be stopped the moment it started, and because saving settings re-books the whole log, lowering the daily loss stop could empty that day after the fact. The run's first day now starts from zero.
+
 ## 1.0.59 (Nov 11, 2026): Trend in the trade replay
 See which way the coin was heading between minute 5 and minute 10, and what came next.
 - [new] Every trade replay shows the trend from minute 5 to minute 10: a shaded band, a line fitted to the coin's price in green when it ran with your bet, red when it ran against it, and a dotted line carrying that pace on to the close. The replay reveals it as it plays. (Request 3.)
