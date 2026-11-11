@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.51 (Nov 10, 2026): Exact fill prices
+Fill prices show one decimal everywhere.
+- [improved] Fill prices were rounded to whole cents, so a 94.6¢ fill and a 95.2¢ one both read 95¢. They now show one decimal on Trades, Home, the live board, the scanner, trade details and the Learning page, so you can tell which side of a 95¢ cap a trade fell on. Kalshi's own quotes stay in whole cents.
+
 ## 1.0.50 (Nov 10, 2026): Margin vs volatility, under 95¢
 The backtest's best blend of profit and steadiness, as one playbook.
 - [new] Playbook: Margin vs volatility, under 95¢. Margin vs volatility plus a 95¢ price cap, selectable in Labs with one tap. Before, you had to build it in Your mix. In the four-month backtest it kept nearly all of Margin vs volatility's profit with a smaller worst drop and no losing month.
