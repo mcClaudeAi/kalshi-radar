@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.42 (Nov 10, 2026): Volatility readings from a source that answers
+The "no volatility reading" and out-of-date readings are traced to Coinbase rate limits and fixed.
+- [fixed] Coinbase's exchange service was refusing the tracker's requests (rate limit) or answering from a copy several minutes old. That is what caused "no volatility reading" and readings like 0.000% from the target. Readings now come from Coinbase's Advanced Trade service, which answers and is current. If it is busy, the price is taken from two other Coinbase services in turn, and a reading that still could not get a current price is marked and rebuilt afterwards.
+- [improved] The recheck of past readings shares price history between neighboring trades, so it needs about one request per 19 readings and no longer trips the rate limit. It backs off when Coinbase asks it to.
+
 ## 1.0.41 (Nov 10, 2026): Pull to refresh
 Reload the home-screen app without closing it.
 - [new] Pull to refresh. In the app opened from your home screen, pull down from the top of any page and let go to reload it. Before, the only way to reload was to swipe the app away and open it again.
