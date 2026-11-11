@@ -2,10 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
-## 1.0.57 (Nov 11, 2026): Analytics keeps your history
-Starting a new paper run no longer empties the daily P&L and the calendar.
-- [fixed] Analytics only counted the current paper run, though Settings says earlier trades stay there. Starting a new run made every earlier day vanish from the daily P&L, the calendar and the rest of the page. It now shows every paper trade.
-- [new] On Analytics, an All trades / This run switch for the paper account, shown while a run is going.
+## 1.0.58 (Nov 11, 2026): Paper runs you can see past and undo
+Analytics follows your paper run, with the full history one tap away.
+- [new] On Analytics, a This run / All trades switch for the paper account, shown while a run is going. This run is the default, so the daily P&L starts when you reset the paper bank; All trades shows the days before it too.
 - [new] A new paper run can be undone: Settings, Paper run, Undo, puts the run back where it started before.
 - [new] Start a new paper run from an earlier moment, not only from now: pick the date and time in the same dialog.
 

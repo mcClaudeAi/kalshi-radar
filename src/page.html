@@ -1904,8 +1904,8 @@ function go(k){ST.tab=k;try{localStorage.setItem('cr-tab',k)}catch{}$('#drawer')
 // ===================== MC 2026-11-08 Kalshi-only layout =====================
 // The memecoin bot is retired: its views stay reachable under Archive in the sidebar, everything up front is Kalshi.
 const KXTABS=['kalshi','kcock','kan','ktrades','klabs','klearn','kbt','klive','kset','kreq','krel','kconn'];
-const KXSEG={an:'paper',anR:'30',anRun:'all',trd:'paper'};
-try{const j=JSON.parse(localStorage.getItem('cr-kxseg')||'{}');Object.assign(KXSEG,j)}catch{}
+const KXSEG={an:'paper',anR:'30',anRun:'run',trd:'paper'};
+try{const j=JSON.parse(localStorage.getItem('cr-kxseg')||'{}');if(j.anRunV!==2){delete j.anRun;j.anRunV=2}Object.assign(KXSEG,j)}catch{}
 function kxSegSet(k,v){KXSEG[k]=v;try{localStorage.setItem('cr-kxseg',JSON.stringify(KXSEG))}catch{}render()}
 function kxSeg(k,opts,small){return `<div class="kx-seg${small?' sm':''}" role="tablist">${opts.map(([v,l])=>`<button role="tab" aria-selected="${KXSEG[k]===v}" onclick="kxSegSet('${k}','${v}')">${l}</button>`).join('')}</div>`}
 function kxSecHead(t,p,right=''){return `<div class="kx-ph2"><div><h2>${t}</h2>${p?`<p>${p}</p>`:''}</div>${right?`<div class="kx-ph2r">${right}</div>`:''}</div>`}
@@ -1922,8 +1922,8 @@ function kxTPaint(k){if(k==='live'){KX.lvSig='';kxLivePaint()}else{const e=$('#k
 // ===================== Analytics: Paper | Live =====================
 const kxHourF=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'2-digit',hourCycle:'h23'}),kxWdF=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'});
 const KX_WD=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-// MC 2026-11-11 paper rows carry an 8th field, 1 when the trade is in the current paper run; Analytics shows every paper trade
-// unless "This run" is picked
+// MC 2026-11-11 paper rows carry an 8th field, 1 when the trade is in the current paper run. Analytics starts at the paper
+// run (the owner's call: resetting the bank resets the daily P&L too); "All trades" shows everything before it as well
 function kxRowsOf(seg){const src=seg==='live'?(kxLv()?.hist||[]):(ST.D?.kalshi?.all||[]);let rows=src.map(r=>({t:r[0],coin:r[1],side:r[2],px:+r[3],n:+r[4],pnl:+r[5],won:!!r[6],run:r[7]==null?true:!!r[7]})).filter(r=>r.t&&isFinite(r.pnl));if(seg!=='live'&&KXSEG.anRun==='run')rows=rows.filter(r=>r.run);return rows.sort((a,b)=>a.t-b.t)}
 function kxPxB(p){return p<.92?'90-92':p<.95?'92-95':p<.97?'95-97':'97-99'}
 function kxStats(rows){const add=(o,k,r)=>{const x=o[k]=o[k]||{n:0,won:0,net:0};x.n++;if(r.won)x.won++;x.net=+(x.net+r.pnl).toFixed(2)};
@@ -1941,7 +1941,7 @@ function kxAnalyticsV(D){const K=D.kalshi;if(!K)return `<div class="card"><div c
   const seg=KXSEG.an==='live'?'live':'paper',rng=KXSEG.anR||'30',lv=kxLv(),all=kxRowsOf(seg),cut=rng==='all'?0:Date.now()-(+rng)*86400000,rows=all.filter(r=>r.t>=cut),S=kxStats(rows);
   const rngTxt=rng==='all'?'all time':rng==='7'?'last 7 days':'last 30 days',beP=seg==='paper'?(K.breakEven||S.be):S.be;
   after.kan=()=>{kxStart();kxEqChart($('#aneq'),S.eq,seg);const dl=S.dayList.slice(-31);if($('#andaily'))barChart($('#andaily'),dl.map(([d,x])=>({label:new Date(d+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'}),v:x.net,color:x.net>=0?'var(--good)':'var(--bad)',sub:`${x.n} trades, ${x.won} won`})),{h:200});if($('#anroll'))kxRoll($('#anroll'),K.roll,K.breakEven||.935)};
-  const head=kxSecHead('Analytics',seg==='paper'?'The paper book: the rule (or the active playbook) at full size on every qualifying trade.':'Real fills on your Kalshi account. Smaller size and fewer trades than paper, so read it with that in mind.',kxSeg('an',[['paper','Paper'],['live','Live']])+(seg==='paper'&&ST.D?.kalshi?.runFrom?kxSeg('anRun',[['all','All trades'],['run','This run']],1):'')+kxSeg('anR',[['7','7D'],['30','30D'],['all','All']],1));
+  const head=kxSecHead('Analytics',seg==='paper'?'The paper book: the rule (or the active playbook) at full size on every qualifying trade.':'Real fills on your Kalshi account. Smaller size and fewer trades than paper, so read it with that in mind.',kxSeg('an',[['paper','Paper'],['live','Live']])+(seg==='paper'&&ST.D?.kalshi?.runFrom?kxSeg('anRun',[['run','This run'],['all','All trades']],1):'')+kxSeg('anR',[['7','7D'],['30','30D'],['all','All']],1));
   if(!S.n)return head+`<div class="card"><div class="empty">${seg==='live'?(lv?.keys?'No settled live trades in this range yet.':'Live trading is not connected yet.'):'No settled paper trades in this range yet.'}</div></div>`;
   const k=(l,v,sub,c='')=>`<div class="an-k"><span>${l}</span><b class="${c}">${v}</b><small>${sub}</small></div>`;
   const pct=x=>(x*100).toFixed(1)+'%',wrC=beP==null?'':S.wr>=beP?'pos':'neg';
@@ -2677,7 +2677,7 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi;
     <div class="kx-sbody">
     <div class="kx-sg" id="kxg-basics"><div class="kx-sgh">The basics</div><div class="kx-sgd">The bank, the stake and the rule itself.</div>
     ${K.coinsAll?`<div class="fld"><label>Coins</label><div class="kx-coinpick">${K.coinsAll.map(x=>`<button type="button" class="kx-cp" data-c="${x}" aria-pressed="${!c.coins||c.coins.includes(x)}" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')" ${dis}>${x}</button>`).join('')}</div><div class="hint">Which coins get traded. Past trades stay in the history.</div>${more('Kalshi runs a 15-minute market for each of these coins. The tracker looks at all the ones you have on and takes any that qualify. Switching a coin off stops new trades in it; its old trades stay in your history and analytics.','You turn off NEAR and BNB. From the next window on, only the other seven are checked. Analytics still shows what NEAR and BNB did before.','coins')}</div>`:''}
-    <div class="fld kx-runfld"><label>Paper run</label><div class="kx-in kx-runbox">${K.runFrom?`<b>Since ${new Date(K.runFrom).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</b><span>${n0(K.runN||0)} trades this run, ${n0(K.prevN||0)} before it</span>`:`<b>Since the first trade</b><span>${n0(K.n||0)} trades</span>`}</div><div class="hint">The bank, win rate and chart count trades from the run's start, from the starting bank. Earlier trades stay in Analytics and Trades.</div>
+    <div class="fld kx-runfld"><label>Paper run</label><div class="kx-in kx-runbox">${K.runFrom?`<b>Since ${new Date(K.runFrom).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</b><span>${n0(K.runN||0)} trades this run, ${n0(K.prevN||0)} before it</span>`:`<b>Since the first trade</b><span>${n0(K.n||0)} trades</span>`}</div><div class="hint">The bank, win rate, chart and Analytics count trades from the run's start, from the starting bank. Earlier trades stay in Trades, and in Analytics under All trades.</div>
      <div class="kx-runacts"><button type="button" class="btn sm" onclick="kxNewRun()" ${dis}>Start a new paper run</button>${K.runFrom?`<button type="button" class="btn sm ghost" onclick="kxNewRun(true)" ${dis}>Count everything again</button>`:''}${c.paperPrev!=null&&(c.paperPrev||0)!==(c.paperFrom||0)?`<button type="button" class="btn sm ghost" onclick="kxRunUndo()" ${dis}>Undo: ${c.paperPrev?'back to the run since '+new Date(c.paperPrev).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'count everything'}</button>`:''}</div>
      ${more('Change a rule and want a clean test from the starting bank, without touching the balance. Start a new run and the bank goes back to the starting bank from this moment; only trades after it count toward the bank, the win rate, the equity chart, today and the live-readiness checks. Everything before stays in the log as the previous run, so Analytics, the labs, the by-hour and same-side tables keep the full history. Count everything again puts it back to one run.','Bank is $750 on a $1,000 start after a week on the plain rule. You switch to Skip 95¢ and press Start a new paper run. Home now shows $1,000, 0 trades. A week later it reads $1,060 on 190 trades: that is Skip 95¢ on its own. Analytics still shows all 900 trades.','run')}</div>
     ${fld('startUsd','Starting bank','The paper account starts with this much',c.startUsd??1000,100,'$',
@@ -3367,7 +3367,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.57',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.58',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
