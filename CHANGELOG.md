@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.46 (Nov 10, 2026): Backtest drawdown by day, week and month
+See how deep each playbook fell inside every period, and where the daily stop cut a day short.
+- [new] The Backtest period table has three views: Net profit, Worst drop and Win rate. Worst drop is the deepest fall from a high point inside each day, week or month, per playbook, with the deepest and the typical one at the foot.
+- [improved] A marker shows every day (or week, or month) where the daily loss stop ended trading early. The stop was always part of the backtest; now you can see where it bit. Hover a cell for trades, wins, net and worst drop together.
+
 ## 1.0.45 (Nov 10, 2026): Backtest by month, week and day
 Break the backtest down by period and drill in, playbook by playbook.
 - [new] The Backtest page has a period table: switch between Month, Week and Day, with every playbook side by side. Tap a month to open it by week, and a week to open it by day. Each row marks the best playbook, and the foot of the table shows the total, how many periods lost money and the worst one. Hover a cell for the trade count.
