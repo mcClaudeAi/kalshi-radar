@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.65 (Nov 11, 2026): Friends and chat fixes for phones
+Friends and chat fits a phone screen, and a refresh keeps you on it.
+- [fixed] If the friends list fails to load, Friends and chat now says why and offers Try again. It used to sit on Loading.
+- [fixed] Pulling down to refresh on Friends and chat stays on Friends and chat. It used to jump to Home.
+- [fixed] Scrolling up through older messages no longer sets off pull to refresh.
+- [improved] On a phone the conversation fills the screen down to the bottom bar, so the message box is always visible. Sharing switches fold into one line above the messages (tap it to change them), and long names shorten instead of running into the buttons.
+
 ## 1.0.64 (Nov 11, 2026): Test buying on the trend line
 A new Labs playbook waits for the trend before buying.
 - [new] Wait for the trend, in Labs. The trend line runs from minute 5 to minute 10, after the usual buy, so it can't decide that buy. This tests buying later instead: at 5 minutes left, every coin's price is read from Kalshi's order book next to its trend line, and the playbook buys the leader when it costs from your minimum price up to 98¢ and the trend runs with the bet or is flat. It shows how that compares with the rule over the same windows.
