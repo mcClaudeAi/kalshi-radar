@@ -1,0 +1,20 @@
+# Research data: hourly crypto strike prices 10 minutes before each close, printed to the job log (public market data only).
+name: Hourly strike prices
+on:
+  workflow_dispatch:
+    inputs:
+      series: { description: 'Series as a JSON list, or ["find"] to list what exists', default: '["find"]' }
+      days: { description: 'Days back', default: '45' }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ${{ fromJSON(github.event.inputs.series) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node research/hourly.mjs ${{ matrix.series }} ${{ github.event.inputs.days }}
