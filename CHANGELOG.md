@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.74 (Nov 11, 2026): Earlier trades re-scored under the new cash out rule
+Trades from before 1.0.73 now get their share of the lead kept worked out too.
+- [fixed] After 1.0.73, cash outs from earlier trend checks disappeared and those trades showed as held, because the older checks had no share of the lead saved. The dashboard now works that share out from the minute prices for those windows, a few trades a minute, and re-scores them: a trade that was trending against its bet with less of its lead left than your setting is cashed out again, the rest stay held. Expect the paper bank to move for a few minutes after updating while it catches up.
+
 ## 1.0.73 (Nov 11, 2026): Cash out by share of the lead kept
 Cash out now asks how much of the lead is left, and the backtest numbers for it are corrected.
 - [improved] Cash out when the trend turns uses a new test, at Steven's request: when the trend runs against the bet, sell only if less than a set share of the lead is left at minute 10. The share is (price at minute 10 minus target) divided by (high from minute 5 to 10 minus target), mirrored for a NO. The setting is Share of the lead kept (%) under Stops, default 50. It replaces Cash out only past (%).

@@ -488,6 +488,7 @@ export function createKalshi(state, env, keep) {
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
+    try { await keepFill(now); } catch (e) { say('share fill error: ' + e.message); }
     try { await settle3(now); } catch (e) { say('minute 10 settle error: ' + e.message); }
     // MC 2026-11-10 was also gated on st.lastMark >= mk, which lives in memory: the object is dropped from memory between
     // minutes often enough that the second look never ran once in its first three windows. The clock alone decides now.
@@ -632,6 +633,17 @@ export function createKalshi(state, env, keep) {
     const slope = sxx ? sxy / sxx : 0; slopes.set(key, slope); for (const k of slopes.keys()) if (+k.split(':')[1] < closeMs - 2 * Q) { slopes.delete(k); leads.delete(k); }
     const ys = pts.map(p => p[1]); leads.set(key, { hi: Math.max(...ys), lo: Math.min(...ys), p10: ys[ys.length - 1] });
     return slope;
+  }
+  // MC 2026-11-11 trend checks made before the share-of-the-lead rule have no share saved, so those trades could not be scored
+  // under it (they just read as held). The minute prices for those windows are still on Coinbase, so this works the share out
+  // after the fact, a few per minute, and the paper book, Labs and the cash-out panel re-score themselves. Three tries each.
+  async function keepFill(now) {
+    let n = 0;
+    for (const r of rec.values()) { const x = r.exit; if (!x || x.keep != null || (x.keepTry || 0) >= 3 || !(r.strike > 0) || r.close > now - 60000) continue; if (++n > 8) break;
+      const c = coin(r.series), key = c + ':' + r.close; if (!leads.has(key)) { slopes.delete(key); try { await slopeOf(c, r.close); } catch { } }
+      const L = leads.get(key); if (!L) { x.keepTry = (x.keepTry || 0) + 1; saveRec(r); continue; }
+      x.keep = keepOf(L, r.side, r.strike); saveRec(r); viewDirty = true; }
+    if (n) console.log(`trend share filled for ${Math.min(n, 8)} earlier checks`);
   }
   async function trendCheck(now) {
     const due = [...rec.values()].filter(r => !r.exit && r.ask >= KEEP_ASK && r.strike > 0 && r.result !== 'void' && r.close - now <= 330000 && r.close - now >= 200000);
@@ -1069,5 +1081,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { books, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
