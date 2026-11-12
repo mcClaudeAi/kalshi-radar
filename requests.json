@@ -2,6 +2,13 @@
  "updated": "Nov 11, 2026",
  "items": [
   {
+   "id": 6,
+   "text": "In a trade's How it played out, show the share of the lead kept so trades can be evaluated.",
+   "status": "released",
+   "version": "1.0.75",
+   "note": "Released in 1.0.75. Open any trade: the trend card shows Lead kept with the high (or low) from minute 5 to 10, the minute 10 price and the target, and whether your cash out setting would sell or hold it."
+  },
+  {
    "id": 5,
    "text": "For cash out, replace \"Cash out only past (%)\" with the share of the lead kept: (price at minute 10 minus target) divided by (high between minute 5 and 10 minus target). Cash out when the trend is against the bet and the share kept is below the setting.",
    "status": "released",
