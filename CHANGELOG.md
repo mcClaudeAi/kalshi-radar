@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.78 (Nov 12, 2026): Fix for the dashboard going down after a few days
+The dashboard stopped loading once its trade log was about five days long. This is the fix.
+- [fixed] The dashboard went down with nothing loading and no new trades tracked. Cloudflare's free plan allows a set amount of database reading a day, and the tracker was re-reading its whole trade log every minute, so the allowance ran out once the log grew. It now packs older records together and reads a small fraction of what it did. Nothing was lost: the log is intact and tracking picks up on its own. The allowance resets at 7 PM Eastern each day, so a dashboard that is down now comes back by itself then.
+
 ## 1.0.77 (Nov 12, 2026): Share of the lead kept read off the right minute
 The share of the lead kept was taken from the minute 5 price instead of minute 10, so cash out never sold.
 - [fixed] Share of the lead kept. Coinbase sends the minute prices newest first and the tracker read the last one as the minute 10 price when it was really minute 5. When the trend ran against the bet, minute 5 was the best price of the stretch, so every such trade showed 100% kept, in a trade's How it played out and in Labs, and cash out held everything. Reported on NO bets; YES bets had it too. Now the prices are put in order first.

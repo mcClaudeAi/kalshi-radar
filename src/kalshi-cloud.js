@@ -256,18 +256,52 @@ export function createKalshi(state, env, keep) {
   const say = s => { logs.push(`${new Date().toISOString().slice(11, 19)} ${s}`); if (logs.length > 60) logs.shift(); console.log('kx ' + s); };
   async function load() {
     if (rec) return;
-    rec = new Map(); for (const r of sql.exec('SELECT j FROM kt')) { try { const j = JSON.parse(r.j); rec.set(j.ticker, j); } catch {} }
-    rec2 = new Map(); for (const r of sql.exec('SELECT j FROM k2')) { try { const j = JSON.parse(r.j); rec2.set(j.ticker, j); } catch {} }
-    rec3 = new Map(); for (const r of sql.exec('SELECT j FROM k3')) { try { const j = JSON.parse(r.j); rec3.set(j.ticker, j); } catch {} }
+    rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3');
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
     await books.load();
   }
-  const saveRec = r => sql.exec('INSERT OR REPLACE INTO kt (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
-  const saveRec2 = r => sql.exec('INSERT OR REPLACE INTO k2 (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
-  const saveRec3 = r => sql.exec('INSERT OR REPLACE INTO k3 (tk, close, j) VALUES (?, ?, ?)', r.ticker, r.close, JSON.stringify(r));
+  // MC 2026-11-12 the dashboard went down: "Exceeded allowed rows read in Durable Objects free tier" (5 million a day). Cloudflare
+  // drops this object from memory seconds after each minute's tick when nobody has the page open, so nearly every tick started
+  // cold and read every row of kt, k2 and k3 again. A few thousand rows times 1,440 ticks crossed the limit once the log was
+  // about five days long. Records now live one row each only while their window is recent. Once a 6-hour block is two hours
+  // past, its records are packed into one row of kp, and blocks older than two days are merged into one row a day. A cold
+  // start reads a few hundred rows instead of everything. A packed record that changes later (a late settle, a share kept
+  // worked out afterwards) rewrites its one pack row.
+  sql.exec('CREATE TABLE IF NOT EXISTS kp (t TEXT, b TEXT, j TEXT, PRIMARY KEY (t, b))');
+  const H6 = 6 * 3600000, DAY = 86400000, TBL = ['kt', 'k2', 'k3'];
+  const where = { kt: new Map(), k2: new Map(), k3: new Map() }, packs = { kt: new Map(), k2: new Map(), k3: new Map() };   // ticker -> pack id, pack id -> tickers
+  const mapOf = t => t === 'kt' ? rec : t === 'k2' ? rec2 : rec3;
+  function loadT(t) {
+    const m = new Map(); where[t].clear(); packs[t].clear();
+    for (const r of sql.exec('SELECT b, j FROM kp WHERE t = ?', t)) { let a = []; try { a = JSON.parse(r.j); } catch {} const set = new Set(); packs[t].set(r.b, set);
+      for (const j of a) { const was = where[t].get(j.ticker); if (was != null) packs[t].get(was)?.delete(j.ticker); m.set(j.ticker, j); where[t].set(j.ticker, r.b); set.add(j.ticker); } }
+    // a single row is always newer than the packed copy
+    for (const r of sql.exec(`SELECT j FROM ${t}`)) { try { const j = JSON.parse(r.j), was = where[t].get(j.ticker); if (was != null) { packs[t].get(was)?.delete(j.ticker); where[t].delete(j.ticker); } m.set(j.ticker, j); } catch {} }
+    return m;
+  }
+  function writePack(t, id) {
+    const set = packs[t].get(id), m = mapOf(t), a = set ? [...set].map(k => m.get(k)).filter(Boolean) : [];
+    if (!a.length) { sql.exec('DELETE FROM kp WHERE t = ? AND b = ?', t, id); packs[t].delete(id); return; }
+    sql.exec('INSERT OR REPLACE INTO kp (t, b, j) VALUES (?, ?, ?)', t, id, JSON.stringify(a));
+  }
+  const saveT = (t, r) => { const id = where[t].get(r.ticker); if (id != null) writePack(t, id); else sql.exec(`INSERT OR REPLACE INTO ${t} (tk, close, j) VALUES (?, ?, ?)`, r.ticker, r.close, JSON.stringify(r)); };
+  // remove records for good (the caller has already taken them out of the map)
+  function dropT(t, keys) { const dirty = new Set(); for (const k of keys) { const id = where[t].get(k); if (id == null) sql.exec(`DELETE FROM ${t} WHERE tk = ?`, k); else { packs[t].get(id)?.delete(k); where[t].delete(k); dirty.add(id); } } for (const id of dirty) writePack(t, id); }
+  function compact(now) {
+    for (const t of TBL) { const m = mapOf(t), seal = Math.floor((now - 2 * 3600000) / H6), byB = {};
+      for (const [k, r] of m) { if (where[t].has(k)) continue; const b = Math.floor(r.close / H6); if (b < seal) (byB[b] = byB[b] || []).push(k); }
+      for (const [b, ks] of Object.entries(byB)) { const id = 'h' + b, set = packs[t].get(id) || new Set(); packs[t].set(id, set); for (const k of ks) { set.add(k); where[t].set(k, id); } writePack(t, id); for (const k of ks) sql.exec(`DELETE FROM ${t} WHERE tk = ?`, k); }
+      const dSeal = Math.floor((now - 2 * DAY) / DAY), byD = {};
+      for (const id of packs[t].keys()) if (id[0] === 'h') { const d = Math.floor(+id.slice(1) * H6 / DAY); if (d < dSeal) (byD[d] = byD[d] || []).push(id); }
+      for (const [d, ids] of Object.entries(byD)) { const did = 'd' + d, set = new Set(packs[t].get(did) || []); for (const id of ids) for (const k of packs[t].get(id)) set.add(k);
+        if (set.size > 1200) continue;   // a row holds 2 MB at most; a day is under 900 records, so this only guards against the odd case
+        packs[t].set(did, set); for (const k of set) where[t].set(k, did); writePack(t, did); for (const id of ids) { sql.exec('DELETE FROM kp WHERE t = ? AND b = ?', t, id); packs[t].delete(id); } }
+    }
+  }
+  const saveRec = r => saveT('kt', r), saveRec2 = r => saveT('k2', r), saveRec3 = r => saveT('k3', r);
   const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.tk, x.at, JSON.stringify(x));
   const ctl = () => ({ enabled: ctlL.enabled === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
@@ -480,6 +514,7 @@ export function createKalshi(state, env, keep) {
   async function tick() {
     await load();
     const now = Date.now(), K = cfgP, out = [];
+    try { compact(now); } catch (e) { console.log('compact: ' + e.message); }
     // a missed mark (alarm didn't fire) is caught here up to a minute late
     const mk = nextMark(now) - Q; if (now - mk < 60000 && st.lastMark < mk) await entry(now);
     for (const s of activeSeries()) {
@@ -733,7 +768,7 @@ export function createKalshi(state, env, keep) {
       rec3.set(o.tk, r); saveRec3(r); viewDirty = true;
       console.log(`m10 ${o.coin} ${side} ${Math.round(ask * 100)}c trend ${pct >= 0 ? '+' : ''}${pct.toFixed(3)}% ${dir > 0 ? 'with' : dir < 0 ? 'against' : 'flat'}`);
     }
-    for (const [k, r] of rec3) if (r.close < now - 21 * 86400000) { rec3.delete(k); sql.exec('DELETE FROM k3 WHERE tk = ?', k); }
+    { const old = []; for (const [k, r] of rec3) if (r.close < now - 21 * 86400000) old.push(k); if (old.length) { for (const k of old) rec3.delete(k); dropT('k3', old); } }
   }
   async function settle3(now) {
     let k = 0;
@@ -1112,5 +1147,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
