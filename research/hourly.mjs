@@ -18,18 +18,22 @@ if (S === 'find') {
   }
   process.exit(0);
 }
-const all = []; for (const path of ['/markets?status=settled&', '/historical/markets?']) { let cur = ''; for (let k = 0; k < 3000; k++) { const r = await j(`${path}series_ticker=${S}&min_close_ts=${START}&max_close_ts=${END}&limit=1000${cur ? '&cursor=' + cur : ''}`); if (r._err) break; all.push(...(r.markets || [])); cur = r.cursor; if (!cur || !(r.markets || []).length) break; const last = (r.markets || []).at(-1); if (path.startsWith('/hist') && last && ts(last) < START - 7 * 86400) break; } }
+const all = []; const pull = async (path, max) => { let cur = ''; for (let k = 0; k < max; k++) { const r = await j(`${path}series_ticker=${S}&min_close_ts=${START}&max_close_ts=${END}&limit=1000${cur ? '&cursor=' + cur : ''}`); if (r._err) break; const page = r.markets || []; all.push(...page); cur = r.cursor; if (!cur || !page.length) break; if (max < 3000 && page.every(m => ts(m) < START - 7 * 86400)) break; } };
+await pull('/markets?status=settled&', 3000);
+// the archive list ignores the date filter and is very long, so it is only walked when the live list stops short of the window
+const oldest = all.reduce((a, m) => Math.min(a, ts(m)), END); console.log(S, 'live list', all.length, 'oldest', new Date(oldest * 1000).toISOString());
+if (oldest > START + 2 * 86400) await pull('/historical/markets?', 600);
 const byT = {}; for (const m of all) byT[m.ticker] = byT[m.ticker] || m;
 const ms = Object.values(byT).filter(m => (m.result === 'yes' || m.result === 'no') && ts(m) >= START && ts(m) <= END);
 // one event = one closing hour. Only strikes near where the hour settled can have been priced 85 to 99c ten minutes out,
 // so candles are read for the strikes within 1.5% of the settled value and the rest are skipped.
 const ev = {}; for (const m of ms) (ev[m.event_ticker] ||= []).push(m);
 const jobs = []; for (const [e, a] of Object.entries(ev)) { const fin = +a.find(m => m.expiration_value != null && isFinite(+m.expiration_value))?.expiration_value; if (!(fin > 0)) continue;
-  for (const m of a) { const k = m.floor_strike ?? m.cap_strike; if (!(k > 0) || Math.abs(k - fin) / fin > 0.015) continue; jobs.push({ m, fin, n: a.length }); } }
+  for (const m of a) { if (m.strike_type === 'between' || m.strike_type === 'less') continue; const k = m.floor_strike ?? +(m.ticker.match(/-T([\d.]+)$/)?.[1]); if (!(k > 0) || Math.abs(k - fin) / fin > 0.015) continue; jobs.push({ m, fin, k }); } }
 console.log(S, ms.length, 'markets', Object.keys(ev).length, 'events', jobs.length, 'strikes in play');
-let i = 0, n = 0; await Promise.all(Array.from({ length: 6 }, async () => { while (i < jobs.length) { const { m, fin } = jobs[i++], c = ts(m) - +LEFT * 60;
+let i = 0, n = 0; await Promise.all(Array.from({ length: 6 }, async () => { while (i < jobs.length) { const { m, fin, k: K } = jobs[i++], c = ts(m) - +LEFT * 60;
   let r = await j(`/series/${S}/markets/${m.ticker}/candlesticks?start_ts=${c - 180}&end_ts=${c + 60}&period_interval=1`); if (r._err) r = await j(`/historical/markets/${m.ticker}/candlesticks?start_ts=${c - 180}&end_ts=${c + 60}&period_interval=1`);
   const k = (r.candlesticks || []).filter(x => x.end_period_ts <= c).pop(); if (!k) continue;
   const ya = px(k.yes_ask, 'close'), yb = px(k.yes_bid, 'close'); if (ya == null || yb == null) continue;
-  n++; console.log('ROW ' + JSON.stringify({ tk: m.ticker, ev: m.event_ticker, at: k.end_period_ts, close: ts(m), open: Math.floor(new Date(m.open_time).getTime() / 1000), ya, yb, res: m.result, type: m.strike_type, k: m.floor_strike ?? m.cap_strike, fin, vol: k.volume ?? k.volume_fp ?? null, oi: k.open_interest ?? k.open_interest_fp ?? null })); } }));
+  n++; console.log('ROW ' + JSON.stringify({ tk: m.ticker, ev: m.event_ticker, at: k.end_period_ts, close: ts(m), open: Math.floor(new Date(m.open_time).getTime() / 1000), ya, yb, res: m.result, type: m.strike_type, k: K, fin, vol: k.volume ?? k.volume_fp ?? null, oi: k.open_interest ?? k.open_interest_fp ?? null })); } }));
 console.log(`RESULT ${S} markets=${ms.length} rows=${n}`);
