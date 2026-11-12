@@ -1,6 +1,13 @@
 {
- "updated": "Nov 11, 2026",
+ "updated": "Nov 12, 2026",
  "items": [
+  {
+   "id": 7,
+   "text": "Share of the lead kept uses the high for YES bets and the low for NO bets, but on NO bets it shows 100% whenever the trend is against the bet, as if the minute 10 price were the low of the stretch.",
+   "status": "released",
+   "version": "1.0.77",
+   "note": "Fixed in 1.0.77. Coinbase sends the minute prices newest first and the tracker read the minute 5 close as the minute 10 price, so with the trend against the bet the share always came out 100%, on YES bets as well as NO, and cash out never sold. Earlier trades are re-scored from the minute prices over the hour after updating, and the paper book, Labs and the trade replay pick up the corrected shares."
+  },
   {
    "id": 6,
    "text": "In a trade's How it played out, show the share of the lead kept so trades can be evaluated.",
