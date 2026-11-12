@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.73 (Nov 11, 2026): Cash out by share of the lead kept
+Cash out now asks how much of the lead is left, and the backtest numbers for it are corrected.
+- [improved] Cash out when the trend turns uses a new test, at Steven's request: when the trend runs against the bet, sell only if less than a set share of the lead is left at minute 10. The share is (price at minute 10 minus target) divided by (high from minute 5 to 10 minus target), mirrored for a NO. The setting is Share of the lead kept (%) under Stops, default 50. It replaces Cash out only past (%).
+- [improved] Labs and Backtest use the same test. The Labs panel splits trades trending against the bet into those that kept their lead (held) and those that didn't (sold).
+- [fixed] The backtest's minute-10 prices were misread for older months (Kalshi's older history uses a different price scale), so the cash out and Wait for the trend results in 1.0.68 were wrong. Corrected, over four months at $50 a trade: the plain rule held makes +$4,092; cashing out under 50% of the lead kept makes +$310; under 5% kept, +$3,201; Wait for the trend loses about $6,200. Holding to the close still wins.
+
 ## 1.0.72 (Nov 11, 2026): Home tiles fixed on the web
 Text that was cut off now shows in full, and a dead link works.
 - [fixed] The notes under the Home figures (Drawdown and the rest) wrap onto a second line instead of being cut off with "…".
@@ -35,7 +41,7 @@ Run as many separate live bankrolls as you like, each on its own Kalshi subaccou
 Both trend ideas can now be tested on four months of history.
 - [new] Backtest has a Trend turns against the bet choice: Hold to the close, or Cash out at minute 10, with the Cash out only past (%) line next to it. With cash out on, every playbook sells the trades whose trend ran against them past that line, at what they would have sold for at minute 10, fee included.
 - [new] Wait for the trend is a row in Backtest, run on every coin's price at 5 minutes left over the same four months.
-- [improved] What the history shows: over four months, cashing out past 0.15% turns the plain rule's +$4,092 into +$34, and Wait for the trend loses about $2,300. The trend line does pick out the risky trades, but Kalshi's price at minute 10 already reflects it, so selling or waiting costs more than it saves. Labs keeps tracking both live.
+- [improved] What the history shows (figures corrected in 1.0.73): over four months, cashing out past 0.15% turns the plain rule's +$4,092 into a small loss, and Wait for the trend loses about $6,200. The trend line does pick out the risky trades, but Kalshi's price at minute 10 already reflects it, so selling or waiting costs more than it saves. Labs keeps tracking both live.
 
 ## 1.0.67 (Nov 11, 2026): Bottom bar stays at the bottom
 A fix for the iPhone home-screen app.
