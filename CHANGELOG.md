@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.76 (Nov 12, 2026): A cap on trades per window, a 96¢ playbook, and room in the book
+Three things from four months of research into what the rule earns and where it loses.
+- [new] Most trades a window, in Paper settings. Caps how many coins one 15-minute window may buy, clearest first, on the paper book, the labs, the live account and the live books. Coins that line up on one side lose together; in the four-month history three a window made the worst day about a third smaller on Margin vs volatility under 96¢, for about 12% less profit. It starts at 9, which is no cap, so nothing changes until you set it.
+- [new] Playbook: Margin vs volatility, under 96¢. The same check as the under 95¢ playbook with the price cap one cent higher. In the history the 95¢ trades still paid after fees once the coin was clear of its target, and only 96¢ and up lost. It is in Labs and Backtest, and can be made the active playbook like any other.
+- [new] Room in the book, on Analytics. For each coin: how many contracts usually rest at the quoted price when the rule looks, and how many cents more an order of 100, 250 or 500 contracts would have paid. Use it before raising a live size. The 250 and 500 columns fill in from today.
+- [improved] Backtest has a Most trades a window box, so the cap can be tried on every playbook before it is set.
+
 ## 1.0.75 (Nov 11, 2026): Photos in chat, and the lead kept on every trade
 Send photos to friends, land on the newest message, and see the share of the lead kept in a trade's replay.
 - [new] Photos in chat. Tap the picture button next to the message box, pick a photo, add a caption if you like and send. Tap a photo to see it full screen. Photos are shrunk before sending, which also removes the camera's location details, and are kept only on your two dashboards. Both sides need this version.

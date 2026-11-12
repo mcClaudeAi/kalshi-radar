@@ -31,10 +31,10 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
-const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50 };
+const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
 const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -86,6 +86,10 @@ function labDefs(K) {
     // Your mix recipe (volatility on, cap 95, then switch the playbook to Your mix), which was three steps and easy to half do.
     // In the four-month backtest it gave the most profit per dollar of worst drop of anything tested.
     { id: 'mv95', name: 'Margin vs volatility, under 95¢', desc: 'Margin vs volatility, and it also skips anything priced 95¢ or more. Those contracts pay the least for the same risk. In the four-month backtest this kept nearly all of the profit with a smaller worst drop and no losing month.', color: '#FFD60A', filter: t => t.z == null ? null : t.z >= 1 && t.px < 0.95 },
+    // MC 2026-11-12 the four-month research put the price cap at 96c, not 95c: 95.0 to 95.9c still paid after fees once the
+    // volatility check passed, and only 96c and up lost. Added beside the 95c playbook instead of changing it, so nobody's
+    // live playbook changes under them. $41.60 a day at $50 a trade in the history against $33 for the plain rule.
+    { id: 'mv96', name: 'Margin vs volatility, under 96¢', desc: 'Margin vs volatility, and it also skips anything priced 96¢ or more. In the four-month history the 95¢ trades still paid after fees once the coin was clear of its target, and only 96¢ and up lost. The most profit per trade of the playbooks tested: about 40% fewer trades than the plain rule and more profit.', color: '#F4A261', filter: t => t.z == null ? null : t.z >= 1 && t.px < 0.96 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
     // none had a second half without a red day, because one loss costs about 15 wins. This is the steadiest that held up when
     // it was picked on the first two months and checked on the last two: at least two typical moves past the target on both
@@ -349,7 +353,9 @@ export function createKalshi(state, env, keep) {
         for (const x of xs) { const d = etDay(x.at); if (lastD && lastD !== d && tripped[lastD]) ref = start + run; lastD = d; run += x.pnl; const cash = start + run; ref = Math.max(ref, cash); if (cash <= ref * (1 - cfgP.bankDdPct / 100)) tripped[d] = true; }
         if (lastD === etDay(Date.now()) && tripped[lastD]) return `bank drawdown stop: ${cfgP.bankDdPct}% under its high today`; }
       if (t.filter(x => x.fill > 0).length >= HARD.maxPerDay) return 'daily order limit';
-      if ([...L.values()].filter(x => x.close === r.close && x.fill > 0).length >= HARD.maxPerWindow) return 'window limit';
+      // MC 2026-11-12 winCap: the most trades one window may take, clearest first (hits arrive sorted). Coins that line up on one
+      // side lose together; at three a window the worst day in the history fell by a third for about a tenth of the profit.
+      { const cap = Math.min(HARD.maxPerWindow, cfgP.winCap ?? 9); if ([...L.values()].filter(x => x.close === r.close && x.fill > 0).length >= cap) return cap < HARD.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
       return null; })();
     const skip = s => { st.stopped = s; const x = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: s }; L.set(r.ticker, x); saveL(x); say(`LIVE skip ${r.ticker}: ${s}`); };
     if (why) return skip(why);
@@ -430,7 +436,11 @@ export function createKalshi(state, env, keep) {
         const side = ya >= na ? 'yes' : 'no', asks = side === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0][0];
         if (ask < KEEP_ASK) continue;
         const avgN = walk(asks, BOOK_N);
-        const r = { ticker: m.ticker, series: s, at: now, close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), ...detail(m), ya, na, depth: asks.reduce((a, x) => a + x[1], 0), src: 'cloud' };
+        // MC 2026-11-12 what 250 and 500 contracts would cost at the mark, logged beside the 100-contract price. The backtests
+        // assume every order fills near the quote; before the live size goes past $50 a trade we need to know which coins have
+        // the book for it. null = the book did not hold that many.
+        const dp = n => { const a = walk(asks, n); return a == null ? null : +a.toFixed(4); };
+        const r = { a250: dp(250), a500: dp(500), ticker: m.ticker, series: s, at: now, close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), ...detail(m), ya, na, depth: asks.reduce((a, x) => a + x[1], 0), src: 'cloud' };
         rec.set(m.ticker, r); saveRec(r); n++;
         if (ask >= KEEP_ASK) { const v = await volAt(coin(s), r.strike, side); if (v) { r.vol = v; saveRec(r); } }
         if (ask >= cfgP.minAsk) { say(`${m.ticker} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- rule`); hits.push(r); }
@@ -840,7 +850,7 @@ export function createKalshi(state, env, keep) {
     // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
     // own analytics, and one whose market the mark trade already holds is dropped.
     const lates = [...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker));
-    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {}, wSnap = {};
+    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {}, wSnap = {}, tookW = {}, wCap = K.winCap ?? 9;
     for (const r of rowsAll) {
       const late = !!r.late;
       if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
@@ -883,9 +893,10 @@ export function createKalshi(state, env, keep) {
       // Margin vs volatility and v2, much less on the plain rule (it stakes many coins a window and runs out of budget). Off by default.
       let lockCut = false, szUse = sizeUsd;
       if (K.lockAt > 0 && !capped0) { if (lockRem[w] == null) lockRem[w] = ws.peak >= K.lockAt ? ws.net - ws.peak * (K.lockKeep || 0) / 100 : Infinity; if (lockRem[w] < px + fee(px, 1)) lockCut = true; else szUse = Math.min(sizeUsd, lockRem[w]); }
-      const capped = capped0 || lockCut, n = Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
+      const wcap = !late && !capped0 && !lockCut && (tookW[w] || 0) >= wCap; if (!late && !capped0 && !lockCut && !wcap) tookW[w] = (tookW[w] || 0) + 1;
+      const capped = capped0 || lockCut || wcap, n = Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
-      const t = { lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+      const t = { wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result && !late) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
@@ -954,7 +965,7 @@ export function createKalshi(state, env, keep) {
       avg: done.length ? +(sum(done) / done.length).toFixed(2) : 0, streak, uncappedNet: +(balU - K.startUsd).toFixed(2), capped: trades.filter(t => t.capped).length,
       runFrom: runFrom || null, runN: done.length, prevN: doneAll.length - done.length, worstWin: Math.max(0, ...Object.values(winLoss)), halts: trades.filter(t => t.halted).length, seen, rule, since: (runFrom ? (done[0]?.t || runFrom) : rows[0]?.at) || null, last: rows[rows.length - 1]?.at || null,
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
-      eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net),
+      eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
       look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: rec.get(tk)?.result ? (rec.get(tk).result === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
@@ -963,6 +974,17 @@ export function createKalshi(state, env, keep) {
   // ---------- Labs: each idea as its own paper account over the same trades ----------
   // filter(t) returns true (take), false (skip) or null (can't tell yet: the lab starts at its first decidable trade and such
   // trades are left out of both the lab and its rule comparison). size(bank) returns the stake; the rule's own is fixed.
+  // MC 2026-11-12 room in the book, per coin, over the last 30 days of qualifying marks: contracts resting at the best price
+  // (median), and what 100, 250 and 500 contracts cost over that price in cents. ok = share of marks where the book held that
+  // many at all. The 250 and 500 columns count only marks logged since those sizes were recorded.
+  function roomOf(rows, K) {
+    const cut = Date.now() - 30 * 86400000, by = {};
+    for (const r of rows) { if (!(r.ask >= K.minAsk) || r.at < cut || r.result === 'void') continue; const b = by[coin(r.series)] || (by[coin(r.series)] = { coin: coin(r.series), d: [], s: { 100: [0, 0, 0], 250: [0, 0, 0], 500: [0, 0, 0] } });
+      if (r.depthAtAsk != null) b.d.push(r.depthAtAsk);
+      for (const [n, a] of [[100, r.avgN], [250, r.a250], [500, r.a500]]) { if (a === undefined) continue; const x = b.s[n]; x[0]++; if (a != null) { x[1]++; x[2] += (a - r.ask) * 100; } } }
+    return Object.values(by).map(b => { b.d.sort((x, y) => x - y); const o = { coin: b.coin, n: b.d.length, med: b.d.length ? Math.round(b.d[b.d.length >> 1]) : null };
+      for (const n of [100, 250, 500]) { const x = b.s[n]; o['n' + n] = x[0]; o['ok' + n] = x[0] ? +(x[1] / x[0]).toFixed(3) : null; o['c' + n] = x[1] ? +(x[2] / x[1]).toFixed(2) : null; } return o; }).sort((a, b) => (b.med ?? 0) - (a.med ?? 0));
+  }
   function runLabs(tradesIn, K, lateT = [], m10T = []) {
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
@@ -970,7 +992,7 @@ export function createKalshi(state, env, keep) {
     // trend turns setting) and holds the rest; unset, every trade is held to settlement. Either way the result does not depend on
     // what the paper setting is, so the Labs switch shows both before the setting goes on.
     const sim = (lab, from, baseline, cash = false) => {
-      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}; let ddRef = bank, ddLast = null;
+      let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}, tw = {}, wCap = K.winCap ?? 9; let ddRef = bank, ddLast = null;
       const trades = lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         const cx = cash && !t.late && t.xPx != null, held = t.hw ?? t.won;
@@ -988,7 +1010,8 @@ export function createKalshi(state, env, keep) {
         if (K.lockAt > 0 && f) { if (lockR[t.close] == null) lockR[t.close] = ws.pk >= K.lockAt ? ws.net - ws.pk * (K.lockKeep || 0) / 100 : Infinity; if (lockR[t.close] < t.px + fee(t.px, 1)) lockCut = true; else size = Math.min(size, lockR[t.close]); }
         const k = Math.floor(size / t.px), cost = k * t.px + fee(t.px, k), pnl = cx ? k * t.xPx - fee(t.xPx, k) - cost : (held ? k : 0) - cost, ok = cx ? pnl > 0 : held;
         if (!f) { sk++; skNet += t.rulePnl ?? t.pnl ?? 0; continue; }
-        if (lockCut) continue; if (isFinite(lockR[t.close] ?? Infinity)) lockR[t.close] -= cost;
+        if (lockCut) continue; if (!t.late) { if ((tw[t.close] || 0) >= wCap) continue; tw[t.close] = (tw[t.close] || 0) + 1; }
+        if (isFinite(lockR[t.close] ?? Infinity)) lockR[t.close] -= cost;
         n++; if (ok) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; dayPk[dk] = Math.max(dayPk[dk], day[dk]); peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);
         if (dk === todayK) { td.n++; if (ok) td.won++; td.net += pnl; }
       }

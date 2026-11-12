@@ -111,7 +111,7 @@ export function createBooks(D) {
       if (cfgP.dailyWinUsd > 0 && realized(t) >= cfgP.dailyWinUsd) return `daily profit target hit (+$${realized(t).toFixed(2)})`;
       if (cfgP.giveBackPct > 0) { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk >= (cfgP.giveBackMin ?? 25) && run <= pk * cfgP.giveBackPct / 100) return `give-back stop: today peaked at +$${pk.toFixed(2)}`; }
       if (t.filter(x => x.fill > 0).length >= LIMITS.maxPerDay) return 'daily order limit';
-      if ([...Lb.values()].filter(x => x.close === r.close && x.fill > 0).length >= LIMITS.maxPerWindow) return 'window limit';
+      { const cap = Math.min(LIMITS.maxPerWindow, cfgP.winCap ?? 9); if ([...Lb.values()].filter(x => x.close === r.close && x.fill > 0).length >= cap) return cap < LIMITS.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
       return null; })();
     if (why) return skip(b, r, why);
     const bal = await balance(b, true); if (bal == null) { fail(b, `no order for ${r.ticker}: could not read the balance`); return; }
