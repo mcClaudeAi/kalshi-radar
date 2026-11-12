@@ -1,25 +1,39 @@
 {
-  "updated": "Nov 11, 2026",
-  "items": [
-    {
-      "id": 3,
-      "text": "On the Trades tab, in How it played out, show a trend line between 5 and 10 minutes and say whether the coin is trending up, neutral or down.",
-      "status": "released",
-      "note": "Released in 1.0.59: open any trade and the replay shows the minute 5 to 10 trend, a dotted line carrying that pace to the close, and a card with the move, pace and how steady it was. Using the trend to close a bet early is not built; that changes how trading works.",
-      "version": "1.0.59"
-    },
-    {
-      "id": 2,
-      "text": "Add a daily profit lockout: stop trading once the day hits a profit target, so a good day isn't given back.",
-      "status": "released",
-      "version": "1.0.32",
-      "note": "Settings, Stops: Daily profit target. Over the four months to Nov 9 a low target cost a lot of profit ($25 a day kept almost nothing), while $200 a day came out a little ahead of no target. Test it on paper before trusting it."
-    },
-    {
-      "id": 1,
-      "text": "Inbox test",
-      "status": "hidden",
-      "note": ""
-    }
-  ]
+ "updated": "Nov 11, 2026",
+ "items": [
+  {
+   "id": 5,
+   "text": "For cash out, replace \"Cash out only past (%)\" with the share of the lead kept: (price at minute 10 minus target) divided by (high between minute 5 and 10 minus target). Cash out when the trend is against the bet and the share kept is below the setting.",
+   "status": "released",
+   "version": "1.0.73",
+   "note": "Released in 1.0.73. Settings, Stops: Share of the lead kept (%), default 50. Labs and Backtest use it too. On four months of history it loses less than the slope rule but still costs money against holding at every level tested (under 5% kept: about $890 less than holding; under 50%: about $3,780 less), because the sale price at minute 10 already reflects the lost lead."
+  },
+  {
+   "id": 4,
+   "text": "In the trade replay, draw the minute 5 to 10 trend with double exponential smoothing and label it up, down or neutral.",
+   "status": "possible",
+   "version": "1.0.59",
+   "note": "The replay draws a straight best-fit line through the minute 5 to 10 prices and labels it with the bet, flat or against it (1.0.59, refined in 1.0.61). You confirmed that line is what you wanted, so it stays a best-fit line. Say so if you still want the smoothing version."
+  },
+  {
+   "id": 3,
+   "text": "On the Trades tab, in How it played out, show a trend line between 5 and 10 minutes and say whether the coin is trending up, neutral or down.",
+   "status": "released",
+   "note": "Released in 1.0.59: open any trade and the replay shows the minute 5 to 10 trend, a dotted line carrying that pace to the close, and a card with the move, pace and how steady it was. Using the trend to close a bet early is not built; that changes how trading works.",
+   "version": "1.0.59"
+  },
+  {
+   "id": 2,
+   "text": "Add a daily profit lockout: stop trading once the day hits a profit target, so a good day isn't given back.",
+   "status": "released",
+   "version": "1.0.32",
+   "note": "Settings, Stops: Daily profit target. Over the four months to Nov 9 a low target cost a lot of profit ($25 a day kept almost nothing), while $200 a day came out a little ahead of no target. Test it on paper before trusting it."
+  },
+  {
+   "id": 1,
+   "text": "Inbox test",
+   "status": "hidden",
+   "note": ""
+  }
+ ]
 }
