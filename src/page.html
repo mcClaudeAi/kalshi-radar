@@ -1279,6 +1279,18 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  body{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
  #fxsettle{top:calc(env(safe-area-inset-top,0px) + 66px)}
 }
+.kt-keep b{color:var(--ink)}.kt-stats{flex-wrap:wrap;gap:12px 18px}
+
+/* MC 2026-11-11 photos in chat, and the share-of-the-lead line in the replay */
+.fr-add2{all:unset;box-sizing:border-box;flex:none;align-self:flex-end;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:#3d9bff}.fr-add2 svg{width:24px;height:24px}.fr-add2:active{transform:scale(.92)}.fr-add2:focus-visible{outline:2px solid #3d9bff}
+.fr-comp{gap:4px}
+.fr-prev{padding:10px 12px 0;border-top:1px solid var(--line)}.fr-prev>div{position:relative;display:inline-block}.fr-prev img{display:block;height:84px;width:auto;min-width:60px;max-width:180px;object-fit:cover;border-radius:14px;border:1px solid var(--line2)}
+.fr-prev button{all:unset;position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;cursor:pointer;background:var(--s3);color:var(--ink);border:1px solid var(--line2)}
+.fr-prev+.fr-comp{border-top:0}
+.fr-img{display:block;width:min(260px,66vw);height:auto;max-height:340px;border-radius:18px;cursor:zoom-in;background:var(--s3);object-fit:cover}.fr-m.me .fr-img{margin-left:auto}.fr-m .fr-img+p{margin-top:3px}.fr-m.snd .fr-img{opacity:.6}
+.fr-lb{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);cursor:zoom-out;touch-action:pinch-zoom}
+.fr-lb img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain}.fr-lb button{all:unset;position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:14px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.16);font-size:16px;cursor:pointer}
+.kt-keep b{display:inline!important;font-size:inherit!important;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -2089,7 +2101,7 @@ function frOpen(id){const f=(FR.list||[]).find(x=>x.id===id);if(!f)return;ST.fv=
 function frBack(){ST.fv=null;try{sessionStorage.removeItem('fr-fv')}catch{}ST.D=null;ST.last=0;KX.live=null;$('#main').innerHTML='';load()}
 function frBar(){if(!ST.fv)return '';const at=ST.D?.at;return `<div class="fr-bar"><i>${frIni(ST.fv.name)}</i><span><b>${esc(ST.fv.name)}'s dashboard</b><small>Read only${ST.fv.live?'':', live account private'}${at?' · as of '+frWhen(at):''}</small></span><button class="btn sm" onclick="frBack()">Back to mine</button></div>`}
 
-function kxChatV(D){after.kchat=()=>{frPaint();frStart()};
+function kxChatV(D){after.kchat=()=>{if(FR.sel){const id=FR.sel;FR.jump=id;setTimeout(()=>{if(FR.jump===id)FR.jump=null},4000)}frPaint();frStart()};
   return `<div class="kx-sh fr-intro"><h2>Friends and chat</h2><p>Talk to friends who run their own copy, and choose who can see your dashboard. Messages and sharing go straight between your two dashboards.</p></div><div id="frw" class="fr-w"></div>`}
 function frStart(){clearInterval(FR.poll);FR.poll=setInterval(()=>{if(ST.tab!=='kchat'||document.hidden){if(ST.tab!=='kchat')clearInterval(FR.poll);return}frSync();if(FR.sel)frThread(FR.sel)},4000);frSync();if(FR.sel)frThread(FR.sel,true)}
 async function frThread(id,full){const have=FR.msgs[id]||[],since=full?0:Math.max(0,...have.filter(m=>!m.s).map(m=>m.at));
@@ -2126,8 +2138,17 @@ function frThreadHtml(f,L){const un=(L||[]).reduce((a,x)=>a+(x.id===f.id?0:x.unr
    ${f.share?`<button class="pn-row" role="switch" aria-checked="${f.live}" onclick="frShare('${f.id}',{live:${!f.live}})"><span><b>Include my live account</b><small>Your Kalshi cash and whether live trading is on. Off keeps it private.</small></span><i></i></button>`:''}
    <div class="fr-them">${f.gone?`${first} removed this connection.`:f.tShare?`${first} shares their dashboard with you${f.tLive?', live account included':''}.`:`${first} is not sharing their dashboard with you.`}</div></details>
   <div class="fr-msgs" id="frmsgs"></div>
-  ${f.gone?'':`<form class="fr-comp" onsubmit="frSend('${f.id}');return false"><div class="fr-in"><textarea id="frtxt" rows="1" maxlength="2000" placeholder="Message ${first}" enterkeyhint="send" oninput="FR.draft['${f.id}']=this.value;frTyped(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!matchMedia('(pointer:coarse)').matches){event.preventDefault();frSend('${f.id}')}">${esc(FR.draft[f.id]||'')}</textarea><button class="fr-send" aria-label="Send" onpointerdown="event.preventDefault()" ${FR.draft[f.id]?'':'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button></div></form>`}`}
-function frTyped(ta){ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px';const b=ta.parentNode.querySelector('.fr-send');if(b)b.disabled=!ta.value.trim()}
+  ${f.gone?'':`<div class="fr-prev" id="frprev" hidden></div><form class="fr-comp" onsubmit="frSend('${f.id}');return false"><input type="file" id="frfile" accept="image/*" hidden onchange="frPickImg(this)"><button type="button" class="fr-add2" aria-label="Send a photo" onpointerdown="event.preventDefault()" onclick="$('#frfile').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg></button><div class="fr-in"><textarea id="frtxt" rows="1" maxlength="2000" placeholder="Message ${first}" enterkeyhint="send" oninput="FR.draft['${f.id}']=this.value;frTyped(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!matchMedia('(pointer:coarse)').matches){event.preventDefault();frSend('${f.id}')}">${esc(FR.draft[f.id]||'')}</textarea><button class="fr-send" aria-label="Send" onpointerdown="event.preventDefault()" ${FR.draft[f.id]?'':'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button></div></form>`}`}
+function frTyped(ta){ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px';const b=ta.parentNode.querySelector('.fr-send');if(b)b.disabled=!ta.value.trim()&&!FR.img}
+// MC 2026-11-11 photos: the picked image is drawn onto a canvas no larger than 1600px on its long side and saved as a JPEG, stepping
+// the quality down until it is under about 900 KB. Redrawing it also drops the camera's location and other hidden details.
+async function frPickImg(inp){const file=inp.files&&inp.files[0];inp.value='';if(!file)return;if(!/^image\//.test(file.type)&&!/\.(heic|heif|jpe?g|png|webp|gif)$/i.test(file.name)){toast('Pick a photo.');return}
+  try{const url=URL.createObjectURL(file),im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});const sc=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight)),w=Math.max(1,Math.round(im.naturalWidth*sc)),h=Math.max(1,Math.round(im.naturalHeight*sc));
+    const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(im,0,0,w,h);URL.revokeObjectURL(url);let q=.84,data=c.toDataURL('image/jpeg',q);while(data.length>1200000&&q>.4){q-=.12;data=c.toDataURL('image/jpeg',q)}
+    if(data.length>1800000){toast('That photo is too large to send, even after shrinking.');return}FR.img={b64:data.slice(data.indexOf(',')+1),mime:'image/jpeg',w,h,url:data};frPrev();const ta=$('#frtxt');if(ta){frTyped(ta);ta.focus()}}
+  catch{toast('That photo could not be opened. Try a different one.')}}
+function frPrev(){const e=$('#frprev');if(!e)return;if(!FR.img){e.hidden=true;e.innerHTML='';frFit();return}e.hidden=false;e.innerHTML=`<div><img src="${FR.img.url}" alt="Photo to send"><button type="button" aria-label="Remove photo" onclick="FR.img=null;frPrev();const t=$('#frtxt');if(t)frTyped(t)">✕</button></div>`;frFit()}
+function frView(src){const o=document.createElement('div');o.className='fr-lb';o.innerHTML=`<img src="${src}" alt="Photo"><button aria-label="Close">✕</button>`;o.onclick=()=>o.remove();document.body.appendChild(o)}
 function frBackList(){FR.mob='list';frPaint();frSync()}
 const frStamp=t=>{const d=new Date(t),day=x=>x.toLocaleDateString('en-US',ET),tm=d.toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'}),now=new Date();return (day(d)===day(now)?'Today':day(d)===day(new Date(now-86400000))?'Yesterday':d.toLocaleDateString('en-US',{...ET,weekday:'short',month:'short',day:'numeric'}))+' '+tm};
 const frText=t=>esc(t).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)]/g,u=>`<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`).replace(/\n/g,'<br>');
@@ -2135,8 +2156,10 @@ function frMsgs(){const e=$('#frmsgs');if(!e||!FR.sel)return;const M=FR.msgs[FR.
   const lastMine=[...M].reverse().find(m=>m.me&&!m.s);
   e.innerHTML=M.length?M.map((m,i)=>{const p=M[i-1],n=M[i+1],gap=!p||m.at-p.at>10*60000,head=gap||p.me!==m.me,tail=!n||n.me!==m.me||n.at-m.at>10*60000;
     const st=m.s==='sending'?'<small>Sending…</small>':m.s==='failed'?`<small class="bad">Not delivered. <button class="lnk" onclick="frRetry('${FR.sel}','${m.m}')">Try again</button></small>`:m===lastMine?`<small>${tr>=m.at?'Read':'Delivered'}</small>`:'';
-    return (gap?`<div class="fr-day">${frStamp(m.at)}</div>`:'')+`<div class="fr-m ${m.me?'me':''} ${head?'fgh':''} ${tail?'fgt':''} ${m.s==='failed'?'fail':''} ${m.s==='sending'?'snd':''}" title="${frStamp(m.at)}"><p>${frText(m.t)}</p>${st}</div>`}).join(''):`<div class="fr-pick"><i>${frIni(f?.name)}</i><b>${esc(f?.name||'')}</b>No messages yet. Say hello.</div>`;
-  e.dataset.n=M.length;if(near)e.scrollTop=e.scrollHeight}
+    return (gap?`<div class="fr-day">${frStamp(m.at)}</div>`:'')+`<div class="fr-m ${m.me?'me':''} ${head?'fgh':''} ${tail?'fgt':''} ${m.s==='failed'?'fail':''} ${m.s==='sending'?'snd':''}" title="${frStamp(m.at)}">${m.img?`<img class="fr-img" loading="lazy" alt="Photo" width="${m.img.w}" height="${m.img.h}" style="aspect-ratio:${m.img.w}/${m.img.h}" src="${m.img.url||`/api/friends/img?f=${FR.sel}&id=${m.img.id}`}" onclick="frView(this.src)" onload="frImgUp(this)">`:''}${m.t?`<p>${frText(m.t)}</p>`:''}${st}</div>`}).join(''):`<div class="fr-pick"><i>${frIni(f?.name)}</i><b>${esc(f?.name||'')}</b>No messages yet. Say hello.</div>`;
+  e.dataset.n=M.length;if(near||FR.jump===FR.sel)e.scrollTop=e.scrollHeight}
+// a photo that finishes loading makes the list taller; stay at the newest message if that is where the reader was
+function frImgUp(img){const e=$('#frmsgs');if(e&&(FR.jump===FR.sel||e.scrollHeight-e.scrollTop-e.clientHeight<img.clientHeight+140))e.scrollTop=e.scrollHeight}
 // on a phone the open conversation is the screen: sized to what is visible, so it shrinks with the keyboard
 function frFit(){const m=$('#frmain');if(!m)return;const full=document.documentElement.classList.contains('fr-full');
   if(!full){m.style.height='';m.style.top='';m.classList.remove('kb');return}const vv=window.visualViewport;m.style.height=Math.round(vv?vv.height:innerHeight)+'px';m.style.top=Math.round(vv?vv.offsetTop:0)+'px';m.classList.toggle('kb',!!vv&&vv.height<innerHeight-120);const e=$('#frmsgs');if(e&&e.scrollHeight-e.scrollTop-e.clientHeight<160)e.scrollTop=e.scrollHeight}
@@ -2144,14 +2167,17 @@ addEventListener('resize',()=>{if(ST.tab==='kchat')frPaint()});
 if(window.visualViewport){visualViewport.addEventListener('resize',()=>{if(ST.tab==='kchat')frFit()});visualViewport.addEventListener('scroll',()=>{if(ST.tab==='kchat')frFit()})}
 // a notification (or a link) that points at a chat: #kchat or #kchat:<friend id>
 function frHash(h){const m=/^#kchat(?::([0-9a-f]+))?$/.exec(h||'');if(!m)return false;if(ST.fv){ST.fv=null;try{sessionStorage.removeItem('fr-fv')}catch{}ST.D=null;ST.last=0}
-  if(m[1]){FR.sel=m[1];FR.mob='thread';try{localStorage.setItem('fr-sel',m[1])}catch{}}ST.tab='kchat';try{localStorage.setItem('cr-tab','kchat');history.replaceState(null,'',location.pathname+location.search)}catch{}return true}
+  if(m[1]){FR.sel=m[1];FR.mob='thread';FR.jump=m[1];setTimeout(()=>{if(FR.jump===m[1])FR.jump=null},4000);try{localStorage.setItem('fr-sel',m[1])}catch{}}ST.tab='kchat';try{localStorage.setItem('cr-tab','kchat');history.replaceState(null,'',location.pathname+location.search)}catch{}return true}
 function frGoto(h){if(!frHash(h))return;$('#drawer')?.classList.remove('on');if(!ST.D){load();return}render();frPaint();frSync().then(()=>{frPaint();if(FR.sel)frThread(FR.sel,true)})}
 frHash(location.hash);addEventListener('hashchange',()=>frGoto(location.hash));
 try{navigator.serviceWorker?.addEventListener('message',e=>{const u=String(e.data?.go||''),i=u.indexOf('#');if(i>=0)frGoto(u.slice(i))})}catch{}
-function frPick(id){FR.sel=id;FR.mob='thread';try{localStorage.setItem('fr-sel',id)}catch{}frPaint();frThread(id,true);const f=(FR.list||[]).find(x=>x.id===id);if(f&&f.unread){f.unread=0;frNav();paintChrome()}}
-async function frSend(id){const ta=$('#frtxt'),text=(ta?.value||'').trim();if(!text)return;ta.value='';FR.draft[id]='';frTyped(ta);
-  const tmp={m:'tmp'+Date.now(),me:true,t:text,at:Date.now(),s:'sending'};(FR.msgs[id]=FR.msgs[id]||[]).push(tmp);frMsgs();
-  const r=await api('/api/friends',{op:'send',id,text});const M=FR.msgs[id],i=M.indexOf(tmp);if(i>=0)M.splice(i,1);if(r.m)M.push(r.m);else M.push({...tmp,s:'failed'});frMsgs();if(!r.ok)toast(r.msg||'Not delivered.');ta?.focus()}
+// MC 2026-11-11 opening a conversation always lands on the newest message. Coming back to one that was already drawn kept the old
+// scroll position (a hidden list loses it and reopened at the top), so opening sets a jump that holds until the fresh load is in.
+function frPick(id){FR.jump=id;setTimeout(()=>{if(FR.jump===id)FR.jump=null},4000);FR.sel=id;FR.mob='thread';try{localStorage.setItem('fr-sel',id)}catch{}frPaint();frThread(id,true);const f=(FR.list||[]).find(x=>x.id===id);if(f&&f.unread){f.unread=0;frNav();paintChrome()}}
+async function frSend(id){const ta=$('#frtxt'),text=(ta?.value||'').trim(),img=FR.img;if(!text&&!img)return;ta.value='';FR.draft[id]='';FR.img=null;frPrev();frTyped(ta);
+  const tmp={m:'tmp'+Date.now(),me:true,t:text,at:Date.now(),s:'sending',img:img?{w:img.w,h:img.h,url:img.url}:null};(FR.msgs[id]=FR.msgs[id]||[]).push(tmp);FR.jump=id;frMsgs();
+  const r=await api('/api/friends',{op:'send',id,text,...(img?{img:{mime:img.mime,b64:img.b64,w:img.w,h:img.h}}:{})});const M=FR.msgs[id],i=M.indexOf(tmp);if(i>=0)M.splice(i,1);
+  if(r.m){if(r.m.img&&img)r.m.img.url=img.url;M.push(r.m)}else if(!img)M.push({...tmp,s:'failed'});frMsgs();setTimeout(()=>{if(FR.jump===id)FR.jump=null},1500);if(!r.ok)toast(r.msg||'Not delivered.');ta?.focus()}
 async function frRetry(id,m){const r=await api('/api/friends',{op:'retry',id,m});if(r.m){const M=FR.msgs[id],i=M.findIndex(x=>x.m===m);if(i>=0)M[i]=r.m;frMsgs()}toast(r.ok?'Sent.':(r.msg||'Still not delivered.'))}
 async function frSetName(){const n=$('#frme')?.value.trim();if(!n)return;const r=await api('/api/friends',{op:'name',name:n});toast(r.msg||'');await frSync();frPaint()}
 async function frRename(){const n=prompt('The name your friends see',FR.me?.name||'');if(n==null||!n.trim())return;const r=await api('/api/friends',{op:'name',name:n.trim()});toast(r.msg||'');await frSync();frPaint()}
@@ -2665,15 +2691,22 @@ function kxTrend(pts,s0,s1,t){const Q=pts.filter(p=>p[0]>=s0&&p[0]<=s1);if(Q.len
   const dir=Math.abs(pct)<.02?0:pct>0?1:-1,withBet=dir===0?null:(dir>0)===(t.side==='yes'),side=t.side.toUpperCase(),x1=t.close/1000,proj=a+m*(x1-s0),projWin=t.side==='yes'?proj>=t.strike:proj<t.strike;
   const p10=[...pts].reverse().find(p=>p[0]<=s1)?.[1],held=t.final!=null&&p10!=null&&dir!==0?Math.sign(t.final-p10)===dir:null;
   const steady=r2>=.6?'Steady':r2>=.3?'Uneven':'Choppy';
-  return {a,b,m,dir,withBet,pct,pace:pct/((s1-s0)/60),r2,steady,proj,projWin,held,p10,colr:dir===0?'var(--faint)':withBet?'var(--good)':'var(--bad)',
+  // MC 2026-11-11 request 6: the share of the lead kept, shown with its three prices so a trade can be checked by hand. The figure the
+  // tracker actually used at minute 10 (t.keep, from Coinbase's minute closes) is shown when it was saved; otherwise it is worked out
+  // here from the replay's own prices, which can differ by a point or two.
+  const ys=Q.map(p=>p[1]),best=t.side==='yes'?Math.max(...ys):Math.min(...ys),pk=p10??ys[ys.length-1],lead=t.side==='yes'?pk-t.strike:t.strike-pk,room=t.side==='yes'?best-t.strike:t.strike-best,
+    keepHere=room>0?Math.max(0,Math.min(1,lead/room)):0,keep=t.keep!=null?t.keep:keepHere;
+  return {keep,keepSaved:t.keep!=null,best,a,b,m,dir,withBet,pct,pace:pct/((s1-s0)/60),r2,steady,proj,projWin,held,p10,colr:dir===0?'var(--faint)':withBet?'var(--good)':'var(--bad)',
     text:`Trend line: between 5 and 10 minutes the coin trended ${dir===0?'neutral':dir>0?'up':'down'} (${pct>=0?'+':''}${pct.toFixed(2)}% over the stretch)${dir===0?', no lean for or against the '+side+' bet':withBet?', with the '+side+' bet':', against the '+side+' bet'}.`}}
 // the trend card under the replay: direction, size, pace, how clean the move was, which way it pointed for the bet, and what came next
 function kxTrendCard(tr,t){if(!tr)return '';const side=t.side.toUpperCase(),arrow=tr.dir>0?'M5 15 15 5M8 5h7v7':tr.dir<0?'M5 5l10 10M15 8v7H8':'M4 10h12M12 6l4 4-4 4',k=tr.dir===0?'flat':tr.withBet?'with':'against';
   const lean=tr.dir===0?`No lean for the ${side} bet`:tr.withBet?`Running with the ${side} bet`:`Running against the ${side} bet`,sg=v=>(v>=0?'+':'−')+Math.abs(v).toFixed(v===tr.pace?3:2)+'%';
+  const K=ST.D?.kalshi?.cfg||{},kp=Math.round(tr.keep*100),lim=K.trendKeep??50,f=v=>'$'+(Math.abs(v)<1?v.toFixed(6):Math.abs(v)<100?v.toFixed(4):v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  const kline=`<span class="kt-keep">Lead kept <b>${kp}%</b>: ${t.side==='yes'?'high':'low'} ${f(tr.best)}, minute 10 ${tr.p10!=null?f(tr.p10):'–'}, target ${f(t.strike)}. ${tr.dir<0&&!tr.withBet?(kp<lim?`Under your ${lim}% setting, so cash out sells it.`:`At or over your ${lim}% setting, so it is held.`):'Not trending against the bet, so it is held either way.'}${tr.keepSaved?'':' Worked out from this replay.'}</span>`;
   const after=tr.held==null?(t.final==null?`<span>${t.cashed?'Sold at the 10-minute mark.':'Held to the close.'}</span>`:''):`<span>${tr.held?'The last five minutes kept to it.':'The last five minutes turned the other way.'} ${t.won?'The bet won.':'The bet lost.'}</span>`;
   return `<div class="kt kt-${k}"><div class="kt-ic"><svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${arrow}"/></svg></div>
-    <div class="kt-main"><small>Trend, minute 5 to 10</small><b>${lean}</b>${after}</div>
-    <div class="kt-stats"><div><small>Move</small><b>${sg(tr.pct)}</b></div><div><small>Pace</small><b>${sg(tr.pace)}<i>/min</i></b></div><div><small>Shape</small><b>${tr.steady}</b><span class="kt-bar"><i style="width:${Math.round(Math.max(.04,tr.r2)*100)}%"></i></span></div></div></div>`}
+    <div class="kt-main"><small>Trend, minute 5 to 10</small><b>${lean}</b>${after}${kline}</div>
+    <div class="kt-stats"><div><small>Lead kept</small><b>${kp}%</b></div><div><small>Move</small><b>${sg(tr.pct)}</b></div><div><small>Pace</small><b>${sg(tr.pace)}<i>/min</i></b></div><div><small>Shape</small><b>${tr.steady}</b><span class="kt-bar"><i style="width:${Math.round(Math.max(.04,tr.r2)*100)}%"></i></span></div></div></div>`}
 function kxPlayTrade(tk){const K=ST.D?.kalshi;return [...(K?.recent||[]),...(K?.pending||[])].find(x=>x.tk===tk)}
 function kxPlayPaint(tk,t){const P=KXP[tk];if(!P?.geo)return;t=t||kxPlayTrade(tk);if(!t)return;const g=P.geo,id=g.id,s=P.s??g.x1,$i=x=>document.getElementById(x+id);if(!$i('kph'))return;
   const r=$i('kpr');r.setAttribute('width',Math.max(0,g.X(s)));const ln=$i('kpl'),dt=$i('kpd'),showHead=P.s!=null&&P.s<g.x1;ln.style.display=dt.style.display=showHead?'':'none';
@@ -3774,7 +3807,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.74',KR_DATE='Nov 11, 2026';
+const KR_VERSION='1.0.75',KR_DATE='Nov 11, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

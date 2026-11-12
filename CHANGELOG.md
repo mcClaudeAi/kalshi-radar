@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.75 (Nov 11, 2026): Photos in chat, and the lead kept on every trade
+Send photos to friends, land on the newest message, and see the share of the lead kept in a trade's replay.
+- [new] Photos in chat. Tap the picture button next to the message box, pick a photo, add a caption if you like and send. Tap a photo to see it full screen. Photos are shrunk before sending, which also removes the camera's location details, and are kept only on your two dashboards. Both sides need this version.
+- [new] A trade's How it played out now shows the share of the lead kept at minute 10, with the three prices behind it (the high or low from minute 5 to 10, the minute 10 price and the target), and says whether your cash out setting would sell or hold it. Requested by a user.
+- [fixed] Opening a conversation always lands on the newest message. Coming back to one you had scrolled up in used to reopen at the top.
+
 ## 1.0.74 (Nov 11, 2026): Earlier trades re-scored under the new cash out rule
 Trades from before 1.0.73 now get their share of the lead kept worked out too.
 - [fixed] After 1.0.73, cash outs from earlier trend checks disappeared and those trades showed as held, because the older checks had no share of the lead saved. The dashboard now works that share out from the minute prices for those windows, a few trades a minute, and re-scores them: a trade that was trending against its bet with less of its lead left than your setting is cashed out again, the rest stay held. Expect the paper bank to move for a few minutes after updating while it catches up.

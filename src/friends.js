@@ -24,6 +24,25 @@ const J = (o, status = 200) => new Response(JSON.stringify(o), { status, headers
 const clean = (s, n) => String(s ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, n);
 const okUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' && x.hostname.includes('.') && !/^[\d.]+$/.test(x.hostname) && !x.hostname.endsWith('.local') ? x.origin : null; } catch { return null; } };
 const INV_MS = 24 * 3600000, MSG_MAX = 2000, KEEP = 400;
+
+// MC 2026-11-11 photos in chat. The page shrinks a photo to a JPEG (about 1600px on its long side, which also drops the camera's
+// location data) and sends it as base64 with the message. Each side keeps its own copy in a table next to the messages (the last
+// 60 per friend) and serves it only to the signed-in owner. Only JPEG, PNG and WebP are taken, checked by their first bytes, at
+// most about 1.4 MB, and they are served as that image type and nothing else, so a file dressed up as a picture can't run.
+const IMG_MAX = 1400000, IMG_KEEP = 60, made = new WeakSet();
+const isql = st => { if (!made.has(st)) { st.sql.exec('CREATE TABLE IF NOT EXISTS fimg (id TEXT PRIMARY KEY, pair TEXT, at INTEGER, mime TEXT, w INTEGER, h INTEGER, data BLOB)'); made.add(st); } return st.sql; };
+function readImg(o) {
+  if (!o || typeof o.b64 !== 'string' || !['image/jpeg', 'image/png', 'image/webp'].includes(o.mime) || o.b64.length > IMG_MAX * 1.4) return null;
+  let bin; try { bin = atob(o.b64); } catch { return null; } if (bin.length < 64 || bin.length > IMG_MAX) return null;
+  const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const ok = o.mime === 'image/jpeg' ? u[0] === 0xff && u[1] === 0xd8 && u[2] === 0xff : o.mime === 'image/png' ? u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47 : bin.slice(0, 4) === 'RIFF' && bin.slice(8, 12) === 'WEBP';
+  const dim = v => Math.min(8000, Math.max(1, Math.round(+v) || 1));
+  return ok ? { mime: o.mime, u, w: dim(o.w), h: dim(o.h) } : null;
+}
+function saveImg(st, pair, im) { const id = rand(12), q = isql(st); q.exec('INSERT INTO fimg (id, pair, at, mime, w, h, data) VALUES (?, ?, ?, ?, ?, ?, ?)', id, pair, Date.now(), im.mime, im.w, im.h, im.u.buffer);
+  q.exec('DELETE FROM fimg WHERE pair = ? AND id NOT IN (SELECT id FROM fimg WHERE pair = ? ORDER BY at DESC LIMIT ?)', pair, pair, IMG_KEEP); return { id, w: im.w, h: im.h }; }
+function loadImg(st, pair, id) { for (const r of isql(st).exec('SELECT mime, w, h, data FROM fimg WHERE id = ? AND pair = ?', String(id), pair)) return { mime: r.mime, w: r.w, h: r.h, u: new Uint8Array(r.data) }; return null; }
+const b64of = u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 const rate = new Map();   // pair id -> [times], messages taken in the last minute (in memory; a restart only resets the count)
 
 const getMe = async st => (await st.get('fme')) || { name: '' };
@@ -34,7 +53,7 @@ const pub = f => ({ id: f.id, name: f.alias || f.name || 'Friend', theirName: f.
 
 // the friend's worker, called with this pair's id and secret
 async function peer(f, path, body) {
-  const r = await fetch(f.url + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-fr-id': f.id, 'x-fr-key': f.sec }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(9000) });
+  const r = await fetch(f.url + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-fr-id': f.id, 'x-fr-key': f.sec }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(body?.img ? 25000 : 9000) });
   let j = null; try { j = await r.json(); } catch { }
   return { status: r.status, ok: r.ok && j?.ok !== false, j };
 }
@@ -67,9 +86,9 @@ export async function friendsPeer(st, req, ctx) {
   if (!f || !same(f.sec, req.headers.get('x-fr-key'))) return J({ ok: false, msg: 'Not connected.' }, 401);
   if (p === '/f/msg' && post) {
     const t = Date.now(), r = (rate.get(f.id) || []).filter(x => t - x < 60000); if (r.length >= 40) return J({ ok: false, msg: 'Slow down.' }, 429); r.push(t); rate.set(f.id, r);
-    const text = clean(body.text, MSG_MAX), mid = clean(body.mid, 40); if (!text || !mid) return J({ ok: false, msg: 'Empty message.' }, 400);
-    const th = await thread(st, f.id); if (!th.some(m => m.m === mid)) { th.push({ m: mid, f: 0, t: text, at: t }); await st.put('fm:' + f.id, th.slice(-KEEP)); f.last = t; f.lastText = text.slice(0, 80); f.unread = (f.unread || 0) + 1; f.gone = false; await putAll(st, all);
-      await ctx.notify?.([{ kind: 'chat', title: f.alias || f.name || 'Friend', body: text.slice(0, 160), tag: 'chat-' + f.id, url: '/#kchat:' + f.id }]); }
+    const text = clean(body.text, MSG_MAX), mid = clean(body.mid, 40), im = body.img ? readImg(body.img) : null; if (body.img && !im) return J({ ok: false, msg: 'That photo could not be read.' }, 400); if ((!text && !im) || !mid) return J({ ok: false, msg: 'Empty message.' }, 400);
+    const th = await thread(st, f.id); if (!th.some(m => m.m === mid)) { const rec = { m: mid, f: 0, t: text, at: t }; if (im) rec.img = saveImg(st, f.id, im); th.push(rec); await st.put('fm:' + f.id, th.slice(-KEEP)); f.last = t; f.lastText = text ? text.slice(0, 80) : 'Photo'; f.unread = (f.unread || 0) + 1; f.gone = false; await putAll(st, all);
+      await ctx.notify?.([{ kind: 'chat', title: f.alias || f.name || 'Friend', body: text ? text.slice(0, 160) : 'Sent a photo', tag: 'chat-' + f.id, url: '/#kchat:' + f.id }]); }
     return J({ ok: true });
   }
   if (p === '/f/meta' && post) { if (body.name) f.name = clean(body.name, 40); if ('share' in body) f.tShare = !!body.share; if ('live' in body) f.tLive = !!body.live; if ('read' in body) f.tRead = +body.read || 0; f.gone = false; await putAll(st, all); return J({ ok: true }); }
@@ -87,7 +106,9 @@ export async function friendsOwner(st, req, body, ctx) {
   if (p === '/api/friends' && !post) return list();
   if (p === '/api/friends/thread') { const f = all[q('id')]; if (!f) return J({ ok: false, msg: 'No such friend.' }, 404); const th = await thread(st, f.id), since = +q('since') || 0;
     if (q('read') === '1' && f.unread) { f.unread = 0; f.readAt = Date.now(); await putAll(st, all); peer(f, '/f/meta', { read: f.readAt }).catch(() => { }); }
-    return J({ ok: true, friend: pub(f), tRead: f.tRead || 0, msgs: th.filter(m => m.at > since || m.s === 'failed').map(m => ({ m: m.m, me: !!m.f, t: m.t, at: m.at, s: m.s || null })) }); }
+    return J({ ok: true, friend: pub(f), tRead: f.tRead || 0, msgs: th.filter(m => m.at > since || m.s === 'failed').map(m => ({ m: m.m, me: !!m.f, t: m.t, at: m.at, s: m.s || null, img: m.img || null })) }); }
+  if (p === '/api/friends/img') { const f = all[q('f')], im = f ? loadImg(st, f.id, q('id')) : null; if (!im) return J({ ok: false, msg: 'not found' }, 404);
+    return new Response(im.u, { headers: { 'content-type': im.mime, 'cache-control': 'private, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" } }); }
   if (p === '/api/friends/view' || p === '/api/friends/live') {
     const f = all[q('id')]; if (!f) return J({ ok: false, msg: 'No such friend.' }, 404);
     if (!f.tShare) return J({ ok: false, msg: `${f.alias || f.name} is not sharing their dashboard with you.` }, 403);
@@ -126,14 +147,16 @@ export async function friendsOwner(st, req, body, ctx) {
     if (f.gone) return J({ ok: false, msg: `${f.alias || f.name} removed this connection.` }, 410);
     const th = await thread(st, f.id); let m;
     if (op === 'retry') { m = th.find(x => x.m === body.m && x.f); if (!m) return J({ ok: false, msg: 'Message not found.' }, 404); }
-    else { const text = clean(body.text, MSG_MAX); if (!text) return J({ ok: false, msg: 'Type a message.' }, 400); m = { m: rand(12), f: 1, t: text, at: Date.now() }; th.push(m); }
-    let r = null; try { r = await peer(f, '/f/msg', { mid: m.m, text: m.t }); } catch { }
+    else { const text = clean(body.text, MSG_MAX), im = body.img ? readImg(body.img) : null; if (body.img && !im) return J({ ok: false, msg: 'That photo could not be sent. Try a different one.' }, 400); if (!text && !im) return J({ ok: false, msg: 'Type a message.' }, 400);
+      m = { m: rand(12), f: 1, t: text, at: Date.now() }; if (im) m.img = saveImg(st, f.id, im); th.push(m); }
+    let out = { mid: m.m, text: m.t }; if (m.img) { const im = loadImg(st, f.id, m.img.id); if (im) out.img = { mime: im.mime, b64: b64of(im.u), w: im.w, h: im.h }; else if (!m.t) return J({ ok: false, msg: 'That photo is no longer saved here.' }, 410); }
+    let r = null; try { r = await peer(f, '/f/msg', out); } catch { }
     m.s = r?.ok ? null : 'failed'; if (r?.status === 401) f.ok = false; else if (r?.ok) f.ok = true;
-    f.last = m.at; f.lastText = m.t.slice(0, 80); await st.put('fm:' + f.id, th.slice(-KEEP)); await putAll(st, all);
-    return J({ ok: !!r?.ok, msg: r?.ok ? 'Sent.' : r?.status === 401 ? `${f.alias || f.name}'s dashboard no longer knows this connection.` : 'Not delivered. Their dashboard could not be reached; tap to retry.', m: { m: m.m, me: true, t: m.t, at: m.at, s: m.s } });
+    f.last = m.at; f.lastText = m.t ? m.t.slice(0, 80) : 'Photo'; await st.put('fm:' + f.id, th.slice(-KEEP)); await putAll(st, all);
+    return J({ ok: !!r?.ok, msg: r?.ok ? 'Sent.' : r?.status === 401 ? `${f.alias || f.name}'s dashboard no longer knows this connection.` : m.img && r?.status === 400 ? `Not delivered. ${f.alias || f.name}'s dashboard needs the latest update to get photos.` : 'Not delivered. Their dashboard could not be reached; tap to retry.', m: { m: m.m, me: true, t: m.t, at: m.at, s: m.s, img: m.img || null } });
   }
   if (op === 'share') { if ('share' in body) f.share = !!body.share; if ('live' in body) f.live = !!body.live; if (!f.share) f.live = false; await putAll(st, all); await meta(f, { share: f.share, live: f.live }); return J({ ok: true, msg: f.share ? (f.live ? `${f.alias || f.name} can see your dashboard, live account included.` : `${f.alias || f.name} can see your dashboard. Your live account stays private.`) : `${f.alias || f.name} can no longer see your dashboard.` }); }
   if (op === 'rename') { f.alias = clean(body.alias, 40); await putAll(st, all); return J({ ok: true }); }
-  if (op === 'remove') { try { await peer(f, '/f/bye', {}); } catch { } delete all[f.id]; await putAll(st, all); await st.delete('fm:' + f.id); return J({ ok: true, msg: 'Removed. Chat history with them is deleted here.' }); }
+  if (op === 'remove') { try { await peer(f, '/f/bye', {}); } catch { } delete all[f.id]; await putAll(st, all); await st.delete('fm:' + f.id); try { isql(st).exec('DELETE FROM fimg WHERE pair = ?', f.id); } catch { } return J({ ok: true, msg: 'Removed. Chat history with them is deleted here.' }); }
   return J({ ok: false, msg: 'Unknown request.' }, 400);
 }
