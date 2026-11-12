@@ -639,6 +639,10 @@ export function createKalshi(state, env, keep) {
     const close = closeMs / 1000, x0 = close - 900, pid = CBPID[c]; if (!pid) return null;
     let pts = []; try { pts = (await advCandles(pid, x0 + 240, x0 + 600)).map(k => [k[0] + 60, k[4]]).filter(p => p[0] >= x0 + 300 && p[0] <= x0 + 600); } catch (e) { console.log(`trend ${c}: ${e.message}`); return null; }
     if (pts.length < 3) { console.log(`trend ${c}: only ${pts.length} points`); return null; }
+    // MC 2026-11-12 request 7: Coinbase sends these candles newest first, so the last point was the minute-5 close, not minute 10.
+    // The slope did not care, but the share of the lead kept did: with the trend against the bet, minute 5 is the best price of
+    // the stretch, so every such trade read as 100% kept and cash out never sold. Oldest first from here on.
+    pts.sort((a, b) => a[0] - b[0]);
     const n = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / n, my = pts.reduce((a, p) => a + p[1], 0) / n; let sxx = 0, sxy = 0; for (const p of pts) { sxx += (p[0] - mx) ** 2; sxy += (p[0] - mx) * (p[1] - my); }
     const slope = sxx ? sxy / sxx : 0; slopes.set(key, slope); for (const k of slopes.keys()) if (+k.split(':')[1] < closeMs - 2 * Q) { slopes.delete(k); leads.delete(k); }
     const ys = pts.map(p => p[1]); leads.set(key, { hi: Math.max(...ys), lo: Math.min(...ys), p10: ys[ys.length - 1] });
@@ -647,12 +651,16 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-11 trend checks made before the share-of-the-lead rule have no share saved, so those trades could not be scored
   // under it (they just read as held). The minute prices for those windows are still on Coinbase, so this works the share out
   // after the fact, a few per minute, and the paper book, Labs and the cash-out panel re-score themselves. Three tries each.
+  // MC 2026-11-12 request 7: shares saved before the candle order fix (keepV under 2) were read off the wrong minute, so they are
+  // worked out again the same way, the fresh ones first.
+  const KEEP_V = 2;
   async function keepFill(now) {
     let n = 0;
-    for (const r of rec.values()) { const x = r.exit; if (!x || x.keep != null || (x.keepTry || 0) >= 3 || !(r.strike > 0) || r.close > now - 60000) continue; if (++n > 8) break;
+    const due = [...rec.values()].filter(r => { const x = r.exit; return x && (x.keep == null || (x.keepV || 0) < KEEP_V) && (x.keepTry || 0) < 3 && r.strike > 0 && r.close <= now - 60000; }).sort((a, b) => b.close - a.close);
+    for (const r of due) { const x = r.exit; if (++n > 8) break;
       const c = coin(r.series), key = c + ':' + r.close; if (!leads.has(key)) { slopes.delete(key); try { await slopeOf(c, r.close); } catch { } }
       const L = leads.get(key); if (!L) { x.keepTry = (x.keepTry || 0) + 1; saveRec(r); continue; }
-      x.keep = keepOf(L, r.side, r.strike); saveRec(r); viewDirty = true; }
+      x.keep = keepOf(L, r.side, r.strike); x.keepV = KEEP_V; saveRec(r); viewDirty = true; }
     if (n) console.log(`trend share filled for ${Math.min(n, 8)} earlier checks`);
   }
   async function trendCheck(now) {
@@ -662,7 +670,7 @@ export function createKalshi(state, env, keep) {
     for (const [c, list] of Object.entries(byCoin)) {
       const slope = await slopeOf(c, list[0].close); if (slope == null) continue;
       for (const r of list) {
-        const pct = slope * 300 / r.strike * 100 * (r.side === 'yes' ? 1 : -1), dir = Math.abs(pct) < 0.02 ? 0 : pct > 0 ? 1 : -1, x = { at: now, pct: +pct.toFixed(4), dir, keep: keepOf(leads.get(c + ':' + r.close), r.side, r.strike) };
+        const pct = slope * 300 / r.strike * 100 * (r.side === 'yes' ? 1 : -1), dir = Math.abs(pct) < 0.02 ? 0 : pct > 0 ? 1 : -1, x = { at: now, pct: +pct.toFixed(4), dir, keep: keepOf(leads.get(c + ':' + r.close), r.side, r.strike), keepV: KEEP_V };
         if (dir < 0) { try { const b = bids(await get(`/markets/${r.ticker}/orderbook`)), mine = r.side === 'yes' ? b.yes : b.no; if (mine.length) { x.best = mine[0][0]; const avg = walk(mine, BOOK_N); x.px = +(avg ?? mine[0][0]).toFixed(4); x.depth = mine.reduce((a, q) => a + q[1], 0); } } catch (e) { console.log(`trend ${r.ticker}: book ${e.message}`); } }
         r.exit = x; saveRec(r); viewDirty = true;
         console.log(`trend ${c} ${r.side} ${pct >= 0 ? '+' : ''}${pct.toFixed(3)}% ${dir > 0 ? 'with' : dir < 0 ? 'against, bid ' + (x.px != null ? (x.px * 100).toFixed(1) + 'c' : 'none') : 'flat'}${x.keep != null ? ` kept ${Math.round(x.keep * 100)}%` : ''}`);

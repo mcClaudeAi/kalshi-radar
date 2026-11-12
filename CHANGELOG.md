@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.77 (Nov 12, 2026): Share of the lead kept read off the right minute
+The share of the lead kept was taken from the minute 5 price instead of minute 10, so cash out never sold.
+- [fixed] Share of the lead kept. Coinbase sends the minute prices newest first and the tracker read the last one as the minute 10 price when it was really minute 5. When the trend ran against the bet, minute 5 was the best price of the stretch, so every such trade showed 100% kept, in a trade's How it played out and in Labs, and cash out held everything. Reported on NO bets; YES bets had it too. Now the prices are put in order first.
+- [fixed] Shares saved before this are worked out again from the minute prices, a few trades a minute, newest first. Trades that were trending against their bet with less of the lead left than your setting are cashed out again, so the paper bank, Labs and the cash out panel will move for a while after updating.
+
 ## 1.0.76 (Nov 12, 2026): A cap on trades per window, a 96¢ playbook, and room in the book
 Three things from four months of research into what the rule earns and where it loses.
 - [new] Most trades a window, in Paper settings. Caps how many coins one 15-minute window may buy, clearest first, on the paper book, the labs, the live account and the live books. Coins that line up on one side lose together; in the four-month history three a window made the worst day about a third smaller on Margin vs volatility under 96¢, for about 12% less profit. It starts at 9, which is no cap, so nothing changes until you set it.
