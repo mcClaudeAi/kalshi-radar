@@ -562,33 +562,39 @@ export function createKalshi(state, env, keep) {
   // with nothing recorded at all, which is how today's gap gets picked up.
   let gaps = null, beat = null, gapAt = 0;
   async function gapWatch(now) {
-    if (gaps == null) { gaps = (await kv.get('kgaps')) || []; beat = (await kv.get('kbeat')) ?? null;
-      if (beat == null) { const have = new Set(); let first = Infinity; for (const m of [rec, rec3]) for (const r of m.values()) { have.add(r.close); if (r.close < first) first = r.close; }
+    if (gaps == null) { gaps = (await kv.get('kgaps')) || []; beat = (await kv.get('kbeat2')) ?? null;
+      if (beat == null) { gaps = []; const have = new Set(); let first = Infinity; for (const m of [rec, rec3]) for (const r of m.values()) { have.add(r.close); if (r.close < first) first = r.close; }
         let run = null; for (let w = Math.ceil(Math.max(now - 48 * 3600000, first) / Q) * Q; w <= now - Q; w += Q) { if (!have.has(w)) { if (!run) run = [w - 601000, 0]; run[1] = w - 599000; } else if (run) { gaps.push(run); run = null; } } if (run) gaps.push(run);
         gaps = gaps.filter(g => g[1] - g[0] >= Q); if (gaps.length) { await kv.put('kgaps', gaps); say(`found ${gaps.length} stretch${gaps.length === 1 ? '' : 'es'} with no trade checks in the last two days; filling them in`); } } }
     if (beat != null && now - beat > 20 * 60000) { gaps.push([beat, now]); await kv.put('kgaps', gaps); say(`tracker was off for ${Math.round((now - beat) / 60000)} minutes; filling in the trade checks it missed`); }
-    beat = now; await kv.put('kbeat', now);
+    beat = now; await kv.put('kbeat2', now);
   }
   const cpx = o => o == null ? null : o.close_dollars != null ? +o.close_dollars : o.close != null ? o.close / 100 : null;
   async function gapFill(now) {
     if (!gaps || !gaps.length || now - gapAt < 50000) return; gapAt = now;
-    const g = gaps[0], w = Math.ceil((g[0] + 600000) / Q) * Q;   // the first window whose trade check fell inside the gap
-    if (w - 600000 > g[1] || w < now - 7 * 86400000) { gaps.shift(); await kv.put('kgaps', gaps); return; }
+    // longest stretch first: a real outage runs for hours, a quiet spell where no coin reached 85c is two or three windows
+    const g = gaps.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a)), w = Math.ceil((g[0] + 600000) / Q) * Q;   // the first window whose trade check fell inside the gap
+    if (w - 600000 > g[1] || w < now - 7 * 86400000) { gaps.splice(gaps.indexOf(g), 1); await kv.put('kgaps', gaps); return; }
     if (w > now) return;
-    let n = 0;
+    let n = 0; const why = { nomkt: 0, had: 0, nocandle: 0, noquote: 0, low: 0 }; let smp = '';
     for (const s of activeSeries()) {
-      const c = w / 1000, j = await get(`/markets?series_ticker=${s}&min_close_ts=${c - 5}&max_close_ts=${c + 5}&limit=5`);
-      const m = (j?.markets || []).find(x => Date.parse(x.close_time) === w); if (!m || rec.has(m.ticker)) continue;
+      // MC 2026-11-12 the first version asked without a status and Kalshi sent back an empty list for every coin, so the first
+      // few windows were passed over with nothing added (the heartbeat key was renamed to make the look-back run again).
+      const c = w / 1000; let j = await get(`/markets?series_ticker=${s}&status=settled&min_close_ts=${c - 5}&max_close_ts=${c + 5}&limit=5`);
+      if (!(j?.markets || []).length) j = await get(`/markets?series_ticker=${s}&status=closed&min_close_ts=${c - 5}&max_close_ts=${c + 5}&limit=5`);
+      const m = (j?.markets || []).find(x => Date.parse(x.close_time) === w); if (!m) { why.nomkt++; if (!smp) smp = 'list ' + JSON.stringify((j?.markets || []).map(x => x.close_time)).slice(0, 120); continue; } if (rec.has(m.ticker)) { why.had++; continue; }
       const t = c - 600, k = await get(`/series/${s}/markets/${m.ticker}/candlesticks?start_ts=${t - 180}&end_ts=${t + 60}&period_interval=1`);
-      const cd = (k?.candlesticks || []).filter(x => x.end_period_ts <= t).pop(); if (!cd) continue;
-      const ya = cpx(cd.yes_ask), yb = cpx(cd.yes_bid); if (!(ya > 0 && ya < 1) || !(yb > 0 && yb < 1)) continue;
-      const na = +(1 - yb).toFixed(4), side = ya >= na ? 'yes' : 'no', ask = side === 'yes' ? ya : na; if (ask < KEEP_ASK) continue;
+      const cd = (k?.candlesticks || []).filter(x => x.end_period_ts <= t).pop(); if (!cd) { why.nocandle++; if (!smp) smp = 'candles ' + JSON.stringify(k).slice(0, 200); continue; }
+      const ya = cpx(cd.yes_ask), yb = cpx(cd.yes_bid); if (!(ya > 0 && ya < 1) || !(yb > 0 && yb < 1)) { why.noquote++; if (!smp) smp = 'quote ' + JSON.stringify(cd).slice(0, 260); continue; }
+      const na = +(1 - yb).toFixed(4), side = ya >= na ? 'yes' : 'no', ask = side === 'yes' ? ya : na; if (ask < KEEP_ASK) { why.low++; continue; }
       const r = { ticker: m.ticker, series: s, at: w - 600000, close: w, left: 10, side, ask, depthAtAsk: null, avgN: null, ...detail(m), ya, na, src: 'fill' };
       if (m.result === 'yes' || m.result === 'no') { r.result = m.result; r.won = m.result === side; r.final = fin(m); }
       rec.set(m.ticker, r); saveRec(r); n++;
     }
+    if (why.nomkt === activeSeries().length && w > now - 6 * 3600000) { console.log(`gapfill ${new Date(w).toISOString()} no markets listed yet ${smp}`); return; }
     g[0] = w - 599000; await kv.put('kgaps', gaps); viewDirty = true;
     say(`filled in the ${new Date(w - 600000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET trade check: ${n} coin${n === 1 ? '' : 's'} at 85c or more`);
+    console.log(`gapfill ${new Date(w).toISOString()} added ${n} ${JSON.stringify(why)} ${smp}`);
   }
   async function settleSome(now, quick) {
     let k = 0, any = false;

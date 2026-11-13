@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.80 (Nov 12, 2026): Fix for filling in missed trade checks
+- [fixed] The fill-in added in 1.0.79 asked Kalshi for the missed markets the wrong way and got nothing back, so it passed over windows without adding anything. It now gets them, runs its two-day look-back again, and does the longest outage first.
+
 ## 1.0.79 (Nov 12, 2026): Missed trade checks are filled back in
 If the tracker is ever off for a while, the trade checks it missed are rebuilt afterwards.
 - [new] When the tracker has been off for more than 20 minutes, it rebuilds the trade checks it missed from Kalshi's minute-by-minute price history, one window a minute, then settles them like any other. Each one uses the quoted price at the 10-minutes-left mark. The first run also looks back two days, so the hours lost to the outage on Nov 12 are filled in on their own. Rebuilt checks have no order-book depth, so they are left out of Room in the book.
