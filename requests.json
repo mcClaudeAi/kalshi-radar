@@ -25,9 +25,9 @@
   {
    "id": 4,
    "text": "In the trade replay, draw the minute 5 to 10 trend with double exponential smoothing and label it up, down or neutral.",
-   "status": "possible",
-   "version": "1.0.59",
-   "note": "The replay draws a straight best-fit line through the minute 5 to 10 prices and labels it with the bet, flat or against it (1.0.59, refined in 1.0.61). You confirmed that line is what you wanted, so it stays a best-fit line. Say so if you still want the smoothing version."
+   "status": "released",
+   "version": "1.0.81",
+   "note": "Released in 1.0.81. Open any trade: the replay draws a dotted smoothed trend (double exponential) over minute 5 to 10 beside the best-fit line, and the trend card labels it up, down or neutral and says when it disagrees with the line."
   },
   {
    "id": 3,
