@@ -462,8 +462,13 @@ export function createKalshi(state, env, keep) {
     if (entryBusy) return 0; entryBusy = true; st.lastMark = now;   // the alarm and the minute tick can't both run one mark
     let n = 0; const hits = [];
     try {
-    for (const s of activeSeries()) {
-      const j = await get(`/markets?series_ticker=${s}&status=open&limit=6`);
+    // MC 2026-11-13 the scan at the mark ran one coin after another: the market list, the order book and the Coinbase candles
+    // for each of nine coins in turn, so the last coin was read several seconds after the first and every live order waited
+    // for all of it. The coins are now read side by side and saved in the usual order once all are in; the orders go out
+    // the moment the slowest coin answers. The time it took is logged as "entry".
+    const t0 = Date.now();
+    const scanOne = async s => {
+      const got = [], j = await get(`/markets?series_ticker=${s}&status=open&limit=6`);
       for (const m of j?.markets || []) {
         const close = Date.parse(m.close_time), left = (close - now) / 60000;
         if (rec.has(m.ticker) || left > MIN_LEFT + 0.4 || left < MIN_LEFT - 1) continue;
@@ -477,12 +482,19 @@ export function createKalshi(state, env, keep) {
         // the book for it. null = the book did not hold that many.
         const dp = n => { const a = walk(asks, n); return a == null ? null : +a.toFixed(4); };
         const r = { a250: dp(250), a500: dp(500), ticker: m.ticker, series: s, at: now, close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), ...detail(m), ya, na, depth: asks.reduce((a, x) => a + x[1], 0), src: 'cloud' };
-        rec.set(m.ticker, r); saveRec(r); n++;
-        if (ask >= KEEP_ASK) { const v = await volAt(coin(s), r.strike, side); if (v) { r.vol = v; saveRec(r); } }
-        // MC 2026-11-13 request 9: a maximum price beside the minimum, so a price band can be tried without changing a playbook
-        if (ask >= cfgP.minAsk && ask <= (cfgP.maxAsk ?? 0.99) + 1e-9) { say(`${m.ticker} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- rule`); hits.push(r); }
+        const v = await volAt(coin(s), r.strike, side); if (v) r.vol = v;
+        got.push(r);
       }
+      return got;
+    };
+    const all = await Promise.all(activeSeries().map(s => scanOne(s).catch(e => { say(`scan ${s} error: ${e.message}`); return []; })));
+    for (const r of all.flat()) {
+      if (rec.has(r.ticker)) continue;
+      rec.set(r.ticker, r); saveRec(r); n++;
+      // MC 2026-11-13 request 9: a maximum price beside the minimum, so a price band can be tried without changing a playbook
+      if (r.ask >= cfgP.minAsk && r.ask <= (cfgP.maxAsk ?? 0.99) + 1e-9) { say(`${r.ticker} ${r.side.toUpperCase()} at ${Math.round(r.ask * 100)}c <- rule`); hits.push(r); }
     }
+    console.log(`entry ${n} coins read in ${Date.now() - t0}ms, ${hits.length} for the rule, ${Math.round((Date.now() - (nextMark(now) - Q)) / 100) / 10}s after the mark`);
     // MC 2026-11-08 live orders go after the scan so the active playbook can see the whole window (how many coins qualified,
     // each coin's volatility reading). Was: order per coin inside the loop under the plain rule.
     learnFill(now + 1);

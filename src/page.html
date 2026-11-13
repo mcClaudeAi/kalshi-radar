@@ -1402,10 +1402,11 @@ function barChart(el,rows,{h=200,fmt=usd}={}){ // rows: [{label, v, color, sub}]
 // ---------- data ----------
 async function load(){
   // MC 2026-11-11 looking at a friend's dashboard: the same snapshot shape, fetched through this worker from theirs
-  const fv=ST.fv;try{const r=await fetch(fv?'/api/friends/view?id='+encodeURIComponent(fv.id):'/data',{cache:'no-store',credentials:'same-origin'});if(r.status===401){kxAuthLost();return}
+  const fv=ST.fv;try{const r=await fetch(fv?'/api/friends/view?id='+encodeURIComponent(fv.id):'/data',{cache:fv?'no-store':'no-cache',credentials:'same-origin'});if(r.status===401){kxAuthLost();return}
     if(fv&&!r.ok){const e=await r.json().catch(()=>({}));if(ST.fv!==fv)return;toast(e.msg||'Could not open that dashboard.');frBack();return}
     const j=await r.json();if(ST.fv!==fv)return;if(!j.lite&&!j.kx){ST.err++;beat();return}if(!FR.list)frSync();
-    const D={...(j.heavy||{}),...(j.lite||{})};if(j.kx)D.kalshi=j.kx;ST.D=D;ST.last=D.at;ST.err=0;carWatch(D);sndPump();if(ST.pane?.kind==='coin'&&$('#drawer').classList.contains('on')){paintChrome();coinPane(ST.pane.id,ST.pane.tid)}else if(!kxSetHold())render();else paintChrome();carPump();}
+    const D={...(j.heavy||{}),...(j.lite||{})};if(j.kx)D.kalshi=j.kx;if(D.edition==='kalshi')D.at=Date.now();   // the edition stamps the reply time, and a 304 hands back the earlier stamp
+    ST.D=D;ST.last=D.at;ST.err=0;carWatch(D);sndPump();if(ST.pane?.kind==='coin'&&$('#drawer').classList.contains('on')){paintChrome();coinPane(ST.pane.id,ST.pane.tid)}else if(!kxSetHold())render();else paintChrome();carPump();}
   catch(e){ST.err++;}
   beat();
 }
@@ -3839,7 +3840,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.83',KR_DATE='Nov 13, 2026';
+const KR_VERSION='1.0.84',KR_DATE='Nov 13, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

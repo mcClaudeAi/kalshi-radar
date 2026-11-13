@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.84 (Nov 13, 2026): Faster trade check and lighter page loads
+- [improved] The trade check at each mark reads all nine coins at once instead of one after another, so the rule's orders go out sooner after the mark, at prices closer to the ones the rule saw. In a test with a tenth of a second per request it went from 2.6 seconds to 0.4.
+- [improved] The page and the 10-second data refresh are only sent again when they have changed. Opening the dashboard again after the first time, and most refreshes in between the tracker's once-a-minute updates, now come back as a short "no change" instead of the whole thing.
+
 ## 1.0.83 (Nov 13, 2026): Maximum price, and Kalshi's API level from the Live account tab
 Two of Steven's requests.
 - [new] Maximum price, in Paper settings beside the minimum. Leaders above it are not taken, so a price band like 90 to 95¢ can be tried on every playbook without changing any of them. It applies wherever the minimum does: the paper book, the labs and the live account. 99 is no maximum, which is where it starts.

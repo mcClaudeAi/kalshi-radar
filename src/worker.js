@@ -179,7 +179,7 @@ export class Store {
     if (p.startsWith('/api/friends')) return friendsOwner(this.state.storage, req, body, fctx);
     if (p === '/data') {
       let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; }
-      return new Response(`{"lite":{"at":${Date.now()},"copyOff":true,"mode":"paper","edition":"kalshi"},"heavy":null,"kx":${kv || 'null'}}`, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+      return etagged(req, `{"lite":{"at":${Date.now()},"copyOff":true,"mode":"paper","edition":"kalshi"},"heavy":null,"kx":${kv || 'null'}}`, { 'content-type': 'application/json' }, kv || 'null');
     }
     if (p === '/api/klive') { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return new Response(h || 'null', { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
     if (p === '/api/cmd' && post) {
@@ -236,6 +236,15 @@ export class Store {
 }
 
 const SEC = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY', 'permissions-policy': 'camera=(), microphone=(), geolocation=()' };
+// MC 2026-11-13 the page (about 250 KB compressed) and the /data snapshot (polled every 10 seconds) were sent in full every
+// time with no-store. They now carry an ETag and no-cache, so the browser asks "still the same?" and gets an empty 304 when
+// nothing changed: the page after a deploy only, the snapshot between the once-a-minute updates.
+async function etagged(req, body, headers, tagOf = body) {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(tagOf))), tag = '"' + [...h.slice(0, 12)].map(b => b.toString(16).padStart(2, '0')).join('') + '"';
+  const hd = { ...headers, etag: tag, 'cache-control': 'private, no-cache' };
+  return (req.headers.get('if-none-match') || '').split(/\s*,\s*/).includes(tag) ? new Response(null, { status: 304, headers: hd }) : new Response(body, { headers: hd });
+}
+
 export default {
   async fetch(req, env) {
     const u = new URL(req.url), stub = env.STORE.get(env.STORE.idFromName('main'));
@@ -243,7 +252,7 @@ export default {
     if (ICONS[u.pathname.slice(1)]) { const b = Uint8Array.from(atob(ICONS[u.pathname.slice(1)]), c => c.charCodeAt(0)); return new Response(b, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' } }); }
     if (u.pathname === '/sw.js') return new Response(SW_JS, { headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache', 'service-worker-allowed': '/' } });
     if (u.pathname === '/manifest.webmanifest') return new Response(JSON.stringify({ name: 'Kalshi Radar', short_name: 'Kalshi Radar', start_url: '/', display: 'standalone', background_color: '#060a16', theme_color: '#060a16', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=86400' } });
-    if (u.pathname === '/' || u.pathname === '/index.html') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SEC } });
+    if (u.pathname === '/' || u.pathname === '/index.html') return etagged(req, PAGE, { 'content-type': 'text/html; charset=utf-8', ...SEC });
     if (u.pathname === '/data' || u.pathname.startsWith('/api/') || u.pathname.startsWith('/f/')) return stub.fetch(req);
     if (u.pathname === '/favicon.ico') return new Response(null, { status: 204 });
     return new Response('Not found', { status: 404 });
