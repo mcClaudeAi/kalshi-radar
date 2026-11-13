@@ -1,6 +1,13 @@
 {
- "updated": "Nov 12, 2026",
+ "updated": "Nov 13, 2026",
  "items": [
+  {
+   "id": 8,
+   "text": "Let users upgrade their Kalshi live account to the higher API usage level (up to 30 requests a second) from the live account section, using the account upgrade endpoint. Upgrading also allows subaccounts to be created.",
+   "status": "read",
+   "note": "Waiting on the owner. This changes the live Kalshi account itself and opens the door to subaccounts, so it is not something the tracker adds on its own. The question for the owner is whether Kalshi Radar should change a live account's usage level at all, and if so what the tracker shows before the button is pressed.",
+   "version": ""
+  },
   {
    "id": 7,
    "text": "Share of the lead kept uses the high for YES bets and the low for NO bets, but on NO bets it shows 100% whenever the trend is against the bet, as if the minute 10 price were the low of the stretch.",
