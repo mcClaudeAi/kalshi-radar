@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.94 (Nov 13, 2026): No more straight line after coming back to the app
+- [fixed] Coming back to the app after it was in the background left a straight line across the live trade chart for the minutes the phone had paused the price feed. The chart now rebuilds those minutes from Coinbase's trade history when you return, then carries on live. The 60-second average fills back in within a minute.
+
 ## 1.0.93 (Nov 13, 2026): Charts that draw right on arrival
 - [fixed] Charts were sometimes squashed or stretched when opening the dashboard or coming back to it, because they were drawn while the page was still settling (the scrollbar appearing, the phone restoring the page from the background) and never redrawn. They now redraw whenever the page width changes and when you come back to the tab.
 - [fixed] The live trade chart drew a stray tail to the left of the chart, from the minute before the window opened. That minute now starts the line at the open.

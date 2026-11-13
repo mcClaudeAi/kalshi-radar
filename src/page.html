@@ -2562,7 +2562,13 @@ async function kxRest(){if(!KX.on||KX.wsOk)return;for(const c of Object.keys(KXP
 // reset after 40 seconds, and coming back to the page clears anything that failed.
 const kxGet=async(u,ms=7000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);try{return await fetch(u,{signal:ac.signal,cache:'no-store'})}finally{clearTimeout(tm)}};
 KX.trRetry=KX.trRetry||{};
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;for(const k of Object.keys(KX.tr||{}))if(!KX.tr[k].pts.length)delete KX.tr[k];KX.trRetry={};KX.trReq={};KX.trQ=[];KX.trBusy=false;KX.candReq={}});
+// MC 2026-11-13 coming back to the app left a straight line across the minutes the phone had paused the live price feed: the
+// last tick before leaving joined straight to the first one after. A coin whose last tick is more than 15 seconds old now drops
+// its live ticks and its fetched history, so the chart rebuilds the whole window from Coinbase's trade history (and minute
+// candles for anything older) and the live feed carries on from there.
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;
+  {const now=Date.now()/1000;for(const c of Object.keys(KX.px||{})){const o=KX.px[c],t=o?.ticks;if(!t||!t.length||now-t[t.length-1][0]<=15)continue;o.ticks=[];for(const m of [KX.tr||{},KX.cand||{}])for(const k of Object.keys(m))if(k.startsWith(c+':'))delete m[k]}}
+  for(const k of Object.keys(KX.tr||{}))if(!KX.tr[k].pts.length)delete KX.tr[k];KX.trRetry={};KX.trReq={};KX.trQ=[];KX.trBusy=false;KX.candReq={}});
 async function kxCandles(c,fromMs,toMs){const key=c+':'+Math.floor(fromMs/60000);if(KX.cand[key])return KX.cand[key];if(KX.candReq[key]||((KX.candRetry||={})[key]||0)>Date.now())return null;KX.candReq[key]=1;KX.candRetry[key]=Date.now()+15000;
   try{const r=await kxGet(`https://api.exchange.coinbase.com/products/${KXPID[c]}/candles?granularity=60&start=${new Date(fromMs-60000).toISOString()}&end=${new Date(Math.min(toMs,Date.now())).toISOString()}`);const j=await r.json();const pts=(Array.isArray(j)?j:[]).map(x=>[+x[0]+60,+x[4]]).filter(x=>x[1]>0).sort((a,b)=>a[0]-b[0]);if(pts.length)KX.cand[key]=pts;return pts}catch{return null}finally{delete KX.candReq[key]}}
 // MC 2026-11-08 tick-level backfill. The minute candles only gave one point a minute for the part of the window before this page
@@ -3987,7 +3993,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.93',KR_DATE='Nov 13, 2026';
+const KR_VERSION='1.0.94',KR_DATE='Nov 13, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
