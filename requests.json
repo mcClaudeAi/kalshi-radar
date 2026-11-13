@@ -2,11 +2,18 @@
  "updated": "Nov 13, 2026",
  "items": [
   {
+   "id": 10,
+   "text": "Let the minimum and maximum price in the basic settings take three decimal places, like .945, instead of rounding to two.",
+   "status": "released",
+   "note": "Released in 1.0.88. Paper settings, Minimum price and Maximum price take a tenth of a cent, so 94.5 means 94.5¢ and up. Kalshi quotes these markets to a tenth of a cent and about half the leaders in the history sat between two whole cents. On the four months of history the plain rule at a 94.5¢ minimum took 2,698 trades for +$347, between 94¢ (3,410 trades, +$703) and 95¢ (2,346 trades, +$15).",
+   "version": "1.0.88"
+  },
+  {
    "id": 9,
-   "title": "Add a maximum price to the basic settings, beside the minimum price, so other rules can be tested without changing them.",
    "status": "released",
    "version": "1.0.83",
-   "note": "Released in 1.0.83. Paper settings, Maximum price. Applies to the paper book, labs and live, like the minimum."
+   "note": "Released in 1.0.83. Paper settings, Maximum price. Applies to the paper book, labs and live, like the minimum.",
+   "text": "Add a maximum price to the basic settings, beside the minimum price, so other rules can be tested without changing them."
   },
   {
    "id": 8,
