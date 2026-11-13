@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.89 (Nov 13, 2026): Daily P&L, stops and losses in one chart
+- [improved] The Daily P&L chart on Analytics now shows three things per day in one place: the day's result (solid bar), where it would have ended with no stops (amber marker, for the daily loss stop, profit target, give-back, bank drawdown and protect profit), and what its wins made on their own (hatched column). Three totals sit above it for the days shown: the result, with no stops and the difference, and wins alone with what the losses cost. Tap a total to hide or show that layer on the chart; it is remembered on the device. On a phone the totals stack as compact rows.
+
 ## 1.0.88 (Nov 13, 2026): Minimum and maximum price to a tenth of a cent
 Request 10.
 - [improved] Minimum price and Maximum price in Paper settings now take a tenth of a cent, so 94.5 means 94.5¢ and up where before it was rounded to 95. Kalshi quotes these markets to a tenth of a cent and about half the leaders in the four-month history sat between two whole cents. On that history the plain rule at a 94.5¢ minimum took 2,698 trades for +$347, between 94¢ (3,410 trades, +$703) and 95¢ (2,346 trades, +$15). Everywhere the dashboard shows the price band it now shows the tenth too, and the Save confirmation names the maximum price in cents instead of dollars.
