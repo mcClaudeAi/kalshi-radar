@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.81 (Nov 12, 2026): Smoothed trend in the trade replay
+- [new] The trade replay now draws a second, dotted trend over minute 5 to 10 using double exponential smoothing, and the trend card labels it up, down or neutral. The straight line weighs the whole five minutes the same; the smoothed one leans on the latest prices, so it shows a turn late in the stretch. The card says when the two disagree. Cash out still goes by the straight line and the share of the lead kept.
+
 ## 1.0.80 (Nov 12, 2026): Fix for filling in missed trade checks
 - [fixed] The fill-in added in 1.0.79 asked Kalshi for the missed markets the wrong way and got nothing back, so it passed over windows without adding anything. It now gets them, runs its two-day look-back again, and does the longest outage first.
 
