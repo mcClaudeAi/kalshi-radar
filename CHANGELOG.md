@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.85 (Nov 13, 2026): Profit vault, and a clear line between paper and live settings
+- [new] Profit vault, on the Live account tab. A Kalshi subaccount the tracker never trades from. Profits from the main live account move into it on a schedule you pick (nightly, weekly on a day you choose, or monthly) by a rule you pick: a share of the period's profit, or everything over an amount. A losing period moves nothing, and with "make up losses first" on, its loss comes out of the next profit before anything is swept. A sweep never takes the main account under the amount you say to keep. "If it ran now" shows what the next sweep would move and why, and History lists every sweep, including the ones that moved nothing.
+- [new] Send to bank. Kalshi does not let apps withdraw to a bank, so this moves the amount from the vault to your main account, holds it there for 3 days so live trading leaves it alone, and opens Kalshi to finish the withdrawal. Move money moves cash between the vault and trading by hand. The automatic switch and every move are hold-to-confirm. Needs the Advanced API level, the same as live books.
+- [improved] Every setting on the Settings tab is tagged Paper and live, Paper only, or Live only, with a short guide at the top. The Live account tab has a new "What live follows" card: what is set there for real money next to the shared rules it takes from Settings, with their current values.
+
 ## 1.0.84 (Nov 13, 2026): Faster trade check and lighter page loads
 - [improved] The trade check at each mark reads all nine coins at once instead of one after another, so the rule's orders go out sooner after the mark, at prices closer to the ones the rule saw. In a test with a tenth of a second per request it went from 2.6 seconds to 0.4.
 - [improved] The page and the 10-second data refresh are only sent again when they have changed. Opening the dashboard again after the first time, and most refreshes in between the tracker's once-a-minute updates, now come back as a short "no change" instead of the whole thing.

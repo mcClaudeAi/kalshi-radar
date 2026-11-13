@@ -1,5 +1,6 @@
 import { feats, fit, predict, logit, LEARN_F, LEARN_NAME } from './learn.js';
 import { createBooks } from './books.js';
+import { createVault } from './vault.js';
 import { SEED } from './learn-seed.js';
 // MC 2026-11-07 Kalshi tracker moved off the PC (asked to run it somewhere other than his computer; Cloudflare picked over a $5 VPS).
 // This is kalshi-paper.mjs + kalshi-live-lib.mjs + notify.js's kalshiView, rebuilt to run inside the dashboard's Durable Object:
@@ -262,7 +263,7 @@ export function createKalshi(state, env, keep) {
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     apiV = (await kv.get('kapi')) || null;
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
-    await books.load();
+    await books.load(); await vault.load();
   }
   // MC 2026-11-12 the dashboard went down: "Exceeded allowed rows read in Durable Objects free tier" (5 million a day). Cloudflare
   // drops this object from memory seconds after each minute's tick when nobody has the page open, so nearly every tick started
@@ -343,6 +344,11 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
   const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
+  const vq = [];   // vault notices waiting for the next push
+  const vault = createVault({ kv, say, XI, etDay, etHour, fail, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(),
+    mainBal: async force => { if (force) st.balAt = 0; await balance(true); return st.bal == null ? null : { bal: st.bal, shard: st.shard }; }, mainCash: () => st.bal,
+    liveTrades: () => [...L.values()], openLive: () => [...L.values()].some(x => x.fill > 0 && !x.result), bookSubs: () => books.view().map(b => b.sub),
+    viewDirty: () => { viewDirty = true; }, notify: e => vq.push(e) });
 
   // ---------- bench: a coin sits out while its rule trades over the last cold days netted below zero ($50 a trade) ----------
   function coldSet(at) {
@@ -364,7 +370,7 @@ export function createKalshi(state, env, keep) {
   }
   async function fund(c) {
     if (Date.now() - st.xferAt < 60000) return;
-    const have = st.shard[XI] ?? 0, src = st.shard[0] ?? 0, want = Math.round(c.sizeUsd * 12), low = c.sizeUsd * 9;
+    const have = st.shard[XI] ?? 0, src = Math.max(0, (st.shard[0] ?? 0) - vault.held()), want = Math.round(c.sizeUsd * 12), low = c.sizeUsd * 9;
     if (have >= low || src < 1) return;
     const amt = Math.min(src, want - have); if (amt < 1) return;
     st.xferAt = Date.now();
@@ -396,7 +402,8 @@ export function createKalshi(state, env, keep) {
     if (why) return skip(why);
     const bal = await balance(true);
     if (bal == null) { fail(`no order for ${r.ticker}: could not read the balance`); return; }
-    const floor = c.minBank ?? HARD.minBank; if (bal < floor) return skip(`cash $${bal.toFixed(2)} is under the $${floor} floor`);
+    // MC 2026-11-13 money brought back from the vault for a bank withdrawal is held: it does not count toward the cash floor
+    const held = vault.held(), floor = c.minBank ?? HARD.minBank; if (bal - held < floor) return skip(`cash $${bal.toFixed(2)}${held ? ` ($${held.toFixed(2)} of it held for a withdrawal)` : ''} is under the $${floor} floor`);
     st.stopped = null;
     // MC 2026-11-08 a sizing playbook (5% of the Kalshi cash) stays inside the $5 to HARD.maxSize live band and the saved size is its ceiling
     let rS = null; if (lab?.size) { let run = 0, pk = 0; for (const x of [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } rS = { peak: bal + (pk - run), start: bal - run }; }
@@ -452,7 +459,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-08 every settled live trade in the paper history's compact shape, for the dashboard's Live analytics tab
       hist: all.filter(x => x.fill > 0 && x.result).slice(0, 2000).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0]),
       recent: all.slice(0, 150).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: !!x.sold, strat: x.strat || null })),
-      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV };
+      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view() };
   }
 
   // ---------- the rule: record the leader at the 10-minute mark ----------
@@ -561,6 +568,7 @@ export function createKalshi(state, env, keep) {
     if (hasKeys() && (c.enabled || now - st.balAt > 5 * 60000)) { try { await balance(); } catch (e) { fail(e.message); } }
     if (c.enabled && st.balAt) { try { await fund(c); } catch (e) { fail('funding error: ' + e.message); } }
     try { await books.upkeep(now); } catch (e) { say('books upkeep error: ' + e.message); }
+    try { await vault.upkeep(now); } catch (e) { say('vault upkeep error: ' + e.message); }
     const a = await state.storage.getAlarm(), want = nextAlarm(now); if (!a || a < now || a > want) await state.storage.setAlarm(want);
     await publish(true);
   }
@@ -707,6 +715,8 @@ export function createKalshi(state, env, keep) {
     if (lt.length) { const today = [...L.values()].filter(x => x.result && x.fill > 0 && etDay(x.close) === D).reduce((a, x) => a + (x.pnl || 0), 0), sid = stratAt(ctl().strat, now), nm = sid === 'rule' ? 'The rule' : (labDefs(K).find(l => l.id === sid)?.name || null);
       build('live', 'Live account', 0, 0, 'l', lt, today, st.bal != null ? `Kalshi balance ${usd(st.bal)}.` : '', nm); }
     if (ch) { for (const k of Object.keys(seen)) if (now - seen[k] > 6 * 3600000) delete seen[k]; await kv.put('kpn', seen); }
+    // MC 2026-11-13 vault sweeps go out as live win notices
+    while (vq.length) { const e = vq.shift(); out.push({ book: 'live', kind: 'settle', win: true, loss: false, title: e.title, body: e.body, tag: 'kvault', url: e.url }); }
     return out;
   }
 
@@ -1178,6 +1188,10 @@ export function createKalshi(state, env, keep) {
     // 'upgrade' asks Kalshi for the permanent Advanced grant (POST /account/api_usage_level/upgrade). Kalshi only gives it when
     // at least one of the account's last 100 orders came in through the API, so a 403 means no live order has been placed yet.
     // Advanced is what subaccounts (live books) need. The answer is kept in kapi so the tab shows it without asking again.
+    if (type === 'kalshiVault') {
+      if (who.locked) return { ok: false, msg: 'That needs an unlocked device.' };
+      const r = await vault.command(a || {}); viewDirty = true; await publish(true); return r;
+    }
     if (type === 'kalshiApi') {
       if (who.locked) return { ok: false, msg: 'That needs an unlocked device.' };
       if (!hasKeys()) return { ok: false, msg: env.KEY_HELP || 'The Kalshi key is not set in Cloudflare yet.' };
