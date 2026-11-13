@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.83 (Nov 13, 2026): Maximum price, and Kalshi's API level from the Live account tab
+Two of Steven's requests.
+- [new] Maximum price, in Paper settings beside the minimum. Leaders above it are not taken, so a price band like 90 to 95¢ can be tried on every playbook without changing any of them. It applies wherever the minimum does: the paper book, the labs and the live account. 99 is no maximum, which is where it starts.
+- [new] Kalshi API level, on the Live account tab. It shows your account's API level, its request limits and your 30-day volume, with an Upgrade to Advanced button. Advanced is free and permanent, allows more requests a second, and is what Kalshi needs before subaccount books can be made. Kalshi only grants it once at least one of your last 100 orders came through the API, so the live account has to place one trade first; the button says so if Kalshi turns it down.
+
 ## 1.0.82 (Nov 12, 2026): What a day would have come to with no stops
 - [new] When a stop pauses the paper book (daily loss, daily profit target, give-back, bank drawdown or protect profit), the dashboard now shows where the day would have ended if trading had gone on. Home shows it under Paper today, the Daily P&L chart on Analytics draws it as a dashed outline on each day a stop fired, and each skipped trade in Trades says whether it would have won or lost and by how much. A skipped trade only counts if your playbook, schedule and per-window cap would have taken it, so the figure matches turning the stop off. Paper only; the bank itself still stops where the stop stopped it.
 

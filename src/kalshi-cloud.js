@@ -31,10 +31,10 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
-const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
+const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
 const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -260,6 +260,7 @@ export function createKalshi(state, env, keep) {
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
+    apiV = (await kv.get('kapi')) || null;
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
     await books.load();
   }
@@ -441,6 +442,7 @@ export function createKalshi(state, env, keep) {
     st.balAt = 0;
   }
   // MC 2026-11-07 150 recent live orders (was 40) so the dashboard day filter can page back through them
+  let apiV = null;
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
     return { on: c.enabled, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
@@ -450,7 +452,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-08 every settled live trade in the paper history's compact shape, for the dashboard's Live analytics tab
       hist: all.filter(x => x.fill > 0 && x.result).slice(0, 2000).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0]),
       recent: all.slice(0, 150).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: !!x.sold, strat: x.strat || null })),
-      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view() };
+      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV };
   }
 
   // ---------- the rule: record the leader at the 10-minute mark ----------
@@ -477,7 +479,8 @@ export function createKalshi(state, env, keep) {
         const r = { a250: dp(250), a500: dp(500), ticker: m.ticker, series: s, at: now, close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), ...detail(m), ya, na, depth: asks.reduce((a, x) => a + x[1], 0), src: 'cloud' };
         rec.set(m.ticker, r); saveRec(r); n++;
         if (ask >= KEEP_ASK) { const v = await volAt(coin(s), r.strike, side); if (v) { r.vol = v; saveRec(r); } }
-        if (ask >= cfgP.minAsk) { say(`${m.ticker} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- rule`); hits.push(r); }
+        // MC 2026-11-13 request 9: a maximum price beside the minimum, so a price band can be tried without changing a playbook
+        if (ask >= cfgP.minAsk && ask <= (cfgP.maxAsk ?? 0.99) + 1e-9) { say(`${m.ticker} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- rule`); hits.push(r); }
       }
     }
     // MC 2026-11-08 live orders go after the scan so the active playbook can see the whole window (how many coins qualified,
@@ -941,6 +944,7 @@ export function createKalshi(state, env, keep) {
     for (const r of rowsAll) {
       const late = !!r.late;
       if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
+      if (!late && r.ask > (K.maxAsk ?? 0.99) + 1e-9) continue;
       // MC 2026-11-11 the run's first day starts from zero too. The daily stops used to count the whole ET day, including trades
       // from before the run, so a run started at 2:59 PM after a morning down $160 was stopped the moment it began once the loss
       // stop was lowered to $150 (and saving re-books the whole log, so the owner's Nov 10 run lost every trade overnight).
@@ -1132,8 +1136,9 @@ export function createKalshi(state, env, keep) {
     if (who.locked && (ctlL.enabled === true || !(type === 'kalshiSet' || (type === 'kalshiStrat' && a?.book === 'paper')))) return { ok: false, msg: ctlL.enabled === true ? 'Live trading is on, so settings need an unlocked device.' : 'That needs an unlocked device.' };
     if (type === 'kalshiSet') {
       const out = {}, ch = [];
-      for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }
+      for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' || k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }
       if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, cur = cfgP.coins || null; if (JSON.stringify(v) !== JSON.stringify(cur)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
+      if (out.minAsk != null || out.maxAsk != null) { const lo = out.minAsk ?? cfgP.minAsk, hi = out.maxAsk ?? cfgP.maxAsk ?? 0.99; if (lo > hi) return { ok: false, msg: 'The maximum price can\'t be below the minimum price.' }; }
       if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cfgP.mixSame ?? 3, hi = out.mixSameMax ?? cfgP.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }
       if (['fixed', 'pct', 'kelly', 'ratchet'].includes(a.mixSize) && a.mixSize !== (cfgP.mixSize || 'fixed')) { out.mixSize = a.mixSize; ch.push(`mix sizing ${a.mixSize}`); }
       if (a.paperFrom != null) { const v = a.paperFrom === 0 ? 0 : Math.min(Date.now(), Math.max(0, +a.paperFrom || 0)); if (v !== (cfgP.paperFrom || 0)) { out.paperFrom = v; out.paperPrev = cfgP.paperFrom || 0; ch.push(v ? `new paper run from ${new Date(v).toISOString().slice(0, 16)}Z` : 'paper run covers everything again'); } }
@@ -1155,6 +1160,28 @@ export function createKalshi(state, env, keep) {
       if (a.sellAll === true) { st.sellAllDone = next.sellAllAt; await kv.put('kst', { sellAllDone: st.sellAllDone }); try { await sellAll(); } catch (e) { fail('sell-all error: ' + e.message); } }
       await publish(true);
       return { ok: true, msg: `Kalshi live: ${ch.join(', ')}. Applied in the cloud right away.` };
+    }
+    // MC 2026-11-13 request 8: Kalshi's API usage level, read and upgraded from the Live account tab. 'check' reads the tier and
+    // limits (GET /account/limits) and the 30-day volume toward the volume tiers (GET /account/api_usage_level/volume_progress).
+    // 'upgrade' asks Kalshi for the permanent Advanced grant (POST /account/api_usage_level/upgrade). Kalshi only gives it when
+    // at least one of the account's last 100 orders came in through the API, so a 403 means no live order has been placed yet.
+    // Advanced is what subaccounts (live books) need. The answer is kept in kapi so the tab shows it without asking again.
+    if (type === 'kalshiApi') {
+      if (who.locked) return { ok: false, msg: 'That needs an unlocked device.' };
+      if (!hasKeys()) return { ok: false, msg: env.KEY_HELP || 'The Kalshi key is not set in Cloudflare yet.' };
+      const read = async () => { const [l, v] = await Promise.all([kreq('GET', '/account/limits'), kreq('GET', '/account/api_usage_level/volume_progress')]);
+        const o = { at: Date.now(), ok: !!l?.ok, limits: l?.ok ? l.j : null, err: l?.ok ? null : `${l?.status} ${errOf(l)}`, vol: v?.ok ? (v.j?.volume_progress || [])[0] || null : null };
+        await kv.put('kapi', o); apiV = o; return o; };
+      if (a?.op === 'upgrade') {
+        const r = await kreq('POST', '/account/api_usage_level/upgrade');
+        say(`LIVE api usage upgrade asked: ${r?.status}`);
+        const o = await read(); viewDirty = true; await publish(true);
+        if (r?.ok) return { ok: true, msg: 'Kalshi granted the Advanced API level. Subaccounts can be created now.', api: o };
+        if (r?.status === 403) return { ok: false, msg: 'Kalshi said no: it gives Advanced only once at least one of your last 100 orders was placed through the API. Turn live on and let it place one trade, then try again.', api: o };
+        return { ok: false, msg: `Kalshi would not upgrade: ${r?.status} ${errOf(r)}`, api: o };
+      }
+      const o = await read(); viewDirty = true; await publish(true);
+      return o.ok ? { ok: true, msg: 'Read your API level from Kalshi.', api: o } : { ok: false, msg: `Kalshi did not answer: ${o.err}`, api: o };
     }
     if (type === 'kalshiBook') {
       if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
