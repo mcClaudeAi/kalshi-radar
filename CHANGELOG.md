@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.92 (Nov 13, 2026): Price boxes take dollars or cents
+- [fixed] Minimum price, Maximum price and the Your mix price cap now take a price either way: .945 (dollars, the way Kalshi shows it) or 94.5 (cents) both save as 94.5¢. Typing .945 used to be refused. Tenths of a cent have been kept since 1.0.88; a copy that had not updated yet still rounded to the nearest cent.
+
 ## 1.0.91 (Nov 13, 2026): Would each day have hit a profit take or stop loss
 - [new] The Daily P&L chart (Analytics and Rule analytics) now shows each day's intraday high and low as a thin range on its bar, draws your profit take and stop loss across the chart, and marks under each date whether the day reached the profit take (green) or fell to the stop loss (red), even when it finished somewhere else. A line above the chart counts them, for example "11 of 21 days reached +$150 · 6 fell to -$120". The levels start from your settings (the live loss cap on Live), and you can type other amounts to see how they would have played out; that only changes the chart, on your device.
 
