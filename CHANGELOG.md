@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.87 (Nov 13, 2026): Easier to read profit target
+- [improved] The profit target under today's profit now sits on its own panel, clear of the bank chart behind it: the target, the % reached, and how much is left to go, or "Reached. No new trades until tomorrow." once it is hit. It runs the full width on a phone.
+
 ## 1.0.86 (Nov 13, 2026): Profit target progress bar
 - [new] With a daily profit target set, a progress bar sits under today's profit on the paper bank, the live card and the Paper today and Live today tiles: how far today is toward the target, and a clear "Profit target hit, stopped for today" once it gets there. With no target but Protect profit on, it tracks Protect profit's starting point instead.
 
