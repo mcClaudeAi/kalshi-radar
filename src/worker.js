@@ -181,6 +181,7 @@ export class Store {
       let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; }
       return etagged(req, `{"lite":{"at":${Date.now()},"copyOff":true,"mode":"paper","edition":"kalshi"},"heavy":null,"kx":${kv || 'null'}}`, { 'content-type': 'application/json' }, kv || 'null');
     }
+    if (p === '/api/klab') return etagged(req, JSON.stringify(await this.K.labRows(u.searchParams.get('id') || '')), { 'content-type': 'application/json' });
     if (p === '/api/klive') { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return new Response(h || 'null', { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
     if (p === '/api/cmd' && post) {
       const ok = ['kalshiSet', 'kalshiLive', 'kalshiStrat', 'kalshiBook', 'kalshiApi', 'kalshiVault'].includes(body.type);

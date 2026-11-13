@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.90 (Nov 13, 2026): Rule analytics
+- [new] Rule analytics, a new tab beside Analytics. Pick any playbook and see every Analytics chart for it, as if it had traded each day the tracker watched: the totals, equity with drawdown, daily P&L with what the losses cost, the calendar, and the breakdowns by hour, coin, side, price and day of week. It uses the same replay as Labs, at the paper size with your stops and window cap, and the 7D, 30D and All ranges. The playbook you picked is remembered on the device.
+
 ## 1.0.89 (Nov 13, 2026): Daily P&L, stops and losses in one chart
 - [improved] The Daily P&L chart on Analytics now shows three things per day in one place: the day's result (solid bar), where it would have ended with no stops (amber marker, for the daily loss stop, profit target, give-back, bank drawdown and protect profit), and what its wins made on their own (hatched column). Three totals sit above it for the days shown: the result, with no stops and the difference, and wins alone with what the losses cost. Tap a total to hide or show that layer on the chart; it is remembered on the device. On a phone the totals stack as compact rows.
 

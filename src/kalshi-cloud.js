@@ -452,7 +452,7 @@ export function createKalshi(state, env, keep) {
     st.balAt = 0;
   }
   // MC 2026-11-07 150 recent live orders (was 40) so the dashboard day filter can page back through them
-  let apiV = null;
+  let apiV = null, labRowsMem = null;
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
     return { on: c.enabled, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
@@ -1112,12 +1112,16 @@ export function createKalshi(state, env, keep) {
       for (const n of [100, 250, 500]) { const x = b.s[n]; o['n' + n] = x[0]; o['ok' + n] = x[0] ? +(x[1] / x[0]).toFixed(3) : null; o['c' + n] = x[1] ? +(x[2] / x[1]).toFixed(2) : null; } return o; }).sort((a, b) => (b.med ?? 0) - (a.med ?? 0));
   }
   function runLabs(tradesIn, K, lateT = [], m10T = []) {
+    labRowsMem = {};
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     const todayK = etDay(Date.now());
     // MC 2026-11-11 cash, when set, sells every trade whose trend turned against it at the minute-10 bid (the Cash out when the
     // trend turns setting) and holds the rest; unset, every trade is held to settlement. Either way the result does not depend on
     // what the paper setting is, so the Labs switch shows both before the setting goes on.
-    const sim = (lab, from, baseline, cash = false) => {
+    // MC 2026-11-13 keep: also return each trade the playbook took ([close, coin, side, px, contracts, pnl, won, 1], the paper
+    // "all" shape) so the Rule analytics tab can draw the full Analytics charts for any playbook. Kept in memory, served by /klab.
+    const sim = (lab, from, baseline, cash = false, keep = false) => {
+      const rows = keep ? [] : null;
       let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}, tw = {}, wCap = K.winCap ?? 9; let ddRef = bank, ddLast = null;
       const trades = lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
@@ -1139,16 +1143,17 @@ export function createKalshi(state, env, keep) {
         if (lockCut) continue; if (!t.late) { if ((tw[t.close] || 0) >= wCap) continue; tw[t.close] = (tw[t.close] || 0) + 1; }
         if (isFinite(lockR[t.close] ?? Infinity)) lockR[t.close] -= cost;
         n++; if (ok) won++; bank += pnl; day[dk] = (day[dk] || 0) + pnl; dayPk[dk] = Math.max(dayPk[dk], day[dk]); peak = Math.max(peak, bank); dd = Math.max(dd, peak - bank); eq.push([t.close, +bank.toFixed(2)]);
+        if (rows) rows.push([t.close, t.coin, t.side, +t.px, k, +pnl.toFixed(2), ok ? 1 : 0, 1]);
         if (dk === todayK) { td.n++; if (ok) td.won++; td.net += pnl; }
       }
       const step = Math.max(1, Math.ceil(eq.length / 120));
-      return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1) };
+      return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), rows };
     };
     return LABS.map(lab => {
       const trades = lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
       if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!lab.m10Only, since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
-      const both = cash => { const r = sim(lab, first.close, false, cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash);
+      const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
       return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!lab.m10Only, since: first.close, ...both(false), cx: both(true) };
     });
@@ -1258,5 +1263,6 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
+  return { labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
