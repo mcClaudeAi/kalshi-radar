@@ -6,6 +6,9 @@
 Request 10.
 - [improved] Minimum price and Maximum price in Paper settings now take a tenth of a cent, so 94.5 means 94.5¢ and up where before it was rounded to 95. Kalshi quotes these markets to a tenth of a cent and about half the leaders in the four-month history sat between two whole cents. On that history the plain rule at a 94.5¢ minimum took 2,698 trades for +$347, between 94¢ (3,410 trades, +$703) and 95¢ (2,346 trades, +$15). Everywhere the dashboard shows the price band it now shows the tenth too, and the Save confirmation names the maximum price in cents instead of dollars.
 
+## 1.0.88 (Nov 13, 2026): What each day made before its losses
+- [new] The Daily P&L chart on Analytics draws a hatched bar on each day with a losing trade: where the day would have ended from its winning trades alone. The gap down to the solid bar is what the losses cost. Hover or tap a bar for both figures. A small legend above the chart explains the solid, hatched and dashed (no stops) marks. Works for paper and live.
+
 ## 1.0.87 (Nov 13, 2026): Easier to read profit target
 - [improved] The profit target under today's profit now sits on its own panel, clear of the bank chart behind it: the target, the % reached, and how much is left to go, or "Reached. No new trades until tomorrow." once it is hit. It runs the full width on a phone.
 
