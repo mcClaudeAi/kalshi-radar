@@ -515,6 +515,7 @@ export function createKalshi(state, env, keep) {
     await load();
     const now = Date.now(), K = cfgP, out = [];
     try { compact(now); } catch (e) { console.log('compact: ' + e.message); }
+    try { await gapWatch(now); } catch (e) { console.log('gap watch: ' + e.message); }
     // a missed mark (alarm didn't fire) is caught here up to a minute late
     const mk = nextMark(now) - Q; if (now - mk < 60000 && st.lastMark < mk) await entry(now);
     for (const s of activeSeries()) {
@@ -529,7 +530,7 @@ export function createKalshi(state, env, keep) {
       if (r && !r.result && r.ask >= K.minAsk) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); }
     }
     scan = out; scanAt = now;
-    if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
+    if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); } try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
@@ -552,6 +553,43 @@ export function createKalshi(state, env, keep) {
   // trade sat at 0:00 for 1 to 3 minutes before the totals moved. Now the alarm also wakes 15 seconds after each close with an
   // open trade and retries every 20 seconds until Kalshi posts the result (up to 10 minutes, then the cron keeps trying).
   // quick=true only looks at our trades closed in the last 10 minutes.
+  // MC 2026-11-12 the dashboard was down from about 2:40 PM to 8 PM (Cloudflare's daily read limit) and every trade check in
+  // between was missed. Kalshi keeps a minute-by-minute price history for each market, so a missed check can be rebuilt: the
+  // quote at the 10-minutes-left mark, then the result. gapWatch notes when the tracker has been off for more than 20 minutes
+  // (a heartbeat saved each tick), gapFill rebuilds one missed window a minute, away from the live trade check. Rebuilt rows
+  // are marked src 'fill'. They carry the quoted price only, no order-book depth, so they are left out of Room in the book,
+  // and the volatility reading comes from the usual repair pass. The first run with this code looks back two days for windows
+  // with nothing recorded at all, which is how today's gap gets picked up.
+  let gaps = null, beat = null, gapAt = 0;
+  async function gapWatch(now) {
+    if (gaps == null) { gaps = (await kv.get('kgaps')) || []; beat = (await kv.get('kbeat')) ?? null;
+      if (beat == null) { const have = new Set(); let first = Infinity; for (const m of [rec, rec3]) for (const r of m.values()) { have.add(r.close); if (r.close < first) first = r.close; }
+        let run = null; for (let w = Math.ceil(Math.max(now - 48 * 3600000, first) / Q) * Q; w <= now - Q; w += Q) { if (!have.has(w)) { if (!run) run = [w - 601000, 0]; run[1] = w - 599000; } else if (run) { gaps.push(run); run = null; } } if (run) gaps.push(run);
+        gaps = gaps.filter(g => g[1] - g[0] >= Q); if (gaps.length) { await kv.put('kgaps', gaps); say(`found ${gaps.length} stretch${gaps.length === 1 ? '' : 'es'} with no trade checks in the last two days; filling them in`); } } }
+    if (beat != null && now - beat > 20 * 60000) { gaps.push([beat, now]); await kv.put('kgaps', gaps); say(`tracker was off for ${Math.round((now - beat) / 60000)} minutes; filling in the trade checks it missed`); }
+    beat = now; await kv.put('kbeat', now);
+  }
+  const cpx = o => o == null ? null : o.close_dollars != null ? +o.close_dollars : o.close != null ? o.close / 100 : null;
+  async function gapFill(now) {
+    if (!gaps || !gaps.length || now - gapAt < 50000) return; gapAt = now;
+    const g = gaps[0], w = Math.ceil((g[0] + 600000) / Q) * Q;   // the first window whose trade check fell inside the gap
+    if (w - 600000 > g[1] || w < now - 7 * 86400000) { gaps.shift(); await kv.put('kgaps', gaps); return; }
+    if (w > now) return;
+    let n = 0;
+    for (const s of activeSeries()) {
+      const c = w / 1000, j = await get(`/markets?series_ticker=${s}&min_close_ts=${c - 5}&max_close_ts=${c + 5}&limit=5`);
+      const m = (j?.markets || []).find(x => Date.parse(x.close_time) === w); if (!m || rec.has(m.ticker)) continue;
+      const t = c - 600, k = await get(`/series/${s}/markets/${m.ticker}/candlesticks?start_ts=${t - 180}&end_ts=${t + 60}&period_interval=1`);
+      const cd = (k?.candlesticks || []).filter(x => x.end_period_ts <= t).pop(); if (!cd) continue;
+      const ya = cpx(cd.yes_ask), yb = cpx(cd.yes_bid); if (!(ya > 0 && ya < 1) || !(yb > 0 && yb < 1)) continue;
+      const na = +(1 - yb).toFixed(4), side = ya >= na ? 'yes' : 'no', ask = side === 'yes' ? ya : na; if (ask < KEEP_ASK) continue;
+      const r = { ticker: m.ticker, series: s, at: w - 600000, close: w, left: 10, side, ask, depthAtAsk: null, avgN: null, ...detail(m), ya, na, src: 'fill' };
+      if (m.result === 'yes' || m.result === 'no') { r.result = m.result; r.won = m.result === side; r.final = fin(m); }
+      rec.set(m.ticker, r); saveRec(r); n++;
+    }
+    g[0] = w - 599000; await kv.put('kgaps', gaps); viewDirty = true;
+    say(`filled in the ${new Date(w - 600000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET trade check: ${n} coin${n === 1 ? '' : 's'} at 85c or more`);
+  }
   async function settleSome(now, quick) {
     let k = 0, any = false;
     for (const r of rec.values()) {
@@ -1022,7 +1060,7 @@ export function createKalshi(state, env, keep) {
   // many at all. The 250 and 500 columns count only marks logged since those sizes were recorded.
   function roomOf(rows, K) {
     const cut = Date.now() - 30 * 86400000, by = {};
-    for (const r of rows) { if (!(r.ask >= K.minAsk) || r.at < cut || r.result === 'void') continue; const b = by[coin(r.series)] || (by[coin(r.series)] = { coin: coin(r.series), d: [], s: { 100: [0, 0, 0], 250: [0, 0, 0], 500: [0, 0, 0] } });
+    for (const r of rows) { if (!(r.ask >= K.minAsk) || r.at < cut || r.result === 'void' || r.src === 'fill') continue; const b = by[coin(r.series)] || (by[coin(r.series)] = { coin: coin(r.series), d: [], s: { 100: [0, 0, 0], 250: [0, 0, 0], 500: [0, 0, 0] } });
       if (r.depthAtAsk != null) b.d.push(r.depthAtAsk);
       for (const [n, a] of [[100, r.avgN], [250, r.a250], [500, r.a500]]) { if (a === undefined) continue; const x = b.s[n]; x[0]++; if (a != null) { x[1]++; x[2] += (a - r.ask) * 100; } } }
     return Object.values(by).map(b => { b.d.sort((x, y) => x - y); const o = { coin: b.coin, n: b.d.length, med: b.d.length ? Math.round(b.d[b.d.length >> 1]) : null };
@@ -1147,5 +1185,5 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
-  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

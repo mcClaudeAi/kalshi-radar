@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.79 (Nov 12, 2026): Missed trade checks are filled back in
+If the tracker is ever off for a while, the trade checks it missed are rebuilt afterwards.
+- [new] When the tracker has been off for more than 20 minutes, it rebuilds the trade checks it missed from Kalshi's minute-by-minute price history, one window a minute, then settles them like any other. Each one uses the quoted price at the 10-minutes-left mark. The first run also looks back two days, so the hours lost to the outage on Nov 12 are filled in on their own. Rebuilt checks have no order-book depth, so they are left out of Room in the book.
+
 ## 1.0.78 (Nov 12, 2026): Fix for the dashboard going down after a few days
 The dashboard stopped loading once its trade log was about five days long. This is the fix.
 - [fixed] The dashboard went down with nothing loading and no new trades tracked. Cloudflare's free plan allows a set amount of database reading a day, and the tracker was re-reading its whole trade log every minute, so the allowance ran out once the log grew. It now packs older records together and reads a small fraction of what it did. Nothing was lost: the log is intact and tracking picks up on its own. The allowance resets at 7 PM Eastern each day, so a dashboard that is down now comes back by itself then.
