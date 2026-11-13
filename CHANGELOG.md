@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.82 (Nov 12, 2026): What a day would have come to with no stops
+- [new] When a stop pauses the paper book (daily loss, daily profit target, give-back, bank drawdown or protect profit), the dashboard now shows where the day would have ended if trading had gone on. Home shows it under Paper today, the Daily P&L chart on Analytics draws it as a dashed outline on each day a stop fired, and each skipped trade in Trades says whether it would have won or lost and by how much. A skipped trade only counts if your playbook, schedule and per-window cap would have taken it, so the figure matches turning the stop off. Paper only; the bank itself still stops where the stop stopped it.
+
 ## 1.0.81 (Nov 12, 2026): Smoothed trend in the trade replay
 - [new] The trade replay now draws a second, dotted trend over minute 5 to 10 using double exponential smoothing, and the trend card labels it up, down or neutral. The straight line weighs the whole five minutes the same; the smoothed one leans on the latest prices, so it shows a turn late in the stretch. The card says when the two disagree. Cash out still goes by the straight line and the share of the lead kept.
 

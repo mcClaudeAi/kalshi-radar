@@ -560,7 +560,7 @@ export function createKalshi(state, env, keep) {
   // are marked src 'fill'. They carry the quoted price only, no order-book depth, so they are left out of Room in the book,
   // and the volatility reading comes from the usual repair pass. The first run with this code looks back two days for windows
   // with nothing recorded at all, which is how today's gap gets picked up.
-  let gaps = null, beat = null, gapAt = 0;
+  let gaps = null, beat = null, gapAt = 0, dayLogAt = 0;
   async function gapWatch(now) {
     if (gaps == null) { gaps = (await kv.get('kgaps')) || []; beat = (await kv.get('kbeat2')) ?? null;
       if (beat == null) { gaps = []; const have = new Set(); let first = Infinity; for (const m of [rec, rec3]) for (const r of m.values()) { have.add(r.close); if (r.close < first) first = r.close; }
@@ -937,7 +937,7 @@ export function createKalshi(state, env, keep) {
     // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
     // own analytics, and one whose market the mark trade already holds is dropped.
     const lates = [...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker));
-    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {}, wSnap = {}, tookW = {}, wCap = K.winCap ?? 9;
+    const rowsAll = lates.length ? [...rows, ...lates].sort(byClear) : rows, lockRem = {}, wSnap = {}, tookW = {}, ifW = {}, wCap = K.winCap ?? 9;
     for (const r of rowsAll) {
       const late = !!r.late;
       if (!(r.ask >= K.minAsk) && !late || r.result === 'void') continue;
@@ -981,12 +981,18 @@ export function createKalshi(state, env, keep) {
       let lockCut = false, szUse = sizeUsd;
       if (K.lockAt > 0 && !capped0) { if (lockRem[w] == null) lockRem[w] = ws.peak >= K.lockAt ? ws.net - ws.peak * (K.lockKeep || 0) / 100 : Infinity; if (lockRem[w] < px + fee(px, 1)) lockCut = true; else szUse = Math.min(sizeUsd, lockRem[w]); }
       const wcap = !late && !capped0 && !lockCut && (tookW[w] || 0) >= wCap; if (!late && !capped0 && !lockCut && !wcap) tookW[w] = (tookW[w] || 0) + 1;
+      // MC 2026-11-12 asked to see what a day would have come to if trading had gone on past a stop (daily loss, profit target,
+      // give-back, bank drawdown, protect profit). A trade skipped only because of a stop is scored as if it had been taken, at
+      // full size, if the playbook, schedule, bench and window cap would all have let it through. Nothing else changes: the bank
+      // and the day's total still stop where the stop stopped them.
+      const stopSk = !late && (halted || lockCut) && !strat && !off && !cold && !(perWin[w] > K.maxPerWindow) && (tookW[w] || 0) + (ifW[w] || 0) < wCap; if (stopSk) ifW[w] = (ifW[w] || 0) + 1;
       const capped = capped0 || lockCut || wcap, n = Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
-      const t = { wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result && !late) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }
+      if (stopSk && r.result) { const nf = Math.floor(sizeUsd / px); t.ifPnl = +((r.won ? nf : 0) - nf * px - fee(px, nf)).toFixed(2); }
       if (r.result && !late) { const n50 = Math.floor(50 / px); H.push({ coin: t.coin, close: r.close, pnl: (r.won ? n50 : 0) - n50 * px - fee(px, n50) }); const nr = Math.floor(K.sizeUsd / px); t.rulePnl = +((r.won ? nr : 0) - nr * px - fee(px, nr)).toFixed(2); }
       // MC 2026-11-11 Steven (request 5): sell only when the line runs against the bet AND less than trendKeep percent of the lead
       // is left at minute 10 (see keepOf). Replaces the "past 0.15%" slope test from this morning, which sold trades that still
@@ -1011,6 +1017,9 @@ export function createKalshi(state, env, keep) {
     const labs = runLabs(trades, K, lateT, m10T);
     pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
+    // MC 2026-11-12 today's taken paper trades in the worker log every 10 minutes, so a day's total can be checked from the tail
+    // without the dashboard (the paper day went to -$65 after the outage fill-in and needed checking)
+    if (Date.now() - dayLogAt > 600000) { dayLogAt = Date.now(); console.log('daylog ' + JSON.stringify({ cap: K.winCap, strat: K.strat?.at?.(-1) ?? K.strat, net: sum(today), n: today.length, t: today.map(t => [t.tk.replace(/^KX|15M-\d+/g, ''), t.side[0], t.px, t.won ? 1 : 0, t.pnl, rec.get(t.mk)?.src === 'fill' ? 'F' : '', rec.get(t.mk)?.vol?.z ?? null, new Date(t.close).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })]) })); }
     const byCoin = {}; for (const t of doneAll) { const b = byCoin[t.coin] = byCoin[t.coin] || { coin: t.coin, n: 0, won: 0, net: 0 }; b.n++; if (t.won) b.won++; b.net = +(b.net + t.pnl).toFixed(2); }
     const winLoss = {}; for (const t of done) { if (!t.won) winLoss[t.close] = (winLoss[t.close] || 0) + 1; }
     let streak = 0; for (let i = done.length - 1; i >= 0 && done[i].won; i--) streak++;
@@ -1023,8 +1032,8 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-09 the coins-lined-up card lumped 4 and up together, so there was no way to tell 4 from 6. Now exact counts,
     // plus "N or more" so a cutoff can be read straight off (with and without the 95c cap). Every settled rule trade, at the rule's own $ per trade, so the active playbook doesn't hide any.
     const allDone = ruleDone, sameMin = []; for (let k = 1; k <= 9; k++) { const at = l => { const x = l.filter(t => t.same >= k), w = x.filter(t => t.won).length; return { n: x.length, won: w, net: +x.reduce((a, t) => a + (t.rulePnl ?? t.pnl ?? 0), 0).toFixed(2) }; }; const a = at(allDone); if (!a.n) break; sameMin.push({ k, ...a, u95: at(allDone.filter(t => t.px < 0.95)) }); }
-    const dayMap = {}; for (const t of trades) { if (t.capped && !t.halted) continue; const k = etDay(t.close); const d = dayMap[k] = dayMap[k] || { d: k, n: 0, won: 0, net: 0, low: 0, run: 0, halted: false, skipped: 0 }; if (t.halted) { d.halted = true; d.haltWhy = d.haltWhy || t.haltWhy || 'daily'; d.skipped++; continue; } if (!t.done) continue; d.n++; if (t.won) d.won++; d.run = +(d.run + t.pnl).toFixed(2); d.net = d.run; d.low = Math.min(d.low, d.run); }
-    const daily = Object.values(dayMap).sort((a, b) => a.d < b.d ? -1 : 1).slice(-21).map(({ run, ...d }) => d);
+    const dayMap = {}; for (const t of trades) { if (t.capped && !t.halted && t.ifPnl == null) continue; const k = etDay(t.close); const d = dayMap[k] = dayMap[k] || { d: k, n: 0, won: 0, net: 0, low: 0, run: 0, halted: false, skipped: 0, stopN: 0, stopNet: 0 }; if (t.ifPnl != null && t.run) { d.stopN++; d.stopNet = +(d.stopNet + t.ifPnl).toFixed(2); } if (t.capped && !t.halted) continue; if (t.halted) { d.halted = true; d.haltWhy = d.haltWhy || t.haltWhy || 'daily'; d.skipped++; continue; } if (!t.done) continue; d.n++; if (t.won) d.won++; d.run = +(d.run + t.pnl).toFixed(2); d.net = d.run; d.low = Math.min(d.low, d.run); }
+    const daily = Object.values(dayMap).sort((a, b) => a.d < b.d ? -1 : 1).slice(-21).map(({ run, ...d }) => ({ ...d, ifNet: d.stopN ? +(d.net + d.stopNet).toFixed(2) : null }));
     const roll = []; for (let i = 0; i < done.length; i++) { if (i % 5 && i !== done.length - 1) continue; const w = done.slice(Math.max(0, i - 99), i + 1); roll.push([done[i].close, +(w.filter(t => t.won).length / w.length).toFixed(4)]); }
     const breakEven = done.length ? +(done.reduce((a, t) => a + t.cost / t.n, 0) / done.length).toFixed(4) : 0.93;
     const h2 = done.length >> 1, halves = { a: { n: h2, net: sum(done.slice(0, h2)) }, b: { n: done.length - h2, net: sum(done.slice(h2)) } };
@@ -1048,7 +1057,8 @@ export function createKalshi(state, env, keep) {
       bounds: BOUNDS, coinsAll: COINS, cfg: K, balance: +bal.toFixed(2), net: +(bal - K.startUsd).toFixed(2), inPlay: +open.toFixed(2), maxDd: +maxDd.toFixed(2),
       n: done.length, won: done.filter(t => t.won).length, today: { n: today.length, won: today.filter(t => t.won).length, net: sum(today),
         // MC 2026-11-10 what the playbook passed on today and how those would have gone, so a filter can be judged at a glance
-        ...(() => { const ps = trades.filter(t => t.strat && t.run && etDay(t.close) === etDay(Date.now())), pd = ps.filter(t => t.done); return { passed: ps.length, pWon: pd.filter(t => t.won).length, pLost: pd.filter(t => !t.won).length }; })() },
+        ...(() => { const ps = trades.filter(t => t.strat && t.run && etDay(t.close) === etDay(Date.now())), pd = ps.filter(t => t.done); return { passed: ps.length, pWon: pd.filter(t => t.won).length, pLost: pd.filter(t => !t.won).length }; })(),
+        ...(() => { const sk = trades.filter(t => t.ifPnl != null && t.run && etDay(t.close) === etDay(Date.now())); if (!sk.length) return {}; const x = +sk.reduce((a, t) => a + t.ifPnl, 0).toFixed(2); return { stop: { n: sk.length, won: sk.filter(t => t.ifPnl > 0).length, net: x, ifNet: +(sum(today) + x).toFixed(2) } }; })() },
       avg: done.length ? +(sum(done) / done.length).toFixed(2) : 0, streak, uncappedNet: +(balU - K.startUsd).toFixed(2), capped: trades.filter(t => t.capped).length,
       runFrom: runFrom || null, runN: done.length, prevN: doneAll.length - done.length, worstWin: Math.max(0, ...Object.values(winLoss)), halts: trades.filter(t => t.halted).length, seen, rule, since: (runFrom ? (done[0]?.t || runFrom) : rows[0]?.at) || null, last: rows[rows.length - 1]?.at || null,
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
