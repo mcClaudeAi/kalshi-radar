@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.91 (Nov 13, 2026): Would each day have hit a profit take or stop loss
+- [new] The Daily P&L chart (Analytics and Rule analytics) now shows each day's intraday high and low as a thin range on its bar, draws your profit take and stop loss across the chart, and marks under each date whether the day reached the profit take (green) or fell to the stop loss (red), even when it finished somewhere else. A line above the chart counts them, for example "11 of 21 days reached +$150 · 6 fell to -$120". The levels start from your settings (the live loss cap on Live), and you can type other amounts to see how they would have played out; that only changes the chart, on your device.
+
 ## 1.0.90 (Nov 13, 2026): Rule analytics
 - [new] Rule analytics, a new tab beside Analytics. Pick any playbook and see every Analytics chart for it, as if it had traded each day the tracker watched: the totals, equity with drawdown, daily P&L with what the losses cost, the calendar, and the breakdowns by hour, coin, side, price and day of week. It uses the same replay as Labs, at the paper size with your stops and window cap, and the 7D, 30D and All ranges. The playbook you picked is remembered on the device.
 
