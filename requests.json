@@ -2,11 +2,18 @@
  "updated": "Nov 13, 2026",
  "items": [
   {
+   "id": 9,
+   "title": "Add a maximum price to the basic settings, beside the minimum price, so other rules can be tested without changing them.",
+   "status": "released",
+   "version": "1.0.83",
+   "note": "Released in 1.0.83. Paper settings, Maximum price. Applies to the paper book, labs and live, like the minimum."
+  },
+  {
    "id": 8,
    "text": "Let users upgrade their Kalshi live account to the higher API usage level (up to 30 requests a second) from the live account section, using the account upgrade endpoint. Upgrading also allows subaccounts to be created.",
-   "status": "read",
-   "note": "Waiting on the owner. This changes the live Kalshi account itself and opens the door to subaccounts, so it is not something the tracker adds on its own. The question for the owner is whether Kalshi Radar should change a live account's usage level at all, and if so what the tracker shows before the button is pressed.",
-   "version": ""
+   "status": "released",
+   "note": "Released in 1.0.83. Live account tab, Kalshi API level: shows the level, limits and 30-day volume, with an Upgrade to Advanced button. Kalshi grants it only after at least one of the last 100 orders came through the API.",
+   "version": "1.0.83"
   },
   {
    "id": 7,
