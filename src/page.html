@@ -2589,7 +2589,9 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim()||'#888';const good=col('--good'),bad=col('--bad'),line=col('--line'),faint=col('--faint'),mute=col('--mute'),ink=col('--ink'),kx=col('--kx'),bg=col('--s1')||'#0b1120';
   const F='-apple-system,BlinkMacSystemFont,"Segoe UI",Sora,Inter,Roboto,sans-serif',M='"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace';
-  const S=kxSeries(c,o.open),now=Date.now()/1000,x0=o.open/1000,x1=o.close/1000,tgt=o.strike,px=KX.px[c]?.last??S.at(-1)?.[1]??null;
+  // MC 2026-11-13 the series starts a minute before the window opens (for the open price), and those points were drawn left of the
+  // chart, a stray tail sticking out past the plot. Points before the open now collapse into one point at the open.
+  const S0=kxSeries(c,o.open),x0=o.open/1000,pre0=S0.filter(p=>p[0]<x0).pop(),S=(pre0?[[x0,pre0[1]]]:[]).concat(S0.filter(p=>p[0]>=x0)),now=Date.now()/1000,x1=o.close/1000,tgt=o.strike,px=KX.px[c]?.last??S.at(-1)?.[1]??null;
   g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(tgt??px??1,tgt).replace('$','')).width)+18;
   const P={l:10,r:Math.max(64,axW),t:24,b:22},iw=W-P.l-P.r,ih=H-P.t-P.b;
   let lo=tgt??px??1,hi=lo;for(const p of S){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1])}if(px!=null){lo=Math.min(lo,px);hi=Math.max(hi,px)}
@@ -2632,7 +2634,8 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
   // the 60-second average that actually settles the market, once we are inside the last 2.5 minutes
   const a60=kxAvg60(c,o.close);if(a60!=null&&now>x1-150&&tgt!=null){const y=Y(a60);g.strokeStyle=kx;g.lineWidth=1.2;g.setLineDash([3,3]);g.beginPath();g.moveTo(P.l,y);g.lineTo(P.l+iw,y);g.stroke();g.setLineDash([]);pill('60s avg · what settles',P.l+6,y-11,kx,'600 10px '+F)}
   return {px,tgt,a60}}
-function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<2)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
+// MC 2026-11-13 two or three points drew a lone straight stroke that read as a glitch; the sparkline waits for four
+function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<4)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
 // ----- live data: the tracker's snapshot via the worker, the bot's snapshot as fallback -----
 async function kxPoll(){if(!KX.on)return;const fv=ST.fv,j=await getJ(fv?'/api/friends/live?id='+encodeURIComponent(fv.id):'/api/klive');if(ST.fv!==fv)return;if(j&&j.at){KX.live=j;KX.liveAt=Date.now()}else{const K=ST.D?.kalshi;if(K){KX.live={at:K.live?.at||0,scan:K.live?.scan||[],open:(K.pending||[]).map(t=>({tk:t.tk,coin:t.coin,side:t.side,px:t.px,ask:t.ask,n:t.n,cost:t.cost,at:t.t,close:t.close,strike:t.strike,title:t.title,yb:null,ya:null,last:null,path:t.path||[]})),fallback:true}}}kxBoard();kxHdr();kxLivePaint()}
 function kxOpen(){const L=KX.live;if(!L)return[];const now=Date.now();return (L.open||[]).filter(o=>o.close>now-300000).map(o=>o.open?o:{...o,open:o.close-15*60000})}
@@ -3823,6 +3826,13 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('input',e=>{if(e.target.id==='palq'){ST.palSel=0;palRender()}});
 $('#theme').addEventListener('click',()=>{const r=document.documentElement,cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'),nx=cur==='light'?'dark':'light';r.dataset.theme=nx;try{localStorage.setItem('cr-theme',nx)}catch{}render()});
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(!$('#drawer').classList.contains('on')&&!$('#modal').classList.contains('on'))render()},150)});
+// MC 2026-11-13 charts were sometimes squashed or stretched on arriving: they were drawn while the page was still settling (the
+// scrollbar appearing on desktop, iOS restoring the page from the background, the sidebar sliding), and nothing redrew them
+// because the window itself never resized. Now any change in the content width redraws, and so does coming back to the page.
+(()=>{let w0=0,t,n=0,n0=0;const m=$('#main');if(!m||!window.ResizeObserver)return;
+  new ResizeObserver(es=>{const w=Math.round(es[0].contentRect.width);if(!w0){w0=w;return}if(Math.abs(w-w0)<3)return;w0=w;clearTimeout(t);t=setTimeout(()=>{if(Date.now()-n0>3000){n0=Date.now();n=0}if(++n>3)return;   // a redraw that flips the scrollbar back and forth stops after three
+    if(!$('#drawer').classList.contains('on')&&!$('#modal').classList.contains('on')&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render()},140)}).observe(m);
+  addEventListener('pageshow',e=>{if(e.persisted)setTimeout(render,120)})})();
 kxBoot();setInterval(()=>{if(!document.hidden){loadMe();if(ST.tab!=='kchat')frSync()}},15000);
 setInterval(()=>{const ae=document.activeElement,typing=ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)&&ae.id!=='palq';
   // MC 2026-10-26 with sounds on, a hidden tab still polls every 30s so buys and wins play while the page sits behind other windows
@@ -3977,7 +3987,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.0.92',KR_DATE='Nov 13, 2026';
+const KR_VERSION='1.0.93',KR_DATE='Nov 13, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

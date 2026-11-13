@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.93 (Nov 13, 2026): Charts that draw right on arrival
+- [fixed] Charts were sometimes squashed or stretched when opening the dashboard or coming back to it, because they were drawn while the page was still settling (the scrollbar appearing, the phone restoring the page from the background) and never redrawn. They now redraw whenever the page width changes and when you come back to the tab.
+- [fixed] The live trade chart drew a stray tail to the left of the chart, from the minute before the window opened. That minute now starts the line at the open.
+- [fixed] The small "Kalshi now" price line next to an open trade showed a lone straight stroke when it had only two or three prices. It now appears once there are enough to show a trend.
+
 ## 1.0.92 (Nov 13, 2026): Price boxes take dollars or cents
 - [fixed] Minimum price, Maximum price and the Your mix price cap now take a price either way: .945 (dollars, the way Kalshi shows it) or 94.5 (cents) both save as 94.5¢. Typing .945 used to be refused. Tenths of a cent have been kept since 1.0.88; a copy that had not updated yet still rounded to the nearest cent.
 
