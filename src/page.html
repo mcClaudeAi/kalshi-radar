@@ -2453,7 +2453,7 @@ function paintChrome(){const D=ST.D||{},L=D.live||{},T=D.totals||{};
   $('#ttl').textContent=(NAVI.find(x=>x[0]===ST.tab)||[])[1]||'';
   const used=Math.max(0,-(L.today?.net||0)),lim=L.limit||0;
   // MC 2026-11-07 the deck leads with Kalshi (it runs in the cloud and is what gets checked); the memecoin numbers stay while the bot has copies
-  const KK=D.kalshi,kl=KK?.live?.live,kx=KK?[['Kalshi today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>`,'kalshi'],['Kalshi balance',`<b>$${Number(KK.balance||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`,'kalshi'],['Kalshi live',`<b class="${kl?.on?'pos':''}">${kl?.on?usd(kl.today?.net||0):'off'}</b>`,'kalshi',kl?.on?1:0]]:[];
+  const KK=D.kalshi,kl=KX.live?.live||KK?.live?.live,kx=KK?[['Kalshi today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>`,'kalshi'],['Kalshi balance',`<b>$${Number(KK.balance||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`,'kalshi'],['Kalshi live',`<b class="${kl?.on?'pos':''}">${kl?.on?usd(kl.today?.net||0):'off'}</b>`,'kalshi',kl?.on?1:0]]:[];
   // MC 2026-11-08 header is Kalshi only now
   // MC 2026-11-08 the strip says which mode it is first: paper only (live off) or live, and leads with that book's numbers
   const kwr=KK?.n?(KK.won/KK.n*100).toFixed(1)+'%':'–';
@@ -2464,7 +2464,7 @@ function paintChrome(){const D=ST.D||{},L=D.live||{},T=D.totals||{};
   const lb=$('#liveBtn');if(false){lb.style.display='';lb.innerHTML=L.paused?`${ico('play')}<span class="hide-m">Resume live</span>`:`${ico('pause')}<span class="hide-m">Pause live</span>`;lb.className='btn '+(L.paused?'good':'warn');lb.dataset.act=L.paused?'resume':'pause'}else lb.style.display='none';
   // MC 2026-11-08 the green controls dot opened the memecoin Controls page. It is now the Kalshi go-live button: GO LIVE when live
   // is off, a pulsing LIVE with today's result when it is on. Either way it opens Live account (or the unlock flow on a locked device).
-  const lc=$('#lockBtn'),klv=KK?.live?.live;lc.className='btn golive'+(klv?.on?' on':'');lc.title=klv?.on?'Kalshi live trading is on':'Turn on Kalshi live trading';
+  const lc=$('#lockBtn'),klv=kl;lc.className='btn golive'+(klv?.on?' on':'');lc.title=klv?.on?'Kalshi live trading is on':'Turn on Kalshi live trading';
   lc.innerHTML=klv?.on?`<span class="gl-dot"></span><span class="gl-t">Live</span><small class="${cls(klv.today?.net)}">${usd(klv.today?.net||0)}</small>`:`<span class="gl-dot"></span><span class="gl-t">Go live</span>`;
   $('#mode').textContent=kl?.on?'LIVE ON':'PAPER';$('#mode').className='pill'+(kl?.on?' live':'');
   const tra=KK?.live?.at?(Date.now()-KK.live.at)/1000:Infinity;$('#sfoot').innerHTML=`<div class="r"><span class="dot ${tra>300?'dead':tra>90?'stale':''}"></span><span>Cloud tracker · ${isFinite(tra)?(tra<90?Math.round(tra)+'s ago':Math.round(tra/60)+'m ago'):'no data'}</span></div><div class="r"><span class="lockchip ${ST.me.control?'on':''}"><span class="lk"></span></span>${ST.me.control?'Signed in · '+esc(ST.me.device||''):'Signed out'}</div>`}
@@ -4083,7 +4083,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.1.0',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.1.1',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

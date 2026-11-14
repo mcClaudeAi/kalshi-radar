@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.1 (Nov 14, 2026): Header shows live right away
+- [fixed] After turning live on or off, the header kept the old mode (Paper only) for up to two minutes. It changes at once now.
+
 ## 1.1.0 (Nov 14, 2026): Paper and live get their own settings
 Paper and live no longer share rules. Each has its own settings tab, so you can practice one way on paper and trade another way live.
 - [new] Live settings tab: live's size, daily loss cap and cash floor, plus its own coins, price band, most trades a window, off hours, bench, profit target, protect profit, give-back and bank drawdown stops, and Your mix. Saving needs a hold, like turning live on.

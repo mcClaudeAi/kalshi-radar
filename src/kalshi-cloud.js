@@ -1308,7 +1308,9 @@ export function createKalshi(state, env, keep) {
       if (next.enabled && !hasKeys()) return { ok: false, msg: env.KEY_HELP || 'The Kalshi key is not set in Cloudflare yet. Run set-kalshi-secrets.bat on the PC once, then try again.' };
       next.at = Date.now(); next.by = 'dashboard'; ctlL = next; await kv.put('kctl', ctlL); say('LIVE ' + ch.join(', '));
       if (a.sellAll === true) { st.sellAllDone = next.sellAllAt; await kv.put('kst', { sellAllDone: st.sellAllDone }); try { await sellAll(); } catch (e) { fail('sell-all error: ' + e.message); } }
-      await publish(true);
+      // MC 2026-11-14 the dashboard header read "Paper only" for up to two minutes after live was turned on: the page's main view
+      // was only rebuilt every two minutes unless marked dirty, and this command did not mark it
+      viewDirty = true; await publish(true);
       return { ok: true, msg: `Kalshi live: ${ch.join(', ')}. Applied in the cloud right away.` };
     }
     // MC 2026-11-13 request 8: Kalshi's API usage level, read and upgraded from the Live account tab. 'check' reads the tier and
