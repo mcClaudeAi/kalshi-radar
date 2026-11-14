@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.4 (Nov 14, 2026): Live numbers follow live settings only
+Steven: changing paper's daily profit target made the live account look active again.
+- [fixed] The profit target bar on the live numbers (header, Home Live view, Live account) read paper's target. It reads live's now. Live trading itself already stopped on live's own target, so no live trades were placed because of it.
+- [fixed] The target line on the live Daily P&L chart and the sizing note when picking a live playbook also read paper's settings.
+- [fixed] When live's minimum price is lower than paper's, live trades below paper's price now settle within seconds of the close, like the rest.
+- [improved] Checked every live rule with paper set the opposite way: price band, coins, off hours, most trades a window, profit target, give-back stop, protect profit and cash out all follow Live settings only.
+
 ## 1.1.3 (Nov 14, 2026): Shared live accounts show up right away
 - [fixed] On a friend's dashboard, the banner kept saying "live account private" from the moment you opened it, even after they shared it. It now follows what their dashboard sends on every refresh.
 - [improved] When a friend keeps their live account private, the Live view on Home says so and how they can share it, instead of showing an empty account.

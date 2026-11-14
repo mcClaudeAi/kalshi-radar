@@ -2265,7 +2265,8 @@ function kxAnTog(k){KXAN[k]=!KXAN[k];try{localStorage.setItem('kx-andl',JSON.str
 // high and low (running total after each settled trade), the target and stop are drawn across the chart, and a day that touched
 // either is marked even when it finished somewhere else. The levels start from Settings (Live tab's loss cap for live) and can
 // be tried at other amounts here; that only changes this chart, on this device.
-function kxAnLv(seg){const K=ST.D?.kalshi,c=K?.cfg||{},lv=kxLv(),dTg=+c.dailyWinUsd||0,dSl=seg==='live'?+(lv?.dailyLossUsd||0):+(c.dailyLossUsd||0);
+// MC 2026-11-14 the live analytics take live's own profit target (was paper's)
+function kxAnLv(seg){const K=ST.D?.kalshi,lv=kxLv(),c=seg==='live'?(lv?.cfg||K?.cfg||{}):(K?.cfg||{}),dTg=+c.dailyWinUsd||0,dSl=seg==='live'?+(lv?.dailyLossUsd||0):+(c.dailyLossUsd||0);
   const tg=KXAN.tg!=null?KXAN.tg:dTg,sl=KXAN.sl!=null?KXAN.sl:dSl;return {tg,sl,dTg,dSl,own:KXAN.tg!=null||KXAN.sl!=null}}
 function kxAnSet(k,v){const n=Math.max(0,Math.round(+v||0));KXAN[k]=n;try{localStorage.setItem('kx-andl',JSON.stringify(KXAN))}catch{}render()}
 function kxAnReset(){delete KXAN.tg;delete KXAN.sl;try{localStorage.setItem('kx-andl',JSON.stringify(KXAN))}catch{}render()}
@@ -2460,7 +2461,7 @@ function paintChrome(){const D=ST.D||{},L=D.live||{},T=D.totals||{};
   // MC 2026-11-08 header is Kalshi only now
   // MC 2026-11-08 the strip says which mode it is first: paper only (live off) or live, and leads with that book's numbers
   const kwr=KK?.n?(KK.won/KK.n*100).toFixed(1)+'%':'–';
-  const kp=[...(KK?(kl?.on?[['Mode',`<b><i></i>Live trading</b>`,'klive',0,'mode live'],['Live today',`<b class="${cls(kl.today?.net)}">${usd(kl.today?.net||0)}</b>${kxGoal(kl.today?.net,1)}`,'klive'],['Kalshi cash',`<b>${kl?.bal!=null?'$'+Number(kl.bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'–'}</b>`,'klive'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop">${usd(KK.today.stop.ifNet)} with no stops</small>`:''}`,'kan']]
+  const kp=[...(KK?(kl?.on?[['Mode',`<b><i></i>Live trading</b>`,'klive',0,'mode live'],['Live today',`<b class="${cls(kl.today?.net)}">${usd(kl.today?.net||0)}</b>${kxGoal(kl.today?.net,1,1)}`,'klive'],['Kalshi cash',`<b>${kl?.bal!=null?'$'+Number(kl.bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'–'}</b>`,'klive'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop">${usd(KK.today.stop.ifNet)} with no stops</small>`:''}`,'kan']]
       :[['Mode',`<b><i></i>Paper only</b>`,'klive',0,'mode paper'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop">${usd(KK.today.stop.ifNet)} with no stops</small>`:''}`,'kan'],['Paper bank',`<b>$${Number(KK.balance||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`,'kan'],['Win rate',`<b>${kwr}</b>`,'kan']]):[]),...([]).concat(true?[]:[[`Live today`,`<b class="${cls(L.today?.net)}">${usd(L.today?.net||0)}</b>`,'live',1],['Paper today',`<b class="${cls(T.today?.net)}">${usd(T.today?.net)}</b>`,'overview'],['Live open',`<b>${lo} of ${D.settings?.maxOpen??L.maxOpen??'–'}</b>`,'open',1],['Daily stop',`<b>${lim?'$'+used.toFixed(2)+' / $'+lim:'–'}</b>`,'controls'],[(D.aud?.alist||[]).length?'A-list':'Proven',`<b>${(D.aud?.alist||[]).length||D.proven?.length||0}</b>`,'wallets']])]
     .filter(x=>KXTABS.includes(x[2])||D.mode==='live'||!x[3]).map(([a,b,t,l,x])=>`<div class="kp ${l?'live':''} ${x||''}" data-tab="${t}" ${x==='mode paper'?'title="Live trading is off. Tap to open Live account."':''}><span>${a}</span>${b}</div>`).join('');
   $('#kpis').innerHTML=kp;$('#kstrip').innerHTML=kp;
@@ -2934,7 +2935,7 @@ async function kxPbApply(book,id){const K=ST.D?.kalshi,l=kxLabOf(K,id),lv=K?.liv
   const rowsS=[['Playbook',`<span style="color:${l.color}">${esc(l.name)}</span>`],['From','the next 10-minute mark'],['History','unchanged; only new trades follow it']];
   if(book==='live')rowsS.unshift(['Money','<span class="neg">Real · your Kalshi account</span>']);
   if(id==='pct'&&book==='live')rowsS.push(['Size','5% of Kalshi cash, $5 to $50, never above the saved size']);
-  if(id==='mix'){const z=K.cfg?.mixSize||'fixed';rowsS.push(['Size',z==='pct'?`${K.cfg?.mixPct??5}% of the ${book==='live'?'Kalshi cash, $5 to $50':'paper bank'}`:z==='kelly'?'quarter Kelly'+(book==='live'?', $5 to $25':''):z==='ratchet'?`ratchet, +$${K.cfg?.ratchetAdd??10} per $${K.cfg?.ratchetEvery??200} banked at a new high`+(book==='live'?', $5 to $25':''):'fixed size per trade'])}
+  if(id==='mix'){const mc=book==='live'?(lv?.cfg||K.cfg):K.cfg,z=mc?.mixSize||'fixed';rowsS.push(['Size',z==='pct'?`${mc?.mixPct??5}% of the ${book==='live'?'Kalshi cash, $5 to $50':'paper bank'}`:z==='kelly'?'quarter Kelly'+(book==='live'?', $5 to $25':''):z==='ratchet'?`ratchet, +$${mc?.ratchetAdd??10} per $${mc?.ratchetEvery??200} banked at a new high`+(book==='live'?', $5 to $25':''):'fixed size per trade'])}
   if(id==='kelly')rowsS.push(['Size',book==='live'?'quarter Kelly of Kalshi cash, $5 to $50, never above the saved size':'quarter Kelly of the paper bank, split across the window, $5 to 5% of the bank']);
   const ok=await confirmBox({title:book==='live'?`Run ${l.name} live?`:`Run ${l.name} on paper?`,summary:rowsS,warn:book==='live'?`Live orders will follow this lab${lv?.on?' starting at the next mark':' once live is turned on'}. Labs that skip trades can also skip wins; judge it over a few hundred trades.`:'',confirm:book==='live'?'Switch live':'Switch paper',danger:book==='live',hold:book==='live'});
   if(ok)cmd('kalshiStrat',{book,id},`Kalshi ${book} playbook`)}
@@ -2971,7 +2972,7 @@ function kxLiveDyn(lv){if(!lv)return `<div class="empty">No live status from the
   const sL=KXT.live,dayL=kxTDay('live'),rowsL=(lv.recent||[]).filter(x=>x.at).sort((a,b)=>(b.close||b.at)-(a.close||a.at)),rows0=sL.day==='all'?rowsL:rowsL.filter(x=>kxDay(x.close||x.at)===dayL),barL=kxTBar('live',rows0.length),rows=rows0.slice(barL.pg*KX_PAGE,(barL.pg+1)*KX_PAGE),tmL=x=>barL.all?kxDT(x):tm2(x);
   return `<div class="kx-lvs">
     <div><div class="lbl">Kalshi cash</div><div class="mid">${bal==null?'–':'$'+Number(bal).toFixed(2)}</div><div class="sub">${lv.keyOk===false?'<span class="neg">key rejected</span>':lv.crypto!=null?`<span class="${lv.on&&lv.crypto<lv.size?'neg':''}">$${Number(lv.crypto).toFixed(2)} on the crypto shard</span>`:lv.keys?(ST.me.edition?'key connected':'key set in Cloudflare'):(ST.me.edition?'<span class="neg">no key connected</span>':'<span class="neg">no key in Cloudflare</span>')}</div></div>
-    <div><div class="lbl">Live today</div><div class="mid ${cls(t.net)}">${usd(t.net||0)}</div><div class="sub">${t.n||0} settled · ${t.won||0} won · ${t.open||0} open</div>${kxGoal(t.net)}</div>
+    <div><div class="lbl">Live today</div><div class="mid ${cls(t.net)}">${usd(t.net||0)}</div><div class="sub">${t.n||0} settled · ${t.won||0} won · ${t.open||0} open</div>${kxGoal(t.net,0,1)}</div>
     <div><div class="lbl">All live</div><div class="mid ${cls(lv.total?.net)}">${usd(lv.total?.net||0)}</div><div class="sub">${lv.total?.n||0} settled trades</div></div>
     <div><div class="lbl">Limits</div><div class="mid">$${lv.size} <span style="font-size:13px;color:var(--mute)">a trade</span></div><div class="sub">stop at -$${lv.dailyLossUsd}/day · cash floor $${lv.hard?.minBank??300}</div></div></div>
    ${lv.err?`<div class="kx-warn bad">Last error: ${esc(lv.err)}</div>`:''}${lv.on&&lv.stopped?`<div class="kx-warn">Not trading right now: ${esc(lv.stopped)}</div>`:''}${lv.xfer&&Date.now()-lv.xfer.at<86400000?`<div class="note" style="margin-top:8px">Moved $${Number(lv.xfer.amt).toFixed(2)} to the crypto shard at ${tm2(lv.xfer.at)} so orders can be placed.</div>`:''}${lv.bench?.length?`<div class="note" style="margin-top:8px">Benched coins (no live trades): ${lv.bench.map(esc).join(', ')}</div>`:''}
@@ -3095,7 +3096,9 @@ const kxSc=k=>'';   // MC 2026-11-14 paper and live have their own settings page
 // MC 2026-11-13 asked for the profit stop as a progress bar beside today's number, paper and live. Uses the daily profit target
 // (Settings, shared by paper and live); with no target set it shows Protect profit's starting point instead. Nothing shows with
 // neither set. Below zero the bar is empty; at or past the line it fills and says the day stopped (target) or is protected.
-function kxGoal(net,mini){const c=ST.D?.kalshi?.cfg||{},tg=+c.dailyWinUsd||0,lk=+c.lockAt||0,line=tg||lk;if(!(line>0))return '';
+// MC 2026-11-14 Steven: raising paper's profit target moved the bar on his live numbers too, so live looked active again. The bar
+// takes the book now: live passes true and reads live's own target (the engine already stopped live on live's settings).
+function kxGoal(net,mini,live){const c=live?(kxLv()?.cfg||ST.D?.kalshi?.live?.live?.cfg||{}):(ST.D?.kalshi?.cfg||{}),tg=+c.dailyWinUsd||0,lk=+c.lockAt||0,line=tg||lk;if(!(line>0))return '';
   const v=+net||0,f=Math.max(0,Math.min(1,v/line)),hit=v>=line-0.005,pct=Math.round(f*100),left=Math.max(0,line-v);
   // MC 2026-11-13 first version was hard to read over the bank chart (small grey text, the equity line running through it). The
   // full size now sits on its own frosted panel with the target, the % and what is left to go; the tiles keep the slim one.
@@ -3397,7 +3400,7 @@ function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div c
   const first=h.length?Math.min(...h.map(x=>x[0])):null,dd=x=>new Date(x).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'}),bar=(p,c)=>`<div class="kx-bar"><i style="width:${Math.round(Math.min(1,Math.max(0,p))*100)}%;background:${c}"></i></div>`;
   return `<section class="kx-hero2 kx-hlive" style="--hero:${net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
    <div class="kx-hd"><div><div class="kx-eyebrow">Live account, real money on Kalshi · ${lv.on?`on, $${lv.size} a trade`:'off'}</div>
-     <div class="kx-big"><div><div class="kx-ml">Kalshi cash</div><div class="kx-bal">${lv.bal==null?'–':'$'+Number(lv.bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kx-big2"><div class="kx-ml">Live today</div><b class="${cls(t.net)}">${usd(t.net||0)}</b><small>${t.n||0} settled, ${t.won||0} won${t.open?`, ${t.open} open`:''}${stopPct>=1?' · stop hit':''}</small>${kxGoal(t.net||0)}</div></div>
+     <div class="kx-big"><div><div class="kx-ml">Kalshi cash</div><div class="kx-bal">${lv.bal==null?'–':'$'+Number(lv.bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kx-big2"><div class="kx-ml">Live today</div><b class="${cls(t.net)}">${usd(t.net||0)}</b><small>${t.n||0} settled, ${t.won||0} won${t.open?`, ${t.open} open`:''}${stopPct>=1?' · stop hit':''}</small>${kxGoal(t.net||0,0,1)}</div></div>
      <div class="kx-sub"><b class="${cls(net)}">${usd(net)}</b> live${first?` since ${dd(first)}`:''}. ${n0(n)} settled trade${n===1?'':'s'}${n?`, ${(wr*100).toFixed(1)}% won`:''}.${lv.err?` <span class="neg">Last error: ${esc(lv.err)}</span>`:lv.on&&lv.stopped?` Not trading right now: ${esc(lv.stopped)}.`:''}</div></div>
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
    <div class="kx-st">
@@ -4086,7 +4089,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.1.3',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.1.4',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

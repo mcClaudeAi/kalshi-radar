@@ -705,11 +705,14 @@ export function createKalshi(state, env, keep) {
     say(`filled in the ${new Date(w - 600000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET trade check: ${n} coin${n === 1 ? '' : 's'} at 85c or more`);
     console.log(`gapfill ${new Date(w).toISOString()} added ${n} ${JSON.stringify(why)} ${smp}`);
   }
+  // MC 2026-11-14 a row counts as ours for the fast settle when paper or live would take it at its price (live's band can start
+  // lower than paper's), or when the live account holds it
+  const ours = r => r.ask >= Math.min(cfgP.minAsk, cfgL?.minAsk ?? 1) || L.has(r.ticker);
   async function settleSome(now, quick) {
     let k = 0, any = false;
     for (const r of rec.values()) {
       if (r.result || now < r.close + (quick ? 15000 : 60000)) continue;
-      if (quick && (!(r.ask >= cfgP.minAsk) || now > r.close + 600000)) continue;
+      if (quick && (!ours(r) || now > r.close + 600000)) continue;
       if (++k > 12) break;
       const j = await get(`/markets/${r.ticker}`), res = j?.market?.result;
       if (res !== 'yes' && res !== 'no') { if (now > r.close + 6 * 3600000) { r.result = 'void'; saveRec(r); viewDirty = true; } continue; }
@@ -729,7 +732,7 @@ export function createKalshi(state, env, keep) {
   function nextAlarm(now) {
     let t = nextMark(now + 1000);
     for (const r of rec.values()) {
-      if (r.result || !(r.ask >= cfgP.minAsk) || now > r.close + 600000) continue;
+      if (r.result || !ours(r) || now > r.close + 600000) continue;
       t = Math.min(t, now < r.close + 15000 ? r.close + 15000 : now + 20000);
     }
     return t;
