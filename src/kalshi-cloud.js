@@ -784,8 +784,9 @@ export function createKalshi(state, env, keep) {
     while (used < PATH_BUDGET && (pj || pq.length)) {
       if (!pj) { const x = pq.shift(); if ([...sql.exec('SELECT COUNT(*) n FROM kpath WHERE tk = ?', x.tk)][0].n) continue; pj = { ...x, end: x.c + 2, pts: {} }; }
       const r = await fetch(`https://api.coinbase.com/api/v3/brokerage/market/products/${CBPID[pj.coin]}/ticker?limit=1000&start=${pj.o - 60}&end=${pj.end}`, { headers: CBH }); used++;
-      if (!r.ok) { console.log(`path ${pj.tk}: ${r.status}`); pj.err = (pj.err || 0) + 1; if (pj.err >= 4) pj = null; break; }
-      const t = (await r.json())?.trades || []; let min = Infinity;
+      // Coinbase answers 429 when the shared Cloudflare address is busy: wait for the next minute without counting it against the job
+      if (!r.ok) { console.log(`path ${pj.tk}: ${r.status}`); if (r.status !== 429) { pj.err = (pj.err || 0) + 1; if (pj.err >= 4) pj = null; } break; }
+      const t = (await r.json())?.trades || []; let min = Infinity; await new Promise(z => setTimeout(z, 350));
       for (const x of t) { const ms = Date.parse(x.time), sec = Math.floor(ms / 1000), px = +x.price; if (!(px > 0) || !isFinite(sec)) continue; if (ms < min) min = ms; if (!(sec in pj.pts)) pj.pts[sec] = px; }
       const next = Math.floor(min / 1000);
       if (t.length < 1000 || !isFinite(next) || next <= pj.o - 60 || next >= pj.end) {   // reached the start of the window (or nothing older)

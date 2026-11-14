@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.96 (Nov 13, 2026): Steadier price path capture
+- [fixed] Coinbase sometimes turns away requests when it is busy, and the price path capture gave up on a window after a few of those. It now waits a minute and carries on, and spaces its requests out.
+
 ## 1.0.95 (Nov 13, 2026): Replay any trade, second by second
 - [fixed] Older trades in Trades could not be opened, so they had no replay. Only the last 60 came with full details. Tapping any older row now loads that trade in full, with its replay.
 - [new] The tracker now stores each window's exact price path, one price a second, for every coin it records, a few minutes after the window closes. It comes from Coinbase's trade history and is kept for 30 days. Replays read it first, so a trade from this morning or last week replays at full detail instead of one price a minute. The first run also fills in the last two days, which takes several hours in the background.
