@@ -103,39 +103,48 @@ export function createBooks(D) {
 
   function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; }
   // the same checks and order as the main live book (kalshi-cloud.js onRule), with this book's size, loss cap and floor
-  async function buy(b, r, lab, cfgP, bench) {
-    const s = S[b.id], Lb = L[b.id]; if (Lb.has(r.ticker)) return;
+  // MC 2026-11-14 like the main book: each book checks its orders one by one against its own limits (its own window cap, day,
+  // loss cap, floor and fills), counting a planned order as if it filled, then sends them all at once. Books run side by side.
+  const busy = x => x.fill > 0 || !!x.pend;
+  async function buy(b, r, lab, cfgP, bench, later, missed) {
+    const s = S[b.id], Lb = L[b.id]; if (Lb.has(r.ticker)) return; s.resv = s.resv || 0;
     const cn = D.coin(r.series), t = today(b), why = (() => {
       if (bench.has(cn)) return `${cn} is benched (down over its last ${cfgP.coldDays} days)`;
       if (realized(t) <= -b.loss) return `daily loss cap hit (${realized(t).toFixed(2)})`;
       if (cfgP.dailyWinUsd > 0 && realized(t) >= cfgP.dailyWinUsd) return `daily profit target hit (+$${realized(t).toFixed(2)})`;
       if (cfgP.giveBackPct > 0) { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk >= (cfgP.giveBackMin ?? 25) && run <= pk * cfgP.giveBackPct / 100) return `give-back stop: today peaked at +$${pk.toFixed(2)}`; }
-      if (t.filter(x => x.fill > 0).length >= LIMITS.maxPerDay) return 'daily order limit';
-      { const cap = Math.min(LIMITS.maxPerWindow, cfgP.winCap ?? 9); if ([...Lb.values()].filter(x => x.close === r.close && x.fill > 0).length >= cap) return cap < LIMITS.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
+      if (t.filter(busy).length >= LIMITS.maxPerDay) return 'daily order limit';
+      { const cap = Math.min(LIMITS.maxPerWindow, cfgP.winCap ?? 9); if ([...Lb.values()].filter(x => x.close === r.close && busy(x)).length >= cap) return cap < LIMITS.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
       return null; })();
     if (why) return skip(b, r, why);
     const bal = await balance(b, true); if (bal == null) { fail(b, `no order for ${r.ticker}: could not read the balance`); return; }
-    if (bal < b.floor) return skip(b, r, `cash $${bal.toFixed(2)} is under the $${b.floor} floor`);
+    if (bal - s.resv < b.floor) return skip(b, r, `cash $${bal.toFixed(2)} is under the $${b.floor} floor`);
     s.stopped = null;
     let rS = null; if (lab?.size) { let run = 0, pk = 0; for (const x of [...Lb.values()].filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); } rS = { peak: bal + (pk - run), start: bal - run }; }
     let size = lab?.size ? Math.min(b.size, BOOK_MAX, Math.max(BOOK_MIN, lab.size(bal, { kf: r.kf, win: r.win }, rS))) : b.size;
     if (cfgP.lockAt > 0) { const t2 = t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
-      if (pk >= cfgP.lockAt) { const riding = [...Lb.values()].filter(x => x.close === r.close && x.fill > 0 && !x.result).reduce((a, x) => a + (x.cost || 0), 0), room = run - pk * (cfgP.lockKeep || 0) / 100 - riding; if (room < BOOK_MIN) return skip(b, r, `protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left`); size = Math.min(size, room); } }
-    if ((s.shard[D.XI] ?? 0) < size + 1) { s.xferAt = 0; await fund(b); }
+      if (pk >= cfgP.lockAt) { const riding = [...Lb.values()].filter(x => x.close === r.close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), room = run - pk * (cfgP.lockKeep || 0) / 100 - riding; if (room < BOOK_MIN) return skip(b, r, `protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left`); size = Math.min(size, room); } }
+    if ((s.shard[D.XI] ?? 0) - s.resv < size + 1) { s.xferAt = 0; await fund(b); }
     const maxPx = Math.min(0.99, +(r.ask + 0.01).toFixed(4)), n = Math.floor(size / maxPx); if (n < 1) return;
     const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4);
     const cid = `cr${b.sub}-${r.ticker}`, body = r.side === 'yes'
       ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
       : { ticker: r.ticker, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
-    const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, want: n, limit: maxPx, size, fill: 0, strat: lab?.id || 'rule' };
-    Lb.set(r.ticker, row); saveRow(b, row);
-    const res = await breq(b, 'POST', '/portfolio/events/orders', body);
-    if (!res?.ok) { row.err = `${res?.status} ${errOf(res)}`.slice(0, 200); saveRow(b, row); fail(b, `order ${r.ticker} refused: ${row.err}`); return; }
-    const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
-    Object.assign(row, { id: j.order_id || null, fill, avgYes, px: avgYes == null ? null : +(r.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees: +(fill * avgFee).toFixed(4) });
-    row.cost = row.px == null ? null : +(fill * row.px + row.fees).toFixed(2); saveRow(b, row);
-    D.say(`BOOK ${b.name} ${r.ticker} ${r.side.toUpperCase()} ${fill}/${n} filled${row.px != null ? ` at ${(row.px * 100).toFixed(1)}c` : ''}`);
-    if (row.cost) { if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); }
+    const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, size, fill: 0, strat: lab?.id || 'rule', pend: 1 };
+    Lb.set(r.ticker, row); saveRow(b, row); s.resv += size;
+    const send = async () => {
+      const t0 = Date.now(); row.sent = t0 - (r.at || t0);
+      let res; try { res = await breq(b, 'POST', '/portfolio/events/orders', body); } finally { delete row.pend; s.resv = Math.max(0, s.resv - size); }
+      row.rtt = Date.now() - t0;
+      if (!res?.ok) { row.err = `${res?.status} ${errOf(res)}`.slice(0, 200); saveRow(b, row); fail(b, `order ${r.ticker} refused: ${row.err}`); return; }
+      const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
+      Object.assign(row, { id: j.order_id || null, fill, avgYes, px: avgYes == null ? null : +(r.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees: +(fill * avgFee).toFixed(4) });
+      row.cost = row.px == null ? null : +(fill * row.px + row.fees).toFixed(2); saveRow(b, row);
+      D.say(`BOOK ${b.name} ${r.ticker} ${r.side.toUpperCase()} ${fill}/${n} filled${row.px != null ? ` at ${(row.px * 100).toFixed(1)}c` : ''} (sent ${row.sent}ms after the price was read)`);
+      if (row.cost) { if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); }
+      if (fill < n && missed) missed.push({ row, save: () => saveRow(b, row) });
+    };
+    if (later) later.push(send); else await send();
   }
   async function sellAll(b) {
     for (const x of [...L[b.id].values()].filter(x => x.fill > 0 && !x.result && !x.sold && x.close > Date.now())) {
@@ -152,18 +161,23 @@ export function createBooks(D) {
 
   // ---------- hooks from the engine ----------
   // gate(sid, r) -> { ok, why, lab } is the engine's own playbook check, the one the main live book uses
-  async function onMark(hits, now, gate, cfgP, bench) {
+  async function onMark(hits, now, gate, cfgP, bench, missed = null) {
     await load(); if (!hits.length) return;
     const offNow = (cfgP.skipHours || []).includes(D.etHour(now));
-    for (const b of list) {
-      if (!b.on) continue; const sid = D.stratAt(b.strat, now);
-      for (const r of hits) {
-        if (offNow) { skip(b, r, `off schedule (${D.etHour(now)}:00 ET hour)`); continue; }
-        const g = gate(sid, r); if (!g.ok) { skip(b, r, g.why); continue; }
-        try { await buy(b, r, g.lab, cfgP, bench); } catch (e) { fail(b, 'order error: ' + e.message); }
-      }
-    }
+    await Promise.all(list.filter(b => b.on).map(async b => {
+      const sid = D.stratAt(b.strat, now), sends = [];
+      try {
+        for (const r of hits) {
+          if (offNow) { skip(b, r, `off schedule (${D.etHour(now)}:00 ET hour)`); continue; }
+          const g = gate(sid, r); if (!g.ok) { skip(b, r, g.why); continue; }
+          try { await buy(b, r, g.lab, cfgP, bench, sends, missed); } catch (e) { fail(b, 'order error: ' + e.message); }
+        }
+        await Promise.all(sends.map(f => f().catch(e => fail(b, 'order error: ' + e.message))));
+      } finally { S[b.id].resv = 0; }
+    }));
   }
+  // read every live book's balance ahead of the orders (called while the coins are being scanned)
+  async function warm() { await load(); await Promise.all(list.filter(b => b.on).map(b => balance(b, true).catch(() => { }))); }
   function onSettle(r) {
     if (!list) return;
     for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || x.sold) continue; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? x.fill : 0) - (x.cost ?? 0)).toFixed(2); saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
@@ -188,7 +202,7 @@ export function createBooks(D) {
         total: { n: all.filter(x => x.result && x.fill > 0).length, won: all.filter(x => x.won && x.fill > 0).length, net: +realized(all.filter(x => x.fill > 0)).toFixed(2) },
         open: all.filter(x => x.fill > 0 && !x.result).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, fill: x.fill, px: x.px, cost: x.cost, close: x.close })),
         hist: all.filter(x => x.fill > 0 && x.result).slice(0, 1500).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0]),
-        recent: all.slice(0, 80).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null })) }; });
+        recent: all.slice(0, 80).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null })) }; });
   }
 
   // ---------- commands from the dashboard (signed-in, unlocked device only; the engine checks that) ----------
@@ -272,5 +286,5 @@ export function createBooks(D) {
     return { ok: false, msg: 'Unknown book request.' };
   }
   const anyOn = () => !!list?.some(b => b.on);
-  return { load, onMark, onSettle, upkeep, view, command, anyOn };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm };
 }

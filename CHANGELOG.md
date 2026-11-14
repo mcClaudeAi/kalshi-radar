@@ -2,6 +2,17 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.97 (Nov 14, 2026): Live gets its own dashboard, faster orders
+Steven's first live test: real fills are easier to tell apart, every live order can be opened, and orders go out faster.
+- [new] Home has a Paper | Live switch. Live shows the Kalshi cash, today and all-time live results, win rate, average trade, how many contracts filled, the price paid against paper, and the last live trades, from real fills only.
+- [new] Live orders in Trades open like paper trades: the price the order was based on, its limit, how fast it went out, what it filled at, fees, the result and the replay.
+- [new] When an order does not fill, the tracker reads the market again right after and keeps the ask it missed. Trades shows "no fill, ask was 96.0¢" and the limit it tried.
+- [new] Every trade keeps what its contracts would have sold for at the 10-minute mark, 5 minutes before the close. It is a Min 10 column in Trades, and each trade says what cashing out then would have booked against how it ended.
+- [improved] Live orders in one window go out together instead of one after another, the subaccount books trade at the same time as the main account, and balances are read while the coins are scanned. Each account still checks its own limits (window cap, daily stop, cash floor) one trade at a time, clearest first.
+- [improved] Paper trades the live account also bought carry a "live" tag.
+- [fixed] Live trades listed the time the order was placed and paper the close time. Both show the close time now.
+- [fixed] Long dates no longer push the trade tables off the side of a phone.
+
 ## 1.0.96 (Nov 13, 2026): Steadier price path capture
 - [fixed] Coinbase sometimes turns away requests when it is busy, and the price path capture gave up on a window after a few of those. It now waits a minute and carries on, and spaces its requests out.
 
