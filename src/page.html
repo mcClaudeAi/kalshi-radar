@@ -1433,6 +1433,9 @@ async function load(){
   const fv=ST.fv;try{const r=await fetch(fv?'/api/friends/view?id='+encodeURIComponent(fv.id):'/data',{cache:fv?'no-store':'no-cache',credentials:'same-origin'});if(r.status===401){kxAuthLost();return}
     if(fv&&!r.ok){const e=await r.json().catch(()=>({}));if(ST.fv!==fv)return;toast(e.msg||'Could not open that dashboard.');frBack();return}
     const j=await r.json();if(ST.fv!==fv)return;if(!j.lite&&!j.kx){ST.err++;beat();return}if(!FR.list)frSync();
+    // MC 2026-11-14 the banner kept the live-sharing state from when the dashboard was opened; it now follows what the friend's
+    // dashboard actually sends on every refresh
+    const lvS=!!(j.kx?.live?.live&&!j.kx.live.live.hidden);if(fv&&j.kx&&lvS!==!!fv.live){fv.live=lvS;try{sessionStorage.setItem('fr-fv',JSON.stringify(fv))}catch{}}
     const D={...(j.heavy||{}),...(j.lite||{})};if(j.kx)D.kalshi=j.kx;if(D.edition==='kalshi')D.at=Date.now();   // the edition stamps the reply time, and a 304 hands back the earlier stamp
     ST.D=D;ST.last=D.at;ST.err=0;carWatch(D);sndPump();if(ST.pane?.kind==='coin'&&$('#drawer').classList.contains('on')){paintChrome();coinPane(ST.pane.id,ST.pane.tid)}else if(!kxSetHold())render();else paintChrome();carPump();}
   catch(e){ST.err++;}
@@ -3388,7 +3391,7 @@ ${isL?'':`    <div class="kx-sg" id="kxg-notify"><div class="kx-sgh">Notificatio
   const ltick=(lv?.recent||[]).filter(x=>x.fill>0&&x.result).slice(0,14),ltk=ltick.length?`<div class="kx-tk"><div><span class="kx-tkl">Last live trades</span></div>${ltick.map(x=>`<div class="${x.pnl>0?'w':'l'}"><b>${esc(x.coin)}</b><span class="kx-side ${x.side}">${x.side.toUpperCase()}</span><span>${kxC(x.px)}</span><b class="${cls(x.pnl)}">${usd(x.pnl)}</b><span>${tm2s(x.close)}</span></div>`).join('')}</div>`:'';
   return `<div class="kx-home2">${strip}${sw}<div class="kx-home"><div class="kx-hl">${homeLive?kxLiveHero(K,lv):P.hero}<div style="margin-top:16px">${pb}</div>${P.board}</div><div class="kx-hr">${P.scan}</div></div>${homeLive?ltk:tkl}</div>`}
 function kxLiveEq(lv){const h=[...(lv?.hist||[])].sort((a,b)=>a[0]-b[0]);if(!h.length)return [];let run=0;return [[h[0][0]-60000,0],...h.map(x=>[x[0],+(run+=x[5]||0).toFixed(2)])]}
-function kxLiveHero(K,lv){if(!lv)return `<section class="kx-hero2"><div class="kx-hd"><div><div class="kx-eyebrow">Live account</div><div class="kx-sub">No live status from the tracker yet.</div></div></div></section>`;
+function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div class="kx-hd"><div><div class="kx-eyebrow">Live account</div><div class="kx-sub">${ST.fv?esc(ST.fv.name)+' keeps the live account private. It shows here once they turn on <b>Include my live account</b> under Sharing in your chat with them.':'Private.'}</div></div></div></section>`;if(!lv)return `<section class="kx-hero2"><div class="kx-hd"><div><div class="kx-eyebrow">Live account</div><div class="kx-sub">No live status from the tracker yet.</div></div></div></section>`;
   const h=lv.hist||[],n=h.length,won=h.filter(x=>x[6]).length,net=lv.total?.net||0,wr=n?won/n:0,be=K.breakEven||.935,t=lv.today||{},cap=lv.dailyLossUsd||100,stopPct=Math.min(1,Math.max(0,-(t.net||0)/cap));
   const rc=(lv.recent||[]).filter(x=>!x.skipped&&!x.err&&!x.pend),want=rc.reduce((a,x)=>a+(x.want||0),0),got=rc.reduce((a,x)=>a+(x.fill||0),0),nf=rc.filter(x=>!x.fill).length,sl=rc.filter(x=>x.fill&&x.px!=null&&x.paperPx),slip=sl.length?sl.reduce((a,x)=>a+(x.px-x.paperPx)*100,0)/sl.length:null,sent=rc.filter(x=>x.sent!=null),lag=sent.length?sent.reduce((a,x)=>a+x.sent,0)/sent.length/1000:null;
   const first=h.length?Math.min(...h.map(x=>x[0])):null,dd=x=>new Date(x).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'}),bar=(p,c)=>`<div class="kx-bar"><i style="width:${Math.round(Math.min(1,Math.max(0,p))*100)}%;background:${c}"></i></div>`;
@@ -4083,7 +4086,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.1.2',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.1.3',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
