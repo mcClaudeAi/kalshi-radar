@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.7 (Nov 14, 2026): Today's run in the Mode tile
+- [new] The Mode tile at the top now shows today's running profit for the account you are in (live when live trading is on, paper otherwise): a line that steps with each settled trade, the zero line dotted, a pulsing dot for now, and under it the day's wins, losses, open trades and the next trade check. It refreshes with the header, on the web and on phones.
+
 ## 1.1.6 (Nov 14, 2026): Price charts stay straight after coming back to the app
 - [fixed] After the phone had been away from the app, an open trade's price chart could double back on itself and draw a flat line across minutes it had no prices for. The line now always runs forward in time, and minutes missing from before the phone slept are fetched again.
 
