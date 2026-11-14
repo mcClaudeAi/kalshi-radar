@@ -181,6 +181,8 @@ export class Store {
       let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; }
       return etagged(req, `{"lite":{"at":${Date.now()},"copyOff":true,"mode":"paper","edition":"kalshi"},"heavy":null,"kx":${kv || 'null'}}`, { 'content-type': 'application/json' }, kv || 'null');
     }
+    if (p === '/api/kpath') return new Response(JSON.stringify(await this.K.pathOf(u.searchParams.get('tk') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=86400' } });
+    if (p === '/api/ktrade') return new Response(JSON.stringify(await this.K.tradeAt(+u.searchParams.get('close'), u.searchParams.get('coin') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
     if (p === '/api/klab') return etagged(req, JSON.stringify(await this.K.labRows(u.searchParams.get('id') || '')), { 'content-type': 'application/json' });
     if (p === '/api/klive') { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return new Response(h || 'null', { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
     if (p === '/api/cmd' && post) {

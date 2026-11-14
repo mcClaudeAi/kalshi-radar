@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.95 (Nov 13, 2026): Replay any trade, second by second
+- [fixed] Older trades in Trades could not be opened, so they had no replay. Only the last 60 came with full details. Tapping any older row now loads that trade in full, with its replay.
+- [new] The tracker now stores each window's exact price path, one price a second, for every coin it records, a few minutes after the window closes. It comes from Coinbase's trade history and is kept for 30 days. Replays read it first, so a trade from this morning or last week replays at full detail instead of one price a minute. The first run also fills in the last two days, which takes several hours in the background.
+
 ## 1.0.94 (Nov 13, 2026): No more straight line after coming back to the app
 - [fixed] Coming back to the app after it was in the background left a straight line across the live trade chart for the minutes the phone had paused the price feed. The chart now rebuilds those minutes from Coinbase's trade history when you return, then carries on live. The 60-second average fills back in within a minute.
 

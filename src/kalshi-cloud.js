@@ -452,7 +452,7 @@ export function createKalshi(state, env, keep) {
     st.balAt = 0;
   }
   // MC 2026-11-07 150 recent live orders (was 40) so the dashboard day filter can page back through them
-  let apiV = null, labRowsMem = null;
+  let apiV = null, labRowsMem = null, tradesMem = null;
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
     return { on: c.enabled, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
@@ -555,7 +555,7 @@ export function createKalshi(state, env, keep) {
       if (r && !r.result && r.ask >= K.minAsk) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); }
     }
     scan = out; scanAt = now;
-    if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); } try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
+    if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await pathFill(now); } catch (e) { console.log('path fill error: ' + e.message); } try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); } try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
@@ -761,6 +761,46 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-12 request 7: shares saved before the candle order fix (keepV under 2) were read off the wrong minute, so they are
   // worked out again the same way, the fresh ones first.
   const KEEP_V = 2;
+  // MC 2026-11-13 Steven could not replay early-morning trades: the page drew the replay from Coinbase's recent-trades feed,
+  // which only reaches back an hour or so on a busy coin, then fell back to one price a minute. Each window's exact path is now
+  // kept here. A short while after a window closes, every coin the tracker recorded in it (85c and up) is queued; the queue
+  // asks Coinbase Advanced Trade's public trades for that window, 1,000 trades a request (BTC needs about 15, a quiet coin 1),
+  // newest first, stepping back until the window's start, at most 8 requests a minute and never near a trade check. The path is
+  // stored as one price per second where it changed, about 5 KB a coin-window, kept 30 days, and read back only when a replay
+  // opens. The first run also queues the last two days. The exchange feed is not used: it rate-limits Cloudflare (Nov 10).
+  sql.exec('CREATE TABLE IF NOT EXISTS kpath (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');
+  let pq = null, pqAt = null, pj = null, pqSaveAt = 0;
+  const PATH_DAYS = 30, PATH_BUDGET = 8;
+  async function pathQueue(now) {
+    if (pq == null) { pq = (await kv.get('kpq')) || []; pqAt = (await kv.get('kpqAt')) ?? now - 2 * 86400000; pj = (await kv.get('kpj')) || null; }
+    const upTo = now - 45000; let add = 0;
+    if (upTo > pqAt) { const have = new Set(pq.map(x => x.tk)); if (pj) have.add(pj.tk);
+      for (const r of rec.values()) { if (!(r.close > pqAt && r.close <= upTo) || !(r.ask >= KEEP_ASK) || have.has(r.ticker) || !CBPID[coin(r.series)]) continue; pq.push({ tk: r.ticker, coin: coin(r.series), o: Math.floor(r.close / 1000) - 900, c: Math.floor(r.close / 1000) }); add++; }
+      pqAt = upTo; pq.sort((a, b) => b.c - a.c);   // newest first, so today's trades are ready before the backfill
+      if (add) { await kv.put('kpq', pq); } await kv.put('kpqAt', pqAt); }
+  }
+  async function pathFill(now) {
+    await pathQueue(now); let used = 0;
+    while (used < PATH_BUDGET && (pj || pq.length)) {
+      if (!pj) { const x = pq.shift(); if ([...sql.exec('SELECT COUNT(*) n FROM kpath WHERE tk = ?', x.tk)][0].n) continue; pj = { ...x, end: x.c + 2, pts: {} }; }
+      const r = await fetch(`https://api.coinbase.com/api/v3/brokerage/market/products/${CBPID[pj.coin]}/ticker?limit=1000&start=${pj.o - 60}&end=${pj.end}`, { headers: CBH }); used++;
+      if (!r.ok) { console.log(`path ${pj.tk}: ${r.status}`); pj.err = (pj.err || 0) + 1; if (pj.err >= 4) pj = null; break; }
+      const t = (await r.json())?.trades || []; let min = Infinity;
+      for (const x of t) { const ms = Date.parse(x.time), sec = Math.floor(ms / 1000), px = +x.price; if (!(px > 0) || !isFinite(sec)) continue; if (ms < min) min = ms; if (!(sec in pj.pts)) pj.pts[sec] = px; }
+      const next = Math.floor(min / 1000);
+      if (t.length < 1000 || !isFinite(next) || next <= pj.o - 60 || next >= pj.end) {   // reached the start of the window (or nothing older)
+        // stored as deltas: seconds since the last change and price steps in the coin's smallest quoted unit (about 5 KB for BTC)
+        const secs = Object.keys(pj.pts).map(Number).sort((a, b) => a - b), dec = Math.min(8, Math.max(0, ...secs.map(sc => (String(pj.pts[sc]).split('.')[1] || '').length))), f = 10 ** dec, dt = [], dp = [];
+        let ls = pj.o - 60, lv = null, p0 = null;
+        for (const sc of secs) { const v = Math.round(pj.pts[sc] * f); if (v === lv && sc !== secs[secs.length - 1]) continue; if (p0 == null) { p0 = v; lv = v; } dt.push(sc - ls); dp.push(v - lv); ls = sc; lv = v; }
+        if (dt.length) sql.exec('INSERT OR REPLACE INTO kpath (tk, close, j) VALUES (?, ?, ?)', pj.tk, pj.c * 1000, JSON.stringify({ t0: pj.o - 60, d: dec, p0, dt, dp }));
+        pj = null;
+      } else pj.end = next;   // trades in the same second as the oldest may be cut; the second already holds a price
+    }
+    if (used) { await kv.put('kpj', pj); if (now - pqSaveAt > 300000 || !pq.length) { pqSaveAt = now; await kv.put('kpq', pq); } }
+    if (Math.floor(now / 3600000) !== Math.floor((now - 60000) / 3600000)) sql.exec('DELETE FROM kpath WHERE close < ?', now - PATH_DAYS * 86400000);
+  }
+  const pathOf = async tk => { const r = [...sql.exec('SELECT j FROM kpath WHERE tk = ?', tk)][0]; if (!r) return null; try { const j = JSON.parse(r.j), f = 10 ** j.d, out = []; let t = j.t0, v = j.p0; for (let i = 0; i < j.dt.length; i++) { t += j.dt[i]; v += j.dp[i]; out.push([t, v / f]); } return out; } catch { return null; } };
   async function keepFill(now) {
     let n = 0;
     const due = [...rec.values()].filter(r => { const x = r.exit; return x && (x.keep == null || (x.keepV || 0) < KEEP_V) && (x.keepTry || 0) < 3 && r.strike > 0 && r.close <= now - 60000; }).sort((a, b) => b.close - a.close);
@@ -1048,7 +1088,7 @@ export function createKalshi(state, env, keep) {
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
     // MC 2026-11-12 today's taken paper trades in the worker log every 10 minutes, so a day's total can be checked from the tail
     // without the dashboard (the paper day went to -$65 after the outage fill-in and needed checking)
-    if (Date.now() - dayLogAt > 600000) { dayLogAt = Date.now(); console.log('daylog ' + JSON.stringify({ cap: K.winCap, strat: K.strat?.at?.(-1) ?? K.strat, net: sum(today), n: today.length, t: today.map(t => [t.tk.replace(/^KX|15M-\d+/g, ''), t.side[0], t.px, t.won ? 1 : 0, t.pnl, rec.get(t.mk)?.src === 'fill' ? 'F' : '', rec.get(t.mk)?.vol?.z ?? null, new Date(t.close).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })]) })); }
+    if (Date.now() - dayLogAt > 600000) { dayLogAt = Date.now(); console.log('daylog ' + JSON.stringify({ db: Math.round((sql.databaseSize || 0) / 1048576 * 10) / 10, paths: (() => { try { return [...sql.exec('SELECT COUNT(*) n FROM kpath')][0].n; } catch { return null; } })(), cap: K.winCap, strat: K.strat?.at?.(-1) ?? K.strat, net: sum(today), n: today.length, t: today.map(t => [t.tk.replace(/^KX|15M-\d+/g, ''), t.side[0], t.px, t.won ? 1 : 0, t.pnl, rec.get(t.mk)?.src === 'fill' ? 'F' : '', rec.get(t.mk)?.vol?.z ?? null, new Date(t.close).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })]) })); }
     const byCoin = {}; for (const t of doneAll) { const b = byCoin[t.coin] = byCoin[t.coin] || { coin: t.coin, n: 0, won: 0, net: 0 }; b.n++; if (t.won) b.won++; b.net = +(b.net + t.pnl).toFixed(2); }
     const winLoss = {}; for (const t of done) { if (!t.won) winLoss[t.close] = (winLoss[t.close] || 0) + 1; }
     let streak = 0; for (let i = done.length - 1; i >= 0 && done[i].won; i--) streak++;
@@ -1081,6 +1121,7 @@ export function createKalshi(state, env, keep) {
     // Settings always said earlier trades stay in Analytics, but this sent the run only, so starting a new run emptied the
     // daily P&L and the calendar of every day before it.
     const all = doneAll.slice(-4000).map(t => [t.close, t.coin, t.side, t.px, t.n, t.pnl, t.won ? 1 : 0, t.run ? 1 : 0]);
+    tradesMem = trades;
     return {
       byHour, bySide, byPx, bySame, sameMin, daily, roll, breakEven, halves, checks, all, live: { at: scanAt, scan, live: liveView() }, keys, wr300: +(wr300 * 100).toFixed(1), worstDay, dd: +(peak - bal).toFixed(2),
       bounds: BOUNDS, coinsAll: COINS, cfg: K, balance: +bal.toFixed(2), net: +(bal - K.startUsd).toFixed(2), inPlay: +open.toFixed(2), maxDd: +maxDd.toFixed(2),
@@ -1263,6 +1304,9 @@ export function createKalshi(state, env, keep) {
   // the balance with it. The caller swaps env's key fields; nothing here stores the key.
   async function checkKeys() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; st.lastErr = null; viewDirty = true; try { const b = await balance(true); return b == null ? { ok: false, msg: st.lastErr || 'Kalshi did not return a balance.' } : { ok: true, bal: b }; } catch (e) { return { ok: false, msg: e.message }; } }
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
+  // MC 2026-11-13 Steven could not replay early-morning trades: the view only carries the last 60 in full, older ones arrive as
+  // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
+  const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
