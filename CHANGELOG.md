@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.2 (Nov 14, 2026): Cash out on live
+- [new] "Cash out when the trend turns" and "Share of the lead kept" are now in Live settings too, separate from paper. When on, a live position whose trend runs against it at the 10-minute mark, with less of its lead left than your setting, is sold at the price buyers are paying then. It gives up to 3¢ below that price if the book moves, never more, and anything that does not sell is held to the close. Subaccount books do the same.
+- [improved] It starts off on live, whatever paper uses. Opening a cashed-out live trade in Trades says it was cashed out and at what price.
+
 ## 1.1.1 (Nov 14, 2026): Header shows live right away
 - [fixed] After turning live on or off, the header kept the old mode (Paper only) for up to two minutes. It changes at once now.
 

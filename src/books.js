@@ -178,9 +178,25 @@ export function createBooks(D) {
   }
   // read every live book's balance ahead of the orders (called while the coins are being scanned)
   async function warm() { await load(); await Promise.all(list.filter(b => b.on).map(b => balance(b, true).catch(() => { }))); }
+  // MC 2026-11-14 live cash out at minute 10, each book on its own key, same terms as the main book (kalshi-cloud.js cashLive)
+  async function cashOut(r, best) {
+    await load();
+    for (const b of list) { if (!b.on) continue; const x = L[b.id]?.get(r.ticker); if (!x || !(x.fill > 0) || x.result || x.sold || x.close <= Date.now()) continue;
+      const minPx = Math.max(0.01, best - 0.03), grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4);
+      const body = x.side === 'yes'
+        ? { ticker: x.tk, side: 'ask', count: String(x.fill), price: up(minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx${b.sub}-${x.tk}` }
+        : { ticker: x.tk, side: 'bid', count: String(x.fill), price: down(1 - minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx${b.sub}-${x.tk}` };
+      const res = await breq(b, 'POST', '/portfolio/events/orders', body);
+      if (!res?.ok) { fail(b, `cash out ${x.tk} refused: ${res?.status} ${errOf(res)}`); continue; }
+      const j = res.j?.order || res.j || {}, f = +(j.fill_count ?? 0), avg = j.average_fill_price != null ? +j.average_fill_price : null, fe = j.average_fee_paid != null ? +j.average_fee_paid * f : 0;
+      if (!(f > 0) || avg == null) continue;
+      const px = +(x.side === 'yes' ? avg : 1 - avg).toFixed(4); x.sold = { at: Date.now(), fill: f, px, fee: +fe.toFixed(4), cash: 1 };
+      if (f >= x.fill) { x.pnl = +(f * px - fe - (x.cost ?? 0)).toFixed(2); x.result = 'sold'; }
+      saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} cashed out ${x.tk}: ${f}/${x.fill}`); }
+  }
   function onSettle(r) {
     if (!list) return;
-    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || x.sold) continue; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? x.fill : 0) - (x.cost ?? 0)).toFixed(2); saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
+    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
   }
   async function upkeep(now) {
     await load();
@@ -286,5 +302,5 @@ export function createBooks(D) {
     return { ok: false, msg: 'Unknown book request.' };
   }
   const anyOn = () => !!list?.some(b => b.on);
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut };
 }

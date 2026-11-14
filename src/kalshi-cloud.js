@@ -32,7 +32,7 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
-const LIVE_KEYS = ['minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
+const LIVE_KEYS = ['trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
@@ -475,9 +475,28 @@ export function createKalshi(state, env, keep) {
     for (const m of missed) { const b = bk[m.row.tk]; if (!b) continue; const a = (m.row.side === 'yes' ? b.yesAsks : b.noAsks)[0]; m.row.missAsk = a ? a[0] : null; m.row.missQty = a ? a[1] : null; m.row.missAt = Date.now(); try { m.save(); } catch { } }
     say(`LIVE short fills: ${missed.map(m => `${m.row.coin} ${m.row.fill}/${m.row.want}, limit ${(m.row.limit * 100).toFixed(1)}c, ask after ${m.row.missAsk != null ? (m.row.missAsk * 100).toFixed(1) + 'c' : 'none'}`).join('; ')}`);
   }
+  // MC 2026-11-14 live cash out at minute 10: sell the position at the bid seen at the check, giving up to 3 cents more for the
+  // book moving, never lower. Whatever does not sell is held to the close. A partial sale settles the rest normally (onSettle).
+  async function cashLive(r, best) {
+    const x = L.get(r.ticker); if (!x || !(x.fill > 0) || x.result || x.sold || x.close <= Date.now()) return;
+    const minPx = Math.max(0.01, best - 0.03), grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4);
+    const body = x.side === 'yes'
+      ? { ticker: x.tk, side: 'ask', count: String(x.fill), price: up(minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx-${x.tk}` }
+      : { ticker: x.tk, side: 'bid', count: String(x.fill), price: down(1 - minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx-${x.tk}` };
+    const res = await kreq('POST', '/portfolio/events/orders', body);
+    if (!res?.ok) { fail(`cash out ${x.tk} refused: ${res?.status} ${errOf(res)}`); return; }
+    const j = res.j?.order || res.j || {}, f = +(j.fill_count ?? 0), avg = j.average_fill_price != null ? +j.average_fill_price : null, fe = j.average_fee_paid != null ? +j.average_fee_paid * f : 0;
+    if (!(f > 0) || avg == null) { say(`LIVE cash out ${x.tk}: nothing sold at ${(minPx * 100).toFixed(1)}c or better, holding`); x.cashTry = { at: Date.now(), min: minPx }; saveL(x); return; }
+    const px = +(x.side === 'yes' ? avg : 1 - avg).toFixed(4); x.sold = { at: Date.now(), fill: f, px, fee: +fe.toFixed(4), cash: 1 };
+    if (f >= x.fill) { x.pnl = +(f * px - fe - (x.cost ?? 0)).toFixed(2); x.result = 'sold'; }
+    saveL(x); st.balAt = 0; viewDirty = true; say(`LIVE cashed out ${x.tk}: ${f}/${x.fill} at ${(px * 100).toFixed(1)}c`);
+  }
   function onSettle(r) {
-    const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0) || x.sold) return;
-    x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? x.fill : 0) - (x.cost ?? 0)).toFixed(2); saveL(x); st.balAt = 0;
+    const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0)) return;
+    if (x.sold && !x.sold.cash) return;
+    // the rest of a partly cashed-out position settles here, with the sale counted in
+    const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0;
+    x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); saveL(x); st.balAt = 0;
     say(`LIVE settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl >= 0 ? '+' : ''}$${x.pnl}`);
   }
   async function sellAll() {
@@ -893,6 +912,10 @@ export function createKalshi(state, env, keep) {
         // what a cash-out would have paid against how the trade ended (also for trades that turned back into wins)
         { try { const b = bids(await get(`/markets/${r.ticker}/orderbook`)), mine = r.side === 'yes' ? b.yes : b.no; if (mine.length) { x.best = mine[0][0]; const avg = walk(mine, BOOK_N); x.px = +(avg ?? mine[0][0]).toFixed(4); x.depth = mine.reduce((a, q) => a + q[1], 0); } } catch (e) { console.log(`trend ${r.ticker}: book ${e.message}`); } }
         r.exit = x; saveRec(r); viewDirty = true;
+        // MC 2026-11-14 Steven: cash out on live too, from live's own setting (off unless turned on in Live settings)
+        if (cfgL.trendExit && dir < 0 && x.keep != null && x.keep * 100 < (cfgL.trendKeep ?? 50) && x.best != null) {
+          try { await cashLive(r, x.best); } catch (e) { fail('cash out error: ' + e.message); }
+          try { await books.cashOut(r, x.best); } catch (e) { say('books cash out error: ' + e.message); } }
         console.log(`trend ${c} ${r.side} ${pct >= 0 ? '+' : ''}${pct.toFixed(3)}% ${dir > 0 ? 'with' : dir < 0 ? 'against, bid ' + (x.px != null ? (x.px * 100).toFixed(1) + 'c' : 'none') : 'flat'}${x.keep != null ? ` kept ${Math.round(x.keep * 100)}%` : ''}`);
       }
     }
@@ -1388,5 +1411,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
