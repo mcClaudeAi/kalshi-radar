@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.6 (Nov 14, 2026): Price charts stay straight after coming back to the app
+- [fixed] After the phone had been away from the app, an open trade's price chart could double back on itself and draw a flat line across minutes it had no prices for. The line now always runs forward in time, and minutes missing from before the phone slept are fetched again.
+
 ## 1.1.5 (Nov 14, 2026): What each account takes, in plain words
 - [new] The top of Paper settings and Live settings now says in one paragraph what that account takes right now: which trades the playbook buys, the price band (with the playbook's own price limit folded in, so "under 95¢" shows as 90¢ to 94.9¢), coins, trades a window, off hours, size, the daily stops, protect profit and cash out. It is built from the saved settings, so it changes when you save.
 

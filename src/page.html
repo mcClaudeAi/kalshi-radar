@@ -2593,11 +2593,17 @@ async function kxTrPump(){if(KX.trBusy)return;KX.trBusy=true;KX.trBusyAt=Date.no
   for(let pg=0;pg<4;pg++){try{const r=await kxGet(`https://api.exchange.coinbase.com/products/${KXPID[c]}/trades?limit=1000${after?'&after='+after:''}`);if(!r.ok)break;const j=await r.json();if(!Array.isArray(j)||!j.length)break;okPg++;
     for(const t of j){const ms=kxTs(t.time),sec=Math.floor(ms/1000),px=+t.price;if(!(px>0))continue;if(pg===0&&ms>Date.now()-300000&&!(KX.flowSeed||(KX.flowSeed={}))[c+sec+t.trade_id]){KX.flowSeed[c+sec+t.trade_id]=1;ckFlow(c,sec,t.side,+t.size)}if(ms<reached)reached=ms;if(ms>=fromMs-60000&&!out.has(sec))out.set(sec,px)}
     after=Math.min(...j.map(t=>+t.trade_id));if(reached<fromMs-60000||j.length<1000)break;await new Promise(r=>setTimeout(r,140))}catch{break}}
-  const pts=[...out.entries()].sort((a,b)=>a[0]-b[0]);if(okPg&&pts.length)KX.tr[key]={pts,from:isFinite(reached)?reached/1000:Infinity};else KX.trRetry[key]=Date.now()+15000;delete KX.trReq[key];await new Promise(r=>setTimeout(r,120))}}finally{KX.trBusy=false}}
+  const pts=[...out.entries()].sort((a,b)=>a[0]-b[0]);if(okPg&&pts.length)KX.tr[key]={pts,from:isFinite(reached)?reached/1000:Infinity,at:Date.now()};else KX.trRetry[key]=Date.now()+15000;delete KX.trReq[key];await new Promise(r=>setTimeout(r,120))}}finally{KX.trBusy=false}}
 function kxSeries(c,openMs){const key=c+':'+Math.floor(openMs/60000),o=KX.px[c],ticks=o?o.ticks:[],first=ticks.length?ticks[0][0]:Infinity,lo=openMs/1000-60;
   const tr=KX.tr[key];if(!tr)kxTrades(c,openMs);const trPts=tr?tr.pts.filter(p=>p[0]>=lo&&p[0]<first):[],trFrom=tr&&tr.pts.length?Math.min(tr.from,tr.pts[0][0]):first;
   const cand=(KX.cand[key]||[]).filter(p=>p[0]<trFrom&&p[0]>=lo);if(!KX.cand[key]&&trFrom>lo+90)kxCandles(c,openMs,Date.now());
-  return cand.concat(trPts,ticks.filter(p=>p[0]>=lo))}
+  // MC 2026-11-14 the chart still went wonky after coming back to the app: a straight flat line across minutes the backfill had
+  // not reached (it was fetched before the phone slept and never again), and the line doubling back on itself where two sources
+  // overlapped. A backfill that ends well before the live ticks start is fetched again (at most every 20s), and the joined series
+  // is put in time order with one point a second, so the line can only move forward.
+  if(tr&&ticks.length&&tr.pts.length&&tr.pts[tr.pts.length-1][0]<first-45&&Date.now()-(tr.at||0)>20000&&!KX.trReq[key]){delete KX.tr[key];kxTrades(c,openMs)}
+  const all=cand.concat(trPts,ticks.filter(p=>p[0]>=lo)).sort((a,b)=>a[0]-b[0]),out=[];for(const p of all){if(out.length&&out[out.length-1][0]===p[0])out[out.length-1]=p;else out.push(p)}
+  return out}
 // MC 2026-11-08 after the close the average is the last 60 seconds before close (what Kalshi settles on), not the 60 seconds before now
 const kxAvg60=(c,endMs)=>{const o=KX.px[c];if(!o)return null;const end=Math.floor(Math.min(Date.now(),endMs||Infinity)/1000),l=o.ticks.filter(p=>p[0]>end-60&&p[0]<=end);return l.length?l.reduce((a,p)=>a+p[1],0)/l.length:null};
 // ----- canvas chart: price since the window opened against the target, win zone shaded for the side we hold -----
@@ -4103,7 +4109,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.1.5',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.1.6',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
