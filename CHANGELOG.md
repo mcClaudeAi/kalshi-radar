@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.98 (Nov 14, 2026): Cash out works on every coin again
+- [fixed] Since the price path capture started (1.0.95), it was using up Coinbase's allowance just as the minute-10 trend check needed it, so on most coins the check got no answer and "Cash out when the trend turns" did nothing for them. The capture and the volatility repair now pause from 7 to 3 minutes before each close, and the check waits and tries again if Coinbase is busy.
+- [improved] When there is still no trend reading, the minute-10 sale price is kept anyway, so the Min 10 column is filled in.
+
 ## 1.0.97 (Nov 14, 2026): Live gets its own dashboard, faster orders
 Steven's first live test: real fills are easier to tell apart, every live order can be opened, and orders go out faster.
 - [new] Home has a Paper | Live switch. Live shows the Kalshi cash, today and all-time live results, win rate, average trade, how many contracts filled, the price paid against paper, and the last live trades, from real fills only.

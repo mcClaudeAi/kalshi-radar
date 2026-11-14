@@ -487,7 +487,7 @@ export function createKalshi(state, env, keep) {
       hist: all.filter(x => x.fill > 0 && x.result).slice(0, 2000).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0]),
       // MC 2026-11-14 with the order's limit, the ask it was based on, how fast it went out, what a miss saw after, the fees, and
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
-      recent: all.slice(0, 150).map(x => { const e = rec.get(x.tk)?.exit; return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null,
+      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null,
         ask: x.ask ?? null, limit: x.limit ?? null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
       playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view() };
   }
@@ -591,7 +591,13 @@ export function createKalshi(state, env, keep) {
       if (r && !r.result && r.ask >= K.minAsk) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); }
     }
     scan = out; scanAt = now;
-    if (now - mk > 150000 && nextMark(now) - now > 90000) { try { await pathFill(now); } catch (e) { console.log('path fill error: ' + e.message); } try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); } try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
+    // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend
+    // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
+    const toClose = Q - (now % Q);
+    if (now - mk > 150000 && nextMark(now) - now > 90000) { const cbOk = toClose > 420000 || toClose < 180000;
+      if (cbOk) try { await pathFill(now); } catch (e) { console.log('path fill error: ' + e.message); }
+      try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); }
+      if (cbOk) try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
@@ -780,7 +786,9 @@ export function createKalshi(state, env, keep) {
   async function slopeOf(c, closeMs) {
     const key = c + ':' + closeMs; if (slopes.has(key)) return slopes.get(key);
     const close = closeMs / 1000, x0 = close - 900, pid = CBPID[c]; if (!pid) return null;
-    let pts = []; try { pts = (await advCandles(pid, x0 + 240, x0 + 600)).map(k => [k[0] + 60, k[4]]).filter(p => p[0] >= x0 + 300 && p[0] <= x0 + 600); } catch (e) { console.log(`trend ${c}: ${e.message}`); return null; }
+    // MC 2026-11-14 the trend check was turned away by Coinbase (429) on most coins since the price path capture started sharing
+    // the same API; one retry after a pause, and the capture now stands aside around minute 10 (see tick)
+    let pts = []; try { let raw; try { raw = await advCandles(pid, x0 + 240, x0 + 600); } catch (e) { if (e.status !== 429) throw e; await sleep(1500); raw = await advCandles(pid, x0 + 240, x0 + 600); } pts = raw.map(k => [k[0] + 60, k[4]]).filter(p => p[0] >= x0 + 300 && p[0] <= x0 + 600); } catch (e) { console.log(`trend ${c}: ${e.message}`); return null; }
     if (pts.length < 3) { console.log(`trend ${c}: only ${pts.length} points`); return null; }
     // MC 2026-11-12 request 7: Coinbase sends these candles newest first, so the last point was the minute-5 close, not minute 10.
     // The slope did not care, but the share of the lead kept did: with the trend against the bet, minute 5 is the best price of
@@ -851,8 +859,12 @@ export function createKalshi(state, env, keep) {
     const due = [...rec.values()].filter(r => !r.exit && r.ask >= KEEP_ASK && r.strike > 0 && r.result !== 'void' && r.close - now <= 330000 && r.close - now >= 200000);
     if (!due.length) return;
     const byCoin = {}; for (const r of due) (byCoin[coin(r.series)] = byCoin[coin(r.series)] || []).push(r);
+    let first = true;
     for (const [c, list] of Object.entries(byCoin)) {
-      const slope = await slopeOf(c, list[0].close); if (slope == null) continue;
+      if (!first) await sleep(150); first = false;
+      const slope = await slopeOf(c, list[0].close);
+      // MC 2026-11-14 no trend reading: on the last try before the close still keep the minute-10 sale price (m10), so Trades has it
+      if (slope == null) { for (const r of list) if (!r.m10 && r.close - now < 265000) { try { const b = bids(await get(`/markets/${r.ticker}/orderbook`)), mine = r.side === 'yes' ? b.yes : b.no; r.m10 = { at: now, best: mine[0]?.[0] ?? null, px: mine.length ? +(walk(mine, BOOK_N) ?? mine[0][0]).toFixed(4) : null }; saveRec(r); viewDirty = true; } catch { } } continue; }
       for (const r of list) {
         const pct = slope * 300 / r.strike * 100 * (r.side === 'yes' ? 1 : -1), dir = Math.abs(pct) < 0.02 ? 0 : pct > 0 ? 1 : -1, x = { at: now, pct: +pct.toFixed(4), dir, keep: keepOf(leads.get(c + ':' + r.close), r.side, r.strike), keepV: KEEP_V };
         // MC 2026-11-14 Steven: keep the sale price at minute 10 on every trade, not only the ones trending against the bet, to see
@@ -1108,7 +1120,7 @@ export function createKalshi(state, env, keep) {
       const steep = r.exit?.dir < 0 && r.exit.keep != null && r.exit.keep * 100 < (K.trendKeep ?? 50);
       const cashed = !!(K.trendExit && !late && steep && r.exit.px != null && r.at < r.exit.at);
       if (cashed) { t.cashed = 1; t.exitPx = r.exit.px; t.exitPct = r.exit.pct; t.heldWon = r.result ? !!r.won : null; t.done = true; t.won = n * r.exit.px - fee(r.exit.px, n) - cost > 0; }
-      if (r.exit) { t.trend = r.exit.dir; t.trendPct = r.exit.pct; t.keep = r.exit.keep ?? null; t.m10 = r.exit.px ?? null; t.m10b = r.exit.best ?? null; }
+      if (r.exit) { t.trend = r.exit.dir; t.trendPct = r.exit.pct; t.keep = r.exit.keep ?? null; t.m10 = r.exit.px ?? null; t.m10b = r.exit.best ?? null; } else if (r.m10) { t.m10 = r.m10.px; t.m10b = r.m10.best; }
       // MC 2026-11-11 the Labs cash-out switch needs every trade's sale price whether or not the setting is on, plus how it would
       // have ended if held, so each playbook can be replayed both ways. xPx is set only when the trend turned against the bet
       // after the buy; fin and hw are the settled result untouched by a paper cash-out.
