@@ -30,10 +30,14 @@ const SERIES = ['KXBTC15M', 'KXETH15M', 'KXSOL15M', 'KXXRP15M', 'KXDOGE15M', 'KX
 const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
 const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
+// MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
+// PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
+const LIVE_KEYS = ['minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
+const pickL = c => Object.fromEntries(LIVE_KEYS.map(k => [k, c[k] ?? PAPER_DEF[k] ?? null]));
 const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
 // MC 2026-11-13 a price as cents for copy: whole cents as before, and a tenth when the setting has one (94.5). Request 10 let
 // the minimum and maximum price take a tenth of a cent, because about half the leaders in the history sit between two cents.
@@ -261,6 +265,7 @@ export function createKalshi(state, env, keep) {
   sql.exec('CREATE TABLE IF NOT EXISTS k2 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // second-look entries, kept apart from the mark records so nothing else counts them
   sql.exec('CREATE TABLE IF NOT EXISTS k3 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // every coin's price and trend at minute 10, for the Wait for the trend lab
   let rec2 = new Map(), rec3 = new Map();
+  let cfgL = null;   // live rules (LIVE_KEYS), seeded from paper the first time
   let rec = null, L = null, cfgP = null, ctlL = null, scan = [], scanAt = 0, view = null, viewDirty = true, viewAt = 0;
   const st = { bal: null, balAt: 0, lastErr: null, errAt: 0, host: 0, sellAllDone: 0, stopped: null, keyOk: null, shard: {}, xferAt: 0, lastXfer: null, lastMark: 0 };
   const logs = [];
@@ -271,6 +276,7 @@ export function createKalshi(state, env, keep) {
     rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3');
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
+    { const l = await kv.get('kcfgL'); if (l) cfgL = { ...pickL(PAPER_DEF), ...l }; else { cfgL = pickL(cfgP); await kv.put('kcfgL', cfgL); } }
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     apiV = (await kv.get('kapi')) || null;
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
@@ -321,6 +327,10 @@ export function createKalshi(state, env, keep) {
   // ---------- signed requests ----------
   let KEY = null;
   const activeSeries = () => cfgP?.coins?.length ? SERIES.filter(s => cfgP.coins.includes(coin(s))) : SERIES;
+  // MC 2026-11-14 the trade check reads every coin paper or live trades; a coin only live trades is recorded with lo set, and the
+  // paper book and labs leave those rows out
+  const liveSeries = () => cfgL?.coins?.length ? SERIES.filter(s => cfgL.coins.includes(coin(s))) : SERIES;
+  const scanSeries = () => { const a = new Set(activeSeries()); if (ctlL?.enabled || books.anyOn()) for (const x of liveSeries()) a.add(x); return SERIES.filter(x => a.has(x)); };
   const hasKeys = () => !!(env.KALSHI_KEY_ID && env.KALSHI_PRIVATE_KEY);
   async function key() {
     if (KEY) return KEY;
@@ -362,8 +372,8 @@ export function createKalshi(state, env, keep) {
     viewDirty: () => { viewDirty = true; }, notify: e => vq.push(e) });
 
   // ---------- bench: a coin sits out while its rule trades over the last cold days netted below zero ($50 a trade) ----------
-  function coldSet(at) {
-    const days = cfgP.coldDays; if (!(days > 0)) return new Set();
+  function coldSet(at, cfg = cfgP) {
+    const days = cfg.coldDays; if (!(days > 0)) return new Set();
     const cut = at - days * 86400000, net = {};
     for (const r of rec.values()) { if (!r.result || r.result === 'void' || !(r.ask >= 0.9) || r.close <= cut || r.close > at) continue; const px = r.avgN || r.ask, n = Math.floor(50 / px); const c = coin(r.series); net[c] = (net[c] || 0) + (r.won ? n : 0) - n * px - fee(px, n); }
     return new Set(Object.entries(net).filter(([, v]) => v < 0).map(([k]) => k));
@@ -404,18 +414,18 @@ export function createKalshi(state, env, keep) {
   async function onRule(r, lab = null, later = null, missed = null) {
     const c = ctl(); if (!c.enabled || L.has(r.ticker)) return;
     const cn = coin(r.series), why = (() => {
-      if (coldSet(Date.now()).has(cn)) return `${cn} is benched (down over its last ${cfgP.coldDays} days)`;
+      if (coldSet(Date.now(), cfgL).has(cn)) return `${cn} is benched (down over its last ${cfgL.coldDays} days)`;
       const t = todayL(); if (realized(t) <= -c.dailyLossUsd) return `daily loss cap hit (${realized(t).toFixed(2)})`;
-      if (cfgP.dailyWinUsd > 0 && realized(t) >= cfgP.dailyWinUsd) return `daily profit target hit (+$${realized(t).toFixed(2)})`;
+      if (cfgL.dailyWinUsd > 0 && realized(t) >= cfgL.dailyWinUsd) return `daily profit target hit (+$${realized(t).toFixed(2)})`;
       // MC 2026-11-09 give-back and bank-drawdown stops on the live book too, from the paper settings
-      if (cfgP.giveBackPct > 0) { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk >= (cfgP.giveBackMin ?? 25) && run <= pk * cfgP.giveBackPct / 100) return `give-back stop: today peaked at +$${pk.toFixed(2)}, now ${run >= 0 ? '+' : ''}$${run.toFixed(2)}`; }
-      if (cfgP.bankDdPct > 0) { const xs = [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at), start = (st.bal ?? 0) - xs.reduce((a, x) => a + x.pnl, 0); let run = 0, ref = start, lastD = null; const tripped = {};
-        for (const x of xs) { const d = etDay(x.at); if (lastD && lastD !== d && tripped[lastD]) ref = start + run; lastD = d; run += x.pnl; const cash = start + run; ref = Math.max(ref, cash); if (cash <= ref * (1 - cfgP.bankDdPct / 100)) tripped[d] = true; }
-        if (lastD === etDay(Date.now()) && tripped[lastD]) return `bank drawdown stop: ${cfgP.bankDdPct}% under its high today`; }
+      if (cfgL.giveBackPct > 0) { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk >= (cfgL.giveBackMin ?? 25) && run <= pk * cfgL.giveBackPct / 100) return `give-back stop: today peaked at +$${pk.toFixed(2)}, now ${run >= 0 ? '+' : ''}$${run.toFixed(2)}`; }
+      if (cfgL.bankDdPct > 0) { const xs = [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at), start = (st.bal ?? 0) - xs.reduce((a, x) => a + x.pnl, 0); let run = 0, ref = start, lastD = null; const tripped = {};
+        for (const x of xs) { const d = etDay(x.at); if (lastD && lastD !== d && tripped[lastD]) ref = start + run; lastD = d; run += x.pnl; const cash = start + run; ref = Math.max(ref, cash); if (cash <= ref * (1 - cfgL.bankDdPct / 100)) tripped[d] = true; }
+        if (lastD === etDay(Date.now()) && tripped[lastD]) return `bank drawdown stop: ${cfgL.bankDdPct}% under its high today`; }
       if (t.filter(busy).length >= HARD.maxPerDay) return 'daily order limit';
       // MC 2026-11-12 winCap: the most trades one window may take, clearest first (hits arrive sorted). Coins that line up on one
       // side lose together; at three a window the worst day in the history fell by a third for about a tenth of the profit.
-      { const cap = Math.min(HARD.maxPerWindow, cfgP.winCap ?? 9); if ([...L.values()].filter(x => x.close === r.close && busy(x)).length >= cap) return cap < HARD.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
+      { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9); if ([...L.values()].filter(x => x.close === r.close && busy(x)).length >= cap) return cap < HARD.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
       return null; })();
     const skip = s => { st.stopped = s; const x = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: s }; L.set(r.ticker, x); saveL(x); say(`LIVE skip ${r.ticker}: ${s}`); };
     if (why) return skip(why);
@@ -429,8 +439,8 @@ export function createKalshi(state, env, keep) {
     let sizeUsd = lab?.size ? Math.min(c.sizeUsd, HARD.maxSize, Math.max(5, lab.size(bal, { kf: r.kf, win: r.win }, rS))) : c.sizeUsd;
     // MC 2026-11-10 protect today's profit on the live book too: today's settled live result and its high, less what this window
     // already has riding. Under the $5 minimum order it skips.
-    if (cfgP.lockAt > 0) { const t2 = todayL().filter(x => x.pnl != null).sort((a, b) => a.at - b.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
-      if (pk >= cfgP.lockAt) { const riding = [...L.values()].filter(x => x.close === r.close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), room = run - pk * (cfgP.lockKeep || 0) / 100 - riding;
+    if (cfgL.lockAt > 0) { const t2 = todayL().filter(x => x.pnl != null).sort((a, b) => a.at - b.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
+      if (pk >= cfgL.lockAt) { const riding = [...L.values()].filter(x => x.close === r.close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), room = run - pk * (cfgL.lockKeep || 0) / 100 - riding;
         if (room < 5) return skip(`protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left`); sizeUsd = Math.min(sizeUsd, room); } }
     if ((st.shard[XI] ?? 0) - resv < sizeUsd + 1) { st.xferAt = 0; await fund(c); }
     const maxPx = Math.min(0.99, +(r.ask + 0.01).toFixed(4)), n = Math.floor(sizeUsd / maxPx);
@@ -488,7 +498,7 @@ export function createKalshi(state, env, keep) {
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
     return { on: c.enabled, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
-      hard: { ...HARD, minBank: c.minBank }, today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length }, bench: [...coldSet(Date.now())], where: 'cloud',
+      hard: { ...HARD, minBank: c.minBank }, today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length }, bench: [...coldSet(Date.now(), cfgL)], cfg: cfgL, where: 'cloud',
       total: { n: all.filter(x => x.result && x.fill > 0).length, net: +realized(all.filter(x => x.fill > 0)).toFixed(2) },
       open: all.filter(x => x.fill > 0 && !x.result).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, fill: x.fill, px: x.px, cost: x.cost, paperPx: x.paperPx, close: x.close, at: x.at })),
       // MC 2026-11-08 every settled live trade in the paper history's compact shape, for the dashboard's Live analytics tab
@@ -534,43 +544,47 @@ export function createKalshi(state, env, keep) {
       }
       return got;
     };
-    const all = await Promise.all(activeSeries().map(s => scanOne(s).catch(e => { say(`scan ${s} error: ${e.message}`); return []; })));
+    const paperS = new Set(activeSeries()), liveS = new Set(liveSeries()), hitsL = [];
+    const all = await Promise.all(scanSeries().map(s => scanOne(s).catch(e => { say(`scan ${s} error: ${e.message}`); return []; })));
     for (const r of all.flat()) {
       if (rec.has(r.ticker)) continue;
+      if (!paperS.has(r.series)) r.lo = 1;
       rec.set(r.ticker, r); saveRec(r); n++;
       // MC 2026-11-13 request 9: a maximum price beside the minimum, so a price band can be tried without changing a playbook
-      if (r.ask >= cfgP.minAsk && r.ask <= (cfgP.maxAsk ?? 0.99) + 1e-9) { say(`${r.ticker} ${r.side.toUpperCase()} at ${Math.round(r.ask * 100)}c <- rule`); hits.push(r); }
+      if (!r.lo && r.ask >= cfgP.minAsk && r.ask <= (cfgP.maxAsk ?? 0.99) + 1e-9) { say(`${r.ticker} ${r.side.toUpperCase()} at ${Math.round(r.ask * 100)}c <- rule`); hits.push(r); }
+      // MC 2026-11-14 live has its own price band and coins
+      if (liveS.has(r.series) && r.ask >= cfgL.minAsk && r.ask <= (cfgL.maxAsk ?? 0.99) + 1e-9) hitsL.push(r);
     }
     console.log(`entry ${n} coins read in ${Date.now() - t0}ms, ${hits.length} for the rule, ${Math.round((Date.now() - (nextMark(now) - Q)) / 100) / 10}s after the mark`);
     // MC 2026-11-08 live orders go after the scan so the active playbook can see the whole window (how many coins qualified,
     // each coin's volatility reading). Was: order per coin inside the loop under the plain rule.
     learnFill(now + 1);
     // the playbook check for one hit, shared by the main live book and the subaccount books
-    let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
-    const gate = (sid, r) => { const lab = labDefs(cfgP).find(l => l.id === sid); if (!lab || lab.m10Only) return { ok: false, why: 'playbook not available live' };
-      if (sid === 'kelly' || (sid === 'mix' && cfgP.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = hits.length; }
-      const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
+    let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgL.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
+    const gate = (sid, r) => { const lab = labDefs(cfgL).find(l => l.id === sid); if (!lab || lab.m10Only) return { ok: false, why: 'playbook not available live' };
+      if (sid === 'kelly' || (sid === 'mix' && cfgL.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = hitsL.length; }
+      const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
       return f === true ? { ok: true, lab } : { ok: false, why: `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}` }; };
     const c = ctl(), sends = [], missed = [];
     await warm;
-    if (c.enabled && hits.length) {
-      const sid = stratAt(c.strat, now), lab = labDefs(cfgP).find(l => l.id === sid);
-      let kS = null; if (sid === 'kelly' || (sid === 'mix' && cfgP.mixSize === 'kelly')) { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgP.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
-      // MC 2026-11-09 schedule: hours (ET, by entry time) picked as off in Paper settings are skipped live too
-      const offNow = (cfgP.skipHours || []).includes(etHour(now));
-      hits.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));   // clearest first, so profit protection gives them the room
-      for (const r of hits) {
+    if (c.enabled && hitsL.length) {
+      const sid = stratAt(c.strat, now), lab = labDefs(cfgL).find(l => l.id === sid);
+      let kS = null; if (sid === 'kelly' || (sid === 'mix' && cfgL.mixSize === 'kelly')) { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgL.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
+      // MC 2026-11-09 schedule: hours (ET, by entry time) picked as off are skipped (MC 2026-11-14 live's own off hours now)
+      const offNow = (cfgL.skipHours || []).includes(etHour(now));
+      hitsL.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));   // clearest first, so profit protection gives them the room
+      for (const r of hitsL) {
         if (offNow) { skipLive(r, `off schedule (${etHour(now)}:00 ET hour)`); continue; }
-        if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hits.length; }
-        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hits.length, same: hits.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
+        if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hitsL.length; }
+        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) { try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); } }
         else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
     }
-    if (hits.length) {
-      hits.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));
+    if (hitsL.length) {
+      hitsL.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));
       const ts = Date.now();
-      await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('order error: ' + e.message)))), books.onMark(hits, now, gate, cfgP, coldSet(now), missed).catch(e => say('books error: ' + e.message))]);
+      await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('order error: ' + e.message)))), books.onMark(hitsL, now, gate, cfgL, coldSet(now, cfgL), missed).catch(e => say('books error: ' + e.message))]);
       if (sends.length || books.anyOn()) console.log(`orders ${sends.length} main sent together, all answered ${Date.now() - ts}ms after sending began, ${Date.now() - t0}ms after the scan began`);
       try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
     }
@@ -1048,7 +1062,7 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-10 within a window the clearest coins come first (most moves past the target), so when profit protection limits
     // how much a window may stake, it is the strongest trades that get the room
     const byClear = (a, b) => a.at - b.at || ((b.vol?.z ?? -9) - (a.vol?.z ?? -9));
-    const K = cfgP, rows = [...rec.values()].sort(byClear), sum = l => +l.reduce((a, t) => a + t.pnl, 0).toFixed(2);
+    const K = cfgP, rows = [...rec.values()].filter(r => !r.lo).sort(byClear), sum = l => +l.reduce((a, t) => a + t.pnl, 0).toFixed(2);
     const H = [], net30 = (c, at) => { let x = 0, k = 0; for (const h of H) if (h.coin === c && h.close <= at && h.close > at - K.coldDays * 86400000) { x += h.pnl; k++; } return { x, k }; };
     const perWin = {}, dayNet = {}, dayPeak = {}, stopDay = {}, trades = [], labs0 = labDefs(K), winN = {};
     // MC 2026-11-08 the active playbook (K.strat log) filters and sizes the paper book from the moment it was switched on;
@@ -1265,18 +1279,23 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-10 a locked device may change paper settings and the paper playbook, and nothing else, and only while live is off
     if (who.locked && (ctlL.enabled === true || !(type === 'kalshiSet' || (type === 'kalshiStrat' && a?.book === 'paper')))) return { ok: false, msg: ctlL.enabled === true ? 'Live trading is on, so settings need an unlocked device.' : 'That needs an unlocked device.' };
     if (type === 'kalshiSet') {
-      const out = {}, ch = [];
+      // MC 2026-11-14 paper and live keep separate rules: book 'live' edits the live set (LIVE_KEYS only), from an unlocked device.
+      // copyFrom 'paper' sets every live rule to what paper uses now.
+      const isL = a.book === 'live', cur = isL ? cfgL : cfgP, out = {}, ch = [];
+      if (isL && who.locked) return { ok: false, msg: 'Live settings need an unlocked device.' };
+      if (isL && a.copyFrom === 'paper') { const nx = pickL(cfgP); if (JSON.stringify(nx) === JSON.stringify(pickL(cfgL))) return { ok: false, msg: 'Live already matches paper.' }; cfgL = nx; await kv.put('kcfgL', cfgL); viewDirty = true; await publish(true); say('LIVE settings copied from paper'); return { ok: true, msg: 'Live settings now match paper. They apply from the next trade check.' }; }
       // MC 2026-11-13 the minimum and maximum price keep a tenth of a cent (request 10); the other prices stay whole cents
-      for (const k of Object.keys(BOUNDS)) { if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cfgP[k]) { out[k] = x; ch.push(`${k} ${cfgP[k]} -> ${x}`); } }
-      if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, cur = cfgP.coins || null; if (JSON.stringify(v) !== JSON.stringify(cur)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
-      if (out.minAsk != null || out.maxAsk != null) { const lo = out.minAsk ?? cfgP.minAsk, hi = out.maxAsk ?? cfgP.maxAsk ?? 0.99; if (lo > hi) return { ok: false, msg: 'The maximum price can\'t be below the minimum price.' }; }
-      if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cfgP.mixSame ?? 3, hi = out.mixSameMax ?? cfgP.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }
-      if (['fixed', 'pct', 'kelly', 'ratchet'].includes(a.mixSize) && a.mixSize !== (cfgP.mixSize || 'fixed')) { out.mixSize = a.mixSize; ch.push(`mix sizing ${a.mixSize}`); }
-      if (a.paperFrom != null) { const v = a.paperFrom === 0 ? 0 : Math.min(Date.now(), Math.max(0, +a.paperFrom || 0)); if (v !== (cfgP.paperFrom || 0)) { out.paperFrom = v; out.paperPrev = cfgP.paperFrom || 0; ch.push(v ? `new paper run from ${new Date(v).toISOString().slice(0, 16)}Z` : 'paper run covers everything again'); } }
-      if (Array.isArray(a.skipHours)) { const v = [...new Set(a.skipHours.map(Number).filter(h => Number.isInteger(h) && h >= 0 && h < 24))].sort((x, y) => x - y); if (v.length === 24) return { ok: false, msg: 'Leave at least one hour on.' }; if (JSON.stringify(v) !== JSON.stringify(cfgP.skipHours || [])) { out.skipHours = v; ch.push(`off hours ${v.length ? v.join(', ') : 'none'}`); } }
+      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
+      if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, was = cur.coins || null; if (JSON.stringify(v) !== JSON.stringify(was)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
+      if (out.minAsk != null || out.maxAsk != null) { const lo = out.minAsk ?? cur.minAsk, hi = out.maxAsk ?? cur.maxAsk ?? 0.99; if (lo > hi) return { ok: false, msg: 'The maximum price can\'t be below the minimum price.' }; }
+      if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cur.mixSame ?? 3, hi = out.mixSameMax ?? cur.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }
+      if (['fixed', 'pct', 'kelly', 'ratchet'].includes(a.mixSize) && a.mixSize !== (cur.mixSize || 'fixed')) { out.mixSize = a.mixSize; ch.push(`mix sizing ${a.mixSize}`); }
+      if (!isL && a.paperFrom != null) { const v = a.paperFrom === 0 ? 0 : Math.min(Date.now(), Math.max(0, +a.paperFrom || 0)); if (v !== (cfgP.paperFrom || 0)) { out.paperFrom = v; out.paperPrev = cfgP.paperFrom || 0; ch.push(v ? `new paper run from ${new Date(v).toISOString().slice(0, 16)}Z` : 'paper run covers everything again'); } }
+      if (Array.isArray(a.skipHours)) { const v = [...new Set(a.skipHours.map(Number).filter(h => Number.isInteger(h) && h >= 0 && h < 24))].sort((x, y) => x - y); if (v.length === 24) return { ok: false, msg: 'Leave at least one hour on.' }; if (JSON.stringify(v) !== JSON.stringify(cur.skipHours || [])) { out.skipHours = v; ch.push(`off hours ${v.length ? v.join(', ') : 'none'}`); } }
       if (!ch.length) return { ok: false, msg: 'Nothing changed.' };
-      cfgP = { ...cfgP, ...out }; await kv.put('kcfg', cfgP); viewDirty = true; await publish(true);
-      return { ok: true, msg: `Kalshi settings saved: ${ch.join(', ')}.` };
+      if (isL) { cfgL = { ...cfgL, ...out }; await kv.put('kcfgL', cfgL); say(`LIVE settings: ${ch.join(', ')}`); } else { cfgP = { ...cfgP, ...out }; await kv.put('kcfg', cfgP); }
+      viewDirty = true; await publish(true);
+      return { ok: true, msg: `${isL ? 'Live' : 'Paper'} settings saved: ${ch.join(', ')}.` };
     }
     if (type === 'kalshiLive') {
       const next = { ...ctlL }, ch = [];

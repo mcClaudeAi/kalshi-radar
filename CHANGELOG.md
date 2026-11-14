@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.0 (Nov 14, 2026): Paper and live get their own settings
+Paper and live no longer share rules. Each has its own settings tab, so you can practice one way on paper and trade another way live.
+- [new] Live settings tab: live's size, daily loss cap and cash floor, plus its own coins, price band, most trades a window, off hours, bench, profit target, protect profit, give-back and bank drawdown stops, and Your mix. Saving needs a hold, like turning live on.
+- [new] Live settings shows which settings differ from paper, and "Copy paper's rules" sets live to match paper in one step. Live size, loss cap and floor are kept.
+- [improved] Settings is now Paper settings, and nothing on it changes what live trades. Live starts with the rules paper had, so nothing changes until you change it.
+- [improved] The Live account tab shows live's limits and a Live rules card marking each one that differs from paper. The subaccount books follow the live rules.
+- [improved] Live can trade a coin that paper has switched off. Paper leaves those trades out of its book and labs.
+
 ## 1.0.99 (Nov 14, 2026): Two safer versions of Margin vs volatility
 - [new] Margin vs volatility + Learned: Margin vs volatility under 95¢, and only when the self-learning model agrees too. In the Aug 7 to Nov 9 history it kept about 80% of the profit on about 60% of the trades, made $1.20 a trade instead of $0.93, and its worst day was smaller.
 - [new] Margin vs volatility, 1.5 moves: the same, but the coin must be 1.5 normal moves past its target instead of 1. About half the profit, with the worst day and the worst drop each about half as deep and the win rate up from 94.2% to 95.2%.
