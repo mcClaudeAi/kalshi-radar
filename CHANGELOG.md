@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.8 (Nov 14, 2026): Paper and live trades easier to tell apart
+- [improved] The paper table in Trades is now "Paper trades" and says they are simulated fills, with the real fills under Live.
+- [improved] Paper rows the live account also bought are tagged "also live" instead of "live".
+- [new] "Hide trades live also took" on the paper table shows only what paper did on its own. Your choice is remembered on this device.
+
 ## 1.1.7 (Nov 14, 2026): Today's run in the Mode tile
 - [new] The Mode tile at the top now shows today's running profit for the account you are in (live when live trading is on, paper otherwise): a line that steps with each settled trade, the zero line dotted, a pulsing dot for now, and under it the day's wins, losses, open trades and the next trade check. It refreshes with the header, on the web and on phones.
 
