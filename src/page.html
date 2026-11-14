@@ -836,6 +836,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* MC 2026-11-09 the cockpit is a dark instrument cluster in both themes: in light mode its text picked up the dark ink and vanished, so it carries its own dark palette */
 .ck{--bg:#070a14;--s1:#0b1020;--s2:#0e1426;--s3:#121a30;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--ink:#eef2ff;--ink2:#c5cfe6;--mute:#8b96b3;--faint:#5d6a8c;color:var(--ink);color-scheme:dark;position:relative;border-radius:24px;padding:18px 18px 16px;border:1px solid rgba(255,255,255,.07);overflow:hidden;
   background:radial-gradient(900px 340px at 50% -10%,rgba(255,140,60,.10),transparent 60%),radial-gradient(700px 400px at 50% 120%,rgba(79,209,255,.08),transparent 60%),linear-gradient(180deg,#070a14,#03050b)}
+/* MC 2026-11-14 the cockpit stays dark in every theme, so it takes the theme's bright accent, and light themes hand it the dark-theme greens and reds */
+.ck{--kx:var(--lgc,#4fd1ff)}:root[data-theme="light"] .ck{--good:#35e0a1;--bad:#ff5d7a;--warn:#ffb347;--accent:#9b8cff}
 .ck:before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px)}
 .ck-coins{position:relative;display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.ck-coins::-webkit-scrollbar{display:none}
 .ck-coin{position:relative;flex:1 0 auto;min-width:74px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);color:var(--ink);cursor:pointer;font:inherit}
@@ -879,14 +881,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* MC 2026-11-08 logo: a radar tile instead of the plain ring. The sweep turns every 3.6 s and the price curve's end
    blips each time it passes; the curve draws itself once on load. Motion is off for people who ask for less. */
 .lg{position:relative;flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;overflow:hidden;
-  background:radial-gradient(circle at 50% 45%,#10223d,#060a16 70%);box-shadow:inset 0 0 0 1px rgba(79,209,255,.32),0 0 0 3px rgba(79,209,255,.06),0 6px 20px rgba(79,209,255,.22)}
+  background:radial-gradient(circle at 50% 45%,#10223d,#060a16 70%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--lgc,#4fd1ff) 32%,transparent),0 0 0 3px color-mix(in srgb,var(--lgc,#4fd1ff) 6%,transparent),0 6px 20px color-mix(in srgb,var(--lgc,#4fd1ff) 22%,transparent)}
 .top .mb .lg{width:28px;height:28px;border-radius:9px}
 .side .brand{white-space:nowrap;gap:11px}
 .lg svg{width:100%;height:100%;display:block}
-.lg-r{fill:none;stroke:#4fd1ff;stroke-opacity:.2;stroke-width:.8}.lg-x{stroke:#4fd1ff;stroke-opacity:.1;stroke-width:.6}
+.lg-r{fill:none;stroke:var(--lgc,#4fd1ff);stroke-opacity:.2;stroke-width:.8}.lg-x{stroke:var(--lgc,#4fd1ff);stroke-opacity:.1;stroke-width:.6}
 .lg-sw{transform-origin:16px 16px;transform-box:view-box;animation:lgSweep 3.6s linear infinite}
 .lg-cv{fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:lgDraw 1.4s .2s cubic-bezier(.3,.7,.2,1) forwards}
-.lg-dt{fill:#fff;filter:drop-shadow(0 0 2px #4fd1ff)}.lg-pl{fill:none;stroke:#4fd1ff;stroke-width:1;transform-origin:25.5px 8px;transform-box:view-box;animation:lgPing 3.6s -.35s ease-out infinite}
+.lg-dt{fill:#fff;filter:drop-shadow(0 0 2px var(--lgc,#4fd1ff))}.lg-pl{fill:none;stroke:var(--lgc,#4fd1ff);stroke-width:1;transform-origin:25.5px 8px;transform-box:view-box;animation:lgPing 3.6s -.35s ease-out infinite}
 @keyframes lgSweep{to{transform:rotate(360deg)}}@keyframes lgDraw{to{stroke-dashoffset:0}}
 @keyframes lgPing{0%,4%{transform:scale(.6);opacity:0}8%{transform:scale(1);opacity:1}40%,100%{transform:scale(3.2);opacity:0}}
 .side .brand:hover .lg-sw{animation-duration:1.2s}
@@ -1132,6 +1134,17 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 </style>
 <style id="k2nd">@media(max-width:600px){.kx-dt{display:block;font-size:11px}}.kx-bk{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 18px;border-radius:16px;border:1px solid var(--line);margin-bottom:18px;background:var(--card)}.kx-bk.paper{background:linear-gradient(120deg,color-mix(in srgb,var(--kx) 9%,var(--card)),var(--card) 60%)}.kx-bk.live{border-color:color-mix(in srgb,var(--bad) 35%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--bad) 10%,var(--card)),var(--card) 65%)}
 .kx-bki{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:700 17px var(--mono,inherit);color:#fff;background:var(--kx);flex:none}.kx-bk.live .kx-bki{background:var(--bad)}.kx-bkb{flex:1;min-width:220px}.kx-bkb>b{display:flex;align-items:center;gap:8px;font-size:15px}.kx-bkb>span{display:block;font-size:12.5px;color:var(--mute);margin-top:3px;line-height:1.45}.kx-bka{display:flex;gap:8px;flex-wrap:wrap}
+.modal .box:has(.th-wrap){width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}.th-wrap h2{margin:0 0 4px}.th-sub{margin:0 0 14px;color:var(--mute);font-size:13px}
+.th-auto,.th-card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;border:1px solid var(--line2);border-radius:16px;background:var(--s2);transition:border-color .15s,transform .15s}
+.th-auto:hover,.th-card:hover{border-color:color-mix(in srgb,var(--kx) 50%,var(--line2))}.th-auto:active,.th-card:active{transform:scale(.98)}
+.th-auto.on,.th-card.on{border-color:var(--kx);box-shadow:0 0 0 2px color-mix(in srgb,var(--kx) 30%,transparent)}
+.th-auto{width:100%;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px}.th-auto b{display:block;font-size:14px}.th-auto small{display:block;font-size:12px;color:var(--mute);margin-top:2px}.th-auto>i,.th-nm>i{margin-left:auto;font-style:normal;color:var(--kx);font-weight:800}
+.th-half{flex:none;width:44px;height:44px;border-radius:12px;overflow:hidden;display:flex;border:1px solid var(--line2)}.th-half i{flex:1}
+.th-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}@media(max-width:640px){.th-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.th-card{flex-direction:column;overflow:hidden}.th-pv{display:block;position:relative;height:78px;padding:10px}@media(max-width:640px){.th-pv{height:62px;padding:8px}.th-d{font-size:11.5px}}.th-sf{display:flex;flex-direction:column;gap:5px;height:100%;border:1px solid;border-radius:10px;padding:8px;box-sizing:border-box}
+.th-sf i{display:block;height:5px;border-radius:3px}.th-sf svg{width:100%;height:18px;margin-top:auto}.th-dots{position:absolute;right:16px;top:16px;display:flex;gap:4px}.th-dots em{width:8px;height:8px;border-radius:50%}
+.th-nm{display:flex;align-items:baseline;gap:8px;padding:10px 12px 0}.th-nm b{font-size:14px}.th-nm small{font-size:11px;color:var(--faint)}.th-d{display:block;padding:4px 12px 12px;font-size:12px;line-height:1.4;color:var(--mute)}
+.th-ft{display:flex;justify-content:flex-end;margin-top:6px;padding:16px 0 0;position:sticky;bottom:-20px;padding-bottom:20px;margin-bottom:-20px;background:linear-gradient(to bottom,transparent,var(--s1) 40%)}
 .kx-nolive{margin:10px 0 4px;max-width:420px}
 .kx-takes{margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ink) 5%,transparent);border:1px solid var(--line)}.kx-takes small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}.kx-takes p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink)}.kx-takes b{color:var(--ink)}
 .kx-dfl{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}.kx-dfl small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-right:2px}.kx-dfc{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
@@ -1324,19 +1337,45 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .fr-lb img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain}.fr-lb button{all:unset;position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:14px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.16);font-size:16px;cursor:pointer}
 .kt-keep b{display:inline!important;font-size:inherit!important;color:var(--ink)}
 </style>
+<script id="themes">
+// MC 2026-11-14 themes. Asked for at least five theme choices that stay easy to read. Every theme is one row here (its base,
+// dark or light, and its colors); the CSS for all of them is written from this table before the page paints, so there is no
+// flash and the picker previews use the same colors. The base sets data-theme, so the light-only fixes elsewhere in the
+// stylesheet apply to every light theme. Auto follows the phone between Midnight and Daylight. Midnight and Daylight carry no
+// overrides: they are the stylesheet's own colors. The cockpit keeps its dark instrument look in every theme, and live stays red.
+window.CR_THEMES=[
+ {id:'midnight',name:'Midnight',base:'dark',d:'Deep navy and cyan. The original.',c:{bg:'#060913',s1:'#0d1320',s3:'#182236',ink:'#e9eef9',mute:'#8c9ab8',kx:'#4fd1ff',accent:'#9b8cff',good:'#35e0a1',bad:'#ff5d7a'}},
+ {id:'graphite',name:'Graphite',base:'dark',d:'Neutral charcoal, soft blue. Calm for long sessions.',c:{bg:'#0b0c0e',s1:'#131418',s2:'#191b20',s3:'#212329',line:'rgba(255,255,255,.08)',line2:'rgba(255,255,255,.15)',ink:'#eceef2',ink2:'#c9ccd3',mute:'#9a9fab',faint:'#737884',kx:'#7ab4ff',accent:'#b9a6ff',good:'#3fd99a',bad:'#ff6b7d',warn:'#f6b94a',trial:'#ff9466'}},
+ {id:'ember',name:'Ember',base:'dark',d:'Warm dark brown with amber. Easy on the eyes at night.',c:{bg:'#0e0a07',s1:'#17110c',s2:'#1e1610',s3:'#271d15',line:'rgba(255,186,128,.12)',line2:'rgba(255,186,128,.22)',ink:'#f7ede3',ink2:'#e0cdb9',mute:'#b09a83',faint:'#86725e',kx:'#ffa94d',accent:'#ff8f7e',good:'#5bd99f',bad:'#ff6b6b',warn:'#ffd166',trial:'#ff8a5c'}},
+ {id:'ocean',name:'Ocean',base:'dark',d:'Deep sea teal with aqua highlights.',c:{bg:'#03141a',s1:'#071f27',s2:'#0b2730',s3:'#10313b',line:'rgba(110,225,235,.13)',line2:'rgba(110,225,235,.24)',ink:'#e4f8fa',ink2:'#bde2e6',mute:'#86b3b9',faint:'#5d878e',kx:'#2fe0d0',accent:'#8fb3ff',good:'#4ee39a',bad:'#ff6f80',warn:'#ffc85a',trial:'#ff9466'}},
+ {id:'terminal',name:'Terminal',base:'dark',d:'Black with phosphor green, like an old trading screen.',c:{bg:'#020604',s1:'#06100a',s2:'#0a170f',s3:'#0f2016',line:'rgba(70,255,140,.12)',line2:'rgba(70,255,140,.22)',ink:'#d6ffe3',ink2:'#a9eabf',mute:'#78b890',faint:'#538666',kx:'#3dff8f',accent:'#5ad7ff',good:'#3dff8f',bad:'#ff6464',warn:'#ffd447',trial:'#ff9a3d'}},
+ {id:'amethyst',name:'Amethyst',base:'dark',d:'Dark violet with lavender and pink.',c:{bg:'#0b0814',s1:'#130e20',s2:'#1a1429',s3:'#231b35',line:'rgba(190,150,255,.13)',line2:'rgba(190,150,255,.24)',ink:'#f1ebff',ink2:'#d3c7f0',mute:'#a495c4',faint:'#7a6d9a',kx:'#c39bff',accent:'#ff8ccf',good:'#46e0a8',bad:'#ff6b8b',warn:'#ffc35c',trial:'#ff8a5c'}},
+ {id:'contrast',name:'High contrast',base:'dark',d:'Pure black, white text, bold colors. Easiest to read in sunlight.',c:{bg:'#000000',s1:'#0a0a0a',s2:'#121212',s3:'#1c1c1c',line:'rgba(255,255,255,.3)',line2:'rgba(255,255,255,.5)',ink:'#ffffff',ink2:'#f2f2f2',mute:'#d4d4d4',faint:'#adadad',kx:'#3ee8ff',accent:'#ffe14d',good:'#4dff9a',bad:'#ff6b6b',warn:'#ffd23f',trial:'#ffa04d'}},
+ {id:'daylight',name:'Daylight',base:'light',d:'Clean white and blue. The original light look.',c:{bg:'#eef1f8',s1:'#ffffff',s3:'#e9edf6',ink:'#0f1630',mute:'#55628a',kx:'#0073a8',accent:'#5245d1',good:'#0b7f57',bad:'#c6294d'}},
+ {id:'sand',name:'Sand',base:'light',d:'Warm cream paper with terracotta. Soft in daylight.',c:{bg:'#f5efe4',s1:'#fffcf6',s2:'#faf5ec',s3:'#efe7d8',line:'rgba(110,80,40,.14)',line2:'rgba(110,80,40,.25)',ink:'#2b2118',ink2:'#4b3e30',mute:'#6b5c49',faint:'#7a6a56',kx:'#a8481a',accent:'#2f6a6e',good:'#2b7439',bad:'#ad2620',warn:'#8f5600',trial:'#a8481a',lgc:'#ff9a4d'}}];
+(function(){const r=document.documentElement,T=window.CR_THEMES,css=[];
+ for(const t of T){if(t.id==='midnight'||t.id==='daylight')continue;const c=t.c,v=[`color-scheme:${t.base}`];
+  for(const k of ['bg','s1','s2','s3','line','line2','ink','ink2','mute','faint','kx','accent','good','bad','warn','trial'])if(c[k])v.push(`--${k}:${c[k]}`);
+  v.push(`--total:${c.ink}`,`--kolc:${c.warn}`,`--proven:${c.kx}`,`--lgc:${c.lgc||c.kx}`);css.push(`:root[data-skin="${t.id}"]{${v.join(';')}}`)}
+ const st=document.createElement('style');st.id='skins';st.textContent=css.join('\n');document.head.appendChild(st);
+ const pick=()=>{let id='auto';try{id=localStorage.getItem('cr-skin')||'';if(!id){const old=localStorage.getItem('cr-theme');id=old==='light'?'daylight':old==='dark'?'midnight':'auto'}}catch{}return T.some(t=>t.id===id)?id:'auto'};
+ window.crThemeApply=(id)=>{id=id||pick();const mq=matchMedia('(prefers-color-scheme: light)'),eff=id==='auto'?(mq.matches?'daylight':'midnight'):id,t=T.find(x=>x.id===eff);
+  r.dataset.theme=t.base;r.dataset.skin=eff;r.dataset.themePick=id;const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t.c.bg)};
+ crThemeApply();try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(r.dataset.themePick==='auto'){crThemeApply('auto');window.render&&render()}})}catch{}})();
+</script>
 </head>
 <body>
 <div class="app">
- <aside class="side" aria-label="Sections"><div class="brand"><span class="lg" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lgssw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4fd1ff" stop-opacity="0"/><stop offset="1" stop-color="#4fd1ff" stop-opacity=".6"/></linearGradient><linearGradient id="lgscv" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fd1ff" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff"/></linearGradient><clipPath id="lgscl"><circle cx="16" cy="16" r="13.2"/></clipPath></defs><g clip-path="url(#lgscl)"><circle cx="16" cy="16" r="12.5" class="lg-r"/><circle cx="16" cy="16" r="8.5" class="lg-r"/><circle cx="16" cy="16" r="4.5" class="lg-r"/><path d="M16 3v26M3 16h26" class="lg-x"/><path class="lg-sw" d="M16 16L16 2.5A13.5 13.5 0 0 1 27.7 9.25Z" fill="url(#lgssw)"/><path class="lg-cv" d="M4.5 22.5C8 22.5 9.5 16 13 17s5-7 8.5-7.5S24 8.5 25.5 8" stroke="url(#lgscv)"/></g><circle class="lg-pl" cx="25.5" cy="8" r="2"/><circle class="lg-dt" cx="25.5" cy="8" r="1.7"/></svg></span>Kalshi Radar <span class="pill" id="mode" style="margin-left:auto">paper</span></div><nav id="nav"></nav><div class="foot" id="sfoot"></div></aside>
+ <aside class="side" aria-label="Sections"><div class="brand"><span class="lg" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lgssw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" style="stop-color:var(--lgc,#4fd1ff)" stop-opacity="0"/><stop offset="1" style="stop-color:var(--lgc,#4fd1ff)" stop-opacity=".6"/></linearGradient><linearGradient id="lgscv" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--lgc,#4fd1ff)" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff"/></linearGradient><clipPath id="lgscl"><circle cx="16" cy="16" r="13.2"/></clipPath></defs><g clip-path="url(#lgscl)"><circle cx="16" cy="16" r="12.5" class="lg-r"/><circle cx="16" cy="16" r="8.5" class="lg-r"/><circle cx="16" cy="16" r="4.5" class="lg-r"/><path d="M16 3v26M3 16h26" class="lg-x"/><path class="lg-sw" d="M16 16L16 2.5A13.5 13.5 0 0 1 27.7 9.25Z" fill="url(#lgssw)"/><path class="lg-cv" d="M4.5 22.5C8 22.5 9.5 16 13 17s5-7 8.5-7.5S24 8.5 25.5 8" stroke="url(#lgscv)"/></g><circle class="lg-pl" cx="25.5" cy="8" r="2"/><circle class="lg-dt" cx="25.5" cy="8" r="1.7"/></svg></span>Kalshi Radar <span class="pill" id="mode" style="margin-left:auto">paper</span></div><nav id="nav"></nav><div class="foot" id="sfoot"></div></aside>
  <div class="mainc">
   <header class="top"><div class="in">
-   <div class="mb"><span class="lg" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lgmsw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4fd1ff" stop-opacity="0"/><stop offset="1" stop-color="#4fd1ff" stop-opacity=".6"/></linearGradient><linearGradient id="lgmcv" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fd1ff" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff"/></linearGradient><clipPath id="lgmcl"><circle cx="16" cy="16" r="13.2"/></clipPath></defs><g clip-path="url(#lgmcl)"><circle cx="16" cy="16" r="12.5" class="lg-r"/><circle cx="16" cy="16" r="8.5" class="lg-r"/><circle cx="16" cy="16" r="4.5" class="lg-r"/><path d="M16 3v26M3 16h26" class="lg-x"/><path class="lg-sw" d="M16 16L16 2.5A13.5 13.5 0 0 1 27.7 9.25Z" fill="url(#lgmsw)"/><path class="lg-cv" d="M4.5 22.5C8 22.5 9.5 16 13 17s5-7 8.5-7.5S24 8.5 25.5 8" stroke="url(#lgmcv)"/></g><circle class="lg-pl" cx="25.5" cy="8" r="2"/><circle class="lg-dt" cx="25.5" cy="8" r="1.7"/></svg></span>Kalshi Radar</div><h1 id="ttl"></h1>
+   <div class="mb"><span class="lg" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lgmsw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" style="stop-color:var(--lgc,#4fd1ff)" stop-opacity="0"/><stop offset="1" style="stop-color:var(--lgc,#4fd1ff)" stop-opacity=".6"/></linearGradient><linearGradient id="lgmcv" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--lgc,#4fd1ff)" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff"/></linearGradient><clipPath id="lgmcl"><circle cx="16" cy="16" r="13.2"/></clipPath></defs><g clip-path="url(#lgmcl)"><circle cx="16" cy="16" r="12.5" class="lg-r"/><circle cx="16" cy="16" r="8.5" class="lg-r"/><circle cx="16" cy="16" r="4.5" class="lg-r"/><path d="M16 3v26M3 16h26" class="lg-x"/><path class="lg-sw" d="M16 16L16 2.5A13.5 13.5 0 0 1 27.7 9.25Z" fill="url(#lgmsw)"/><path class="lg-cv" d="M4.5 22.5C8 22.5 9.5 16 13 17s5-7 8.5-7.5S24 8.5 25.5 8" stroke="url(#lgmcv)"/></g><circle class="lg-pl" cx="25.5" cy="8" r="2"/><circle class="lg-dt" cx="25.5" cy="8" r="1.7"/></svg></span>Kalshi Radar</div><h1 id="ttl"></h1>
    <div class="kpis wide" id="kpis"></div><span class="sp"></span>
    <div class="beat hide-d"><span class="dot" id="dot"></span><span id="ago">connecting</span></div>
    <button class="btn" data-act="pal" title="Search and commands (Ctrl+K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5"/></svg><span class="hide-m">Search</span><span class="kbd hide-m">Ctrl K</span></button>
    <button class="btn" id="liveBtn" style="display:none"></button>
    <button class="btn lockchip" id="lockBtn" data-act="lockbtn"></button>
-   <button class="iconbtn" id="theme" title="Switch light or dark" aria-label="Switch light or dark">◐</button>
+   <button class="iconbtn" id="theme" title="Theme" aria-label="Choose a theme">◐</button>
   </div><div class="kstrip" id="kstrip"></div></header>
   <main class="wrap" id="main"></main>
  </div>
@@ -1358,7 +1397,7 @@ const NAVI=NAV.flatMap(g=>g[1]);const TABS=NAVI.map(([k,l])=>[k,l]);
 const TN=t=>t==='proven'?'Proven':t==='dev'?'Dev launch':t==='kol'?'KOL':'Trial',TS=t=>t==='proven'?'p':t==='dev'?'d':t==='kol'?'k':'t';
 const ST={tLimit:60,tab:'kalshi',range:'all',D:null,last:0,tf:{tier:'all',why:'all',q:''},sortOpen:['pnl',-1],sortT:['t1',-1],err:0,hw:null,hf:{tier:'all',why:'all',mode:'paper',days:0,q:''},hs:['t1',-1],hLimit:100,hq:'',hist:null,histAt:0,histTry:0};
 try{ST.archOpen=!!localStorage.getItem('cr-arch')}catch{}
-try{const t=localStorage.getItem('cr-tab');if(t&&TABS.some(x=>x[0]===t))ST.tab=t;const th=localStorage.getItem('cr-theme');if(th)document.documentElement.dataset.theme=th;const r=localStorage.getItem('cr-range');if(r)ST.range=r;const wt=localStorage.getItem('cr-wt');if(wt)ST.wt=wt;const fm=localStorage.getItem('cr-fm');if(fm)ST.fm=fm;if(localStorage.getItem('cr-fskip')==='0')ST.fskip=false;const pt=localStorage.getItem('cr-paint');if(pt)ST.paint=pt;if(localStorage.getItem('cr-snd')==='1')SND.on=true}catch{}
+try{const t=localStorage.getItem('cr-tab');if(t&&TABS.some(x=>x[0]===t))ST.tab=t;const r=localStorage.getItem('cr-range');if(r)ST.range=r;const wt=localStorage.getItem('cr-wt');if(wt)ST.wt=wt;const fm=localStorage.getItem('cr-fm');if(fm)ST.fm=fm;if(localStorage.getItem('cr-fskip')==='0')ST.fskip=false;const pt=localStorage.getItem('cr-paint');if(pt)ST.paint=pt;if(localStorage.getItem('cr-snd')==='1')SND.on=true}catch{}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sh=a=>a?esc(a.slice(0,4)+'..'+a.slice(-4)):'';
@@ -2101,7 +2140,7 @@ function palItems(){const D=ST.D||{},out=[];
   const klv=D.kalshi?.live?.live;if(klv)out.push({g:'Actions',ico:klv.on?'pause':'play',t:klv.on?'Turn Kalshi live off':'Turn Kalshi live on',run:()=>klv.on?kxLiveOff():go('klive')});
   if(typeof kxPbPick==='function'){out.push({g:'Actions',ico:'tests',t:'Change the paper playbook',k:'playbook lab rule kelly',run:()=>kxPbPick('paper')});out.push({g:'Actions',ico:'tests',t:'Change the live playbook',k:'playbook lab rule kelly',run:()=>kxPbPick('live')})}
   out.push({g:'Actions',ico:'lock',t:ST.me.control?'Lock this device':'Unlock controls',run:()=>ST.me.control?lockDevice(false):unlockFlow()});
-  out.push({g:'Actions',ico:'controls',t:'Kalshi live account',run:()=>go('klive')});out.push({g:'Actions',ico:'controls',t:'Kalshi paper settings',run:()=>go('kset')});out.push({g:'Actions',ico:'controls',t:'Kalshi live settings',run:()=>go('kslive')});
+  out.push({g:'Actions',ico:'controls',t:'Kalshi live account',run:()=>go('klive')});out.push({g:'Actions',ico:'controls',t:'Kalshi paper settings',run:()=>go('kset')});out.push({g:'Actions',ico:'controls',t:'Theme',run:()=>themePick()});out.push({g:'Actions',ico:'controls',t:'Kalshi live settings',run:()=>go('kslive')});
   out.push({g:'Actions',ico:'overview',t:'Switch light or dark',run:()=>$('#theme').click()});
   return out}
 function openPal(){$('#pal').classList.add('on');const i=$('#palq');i.value='';ST.palSel=0;palRender();setTimeout(()=>i.focus(),20)}
@@ -2353,7 +2392,7 @@ function kxEqChart(el,eq,seg){if(!el)return;if(!eq||eq.length<2){el.innerHTML='<
     ${grid}<path d="${d}L${X(x1).toFixed(1)} ${y0.toFixed(1)}L${X(x0).toFixed(1)} ${y0.toFixed(1)}Z" fill="url(#${id}u)" clip-path="url(#${id}a)"/><path d="${d}L${X(x1).toFixed(1)} ${y0.toFixed(1)}L${X(x0).toFixed(1)} ${y0.toFixed(1)}Z" fill="url(#${id}d)" clip-path="url(#${id}b)"/>
     <path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(x1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4" fill="${c}"/>
     <text x="${P.l}" y="${(P.t+ih+gap-2).toFixed(1)}" class="an-ax" style="fill:var(--faint)">drawdown</text><path d="${dd}" fill="color-mix(in srgb,var(--bad) 30%,transparent)" stroke="var(--bad)" stroke-width="1" stroke-opacity=".7"/><text x="${P.l-8}" y="${(YD(ddLo)+3).toFixed(1)}" text-anchor="end" class="an-ax">${usd(ddLo)}</text>
-    ${xl}<line class="an-x" x1="0" x2="0" y1="${P.t}" y2="${P.t+ih+gap+ddH}" stroke="var(--kx)" stroke-dasharray="3 3" style="display:none"/><circle class="an-xd" r="4.5" fill="var(--kx)" stroke="#060913" stroke-width="2" style="display:none"/></svg><div class="kx-rtip an-tip"></div>`;
+    ${xl}<line class="an-x" x1="0" x2="0" y1="${P.t}" y2="${P.t+ih+gap+ddH}" stroke="var(--kx)" stroke-dasharray="3 3" style="display:none"/><circle class="an-xd" r="4.5" fill="var(--kx)" stroke="var(--s1)" stroke-width="2" style="display:none"/></svg><div class="kx-rtip an-tip"></div>`;
   el._eq={pts,X,Y,W,P,iw};if(el._eqB)return;el._eqB=1;
   const mv=e=>{const S=el._eq,r=el.getBoundingClientRect(),px=(e.clientX-r.left)*S.W/r.width;if(px<S.P.l||px>S.P.l+S.iw){lv();return}
     let best=S.pts[0];for(const p of S.pts){if(Math.abs(S.X(p[0])-px)<Math.abs(S.X(best[0])-px))best=p}
@@ -2782,7 +2821,7 @@ function kxPlayBuild(host,tk,t){const P=KXP[tk],pts=P.pts,open=t.close-15*60000,
     <line x1="${X(t.t/1000)}" x2="${X(t.t/1000)}" y1="${PD.t}" y2="${PD.t+ih}" stroke="var(--kx)" stroke-dasharray="2 3" opacity=".7"/><text x="${X(t.t/1000)}" y="${PD.t-4}" font-size="10" fill="var(--kx)" text-anchor="middle">bought ${kxC(t.px)}</text>
     <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.5" opacity=".16"/>
     <g clip-path="url(#kpc${id})">${tband}${kd?`<path d="${kd}" fill="none" stroke="var(--kx)" stroke-width="1.4" opacity=".55"/>`:''}<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>${td}</g>
-    <line id="kpl${id}" x1="0" x2="0" y1="${PD.t}" y2="${PD.t+ih}" stroke="var(--kx)" stroke-width="1.2" opacity=".9" style="display:none"/><circle id="kpd${id}" r="5" fill="var(--ink)" stroke="#060913" stroke-width="2" style="display:none"/>
+    <line id="kpl${id}" x1="0" x2="0" y1="${PD.t}" y2="${PD.t+ih}" stroke="var(--kx)" stroke-width="1.2" opacity=".9" style="display:none"/><circle id="kpd${id}" r="5" fill="var(--ink)" stroke="var(--s1)" stroke-width="2" style="display:none"/>
     ${P.s==null||P.s>=x1?fin:''}<g id="kpf${id}" style="display:${P.s==null||P.s>=x1?'none':'inline'}">${fin}</g>
     ${[0,5,10,15].map(m=>`<text x="${X(x0+m*60)}" y="${H-5}" font-size="10" fill="var(--faint)" text-anchor="${m===0?'start':m===15?'end':'middle'}">${m===0?esc(tm(x0)):m===15?'close':m+'m'}</text>`).join('')}</svg>
    <div class="kp-hud" id="kph${id}"></div>
@@ -2936,7 +2975,7 @@ function kxModeSpark(kind,K,lv){const td=kxToday(),now=Date.now();
   const t0=rows[0][0]-30*60000,t1=Math.max(now,rows[rows.length-1][0]+60000);let run=0;const pts=[[t0,0]];for(const [t,v] of rows){pts.push([t,run]);run+=v;pts.push([t,run])}pts.push([t1,run]);
   const vs=pts.map(p=>p[1]),lo=Math.min(0,...vs),hi=Math.max(0,...vs),sp=hi-lo||1,X=t=>(t-t0)/(t1-t0)*200,Y=v=>36-(v-lo)/sp*32;
   const d=pts.map((p,i)=>`${i?'L':'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(''),col=run>=0?'var(--good)':'var(--bad)',gid='msg'+kind;
-  return `<div class="kx-msp"><svg viewBox="0 0 200 40" preserveAspectRatio="none"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${run>=0?'#2fd18b':'#ff4d5e'}" stop-opacity=".35"/><stop offset="1" stop-color="${run>=0?'#2fd18b':'#ff4d5e'}" stop-opacity="0"/></linearGradient></defs><line x1="0" y1="${Y(0).toFixed(1)}" x2="200" y2="${Y(0).toFixed(1)}" class="z"/><path d="${d}L200,${Y(lo).toFixed(1)}L0,${Y(lo).toFixed(1)}Z" fill="url(#${gid})" stroke="none"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg><i style="left:100%;top:${(Y(run)/40*100).toFixed(1)}%;--c:${col}" title="${usd(run)} today"></i></div>${cap}`}
+  return `<div class="kx-msp"><svg viewBox="0 0 200 40" preserveAspectRatio="none"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${col}" stop-opacity=".35"/><stop offset="1" style="stop-color:${col}" stop-opacity="0"/></linearGradient></defs><line x1="0" y1="${Y(0).toFixed(1)}" x2="200" y2="${Y(0).toFixed(1)}" class="z"/><path d="${d}L200,${Y(lo).toFixed(1)}L0,${Y(lo).toFixed(1)}Z" fill="url(#${gid})" stroke="none"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg><i style="left:100%;top:${(Y(run)/40*100).toFixed(1)}%;--c:${col}" title="${usd(run)} today"></i></div>${cap}`}
 const kxDay=ms=>new Date(ms).toLocaleDateString('en-CA',ET),kxToday=()=>kxDay(Date.now());
 function kxTDay(k){const s=KXT[k];return s.day||kxToday()}
 function kxTSet(k,day){const s=KXT[k];s.day=day&&day!==kxToday()?day:null;if(day==='all')s.day='all';s.page=0;kxTPaint(k)}
@@ -3972,7 +4011,16 @@ document.addEventListener('keydown',e=>{
   if(ST.pane?.kind==='coin'&&!inField&&(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='j'||e.key==='k')){e.preventDefault();paneNav(e.key==='ArrowLeft'||e.key==='k'?-1:1);return}
   if(e.key==='Escape'){$('#drawer').classList.remove('on');ST.pane=null}});
 document.addEventListener('input',e=>{if(e.target.id==='palq'){ST.palSel=0;palRender()}});
-$('#theme').addEventListener('click',()=>{const r=document.documentElement,cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'),nx=cur==='light'?'dark':'light';r.dataset.theme=nx;try{localStorage.setItem('cr-theme',nx)}catch{}render()});
+$('#theme').addEventListener('click',()=>themePick());
+// MC 2026-11-14 the theme picker: one card per theme with a small preview drawn in that theme's own colors. Tapping a card
+// switches at once (the page behind redraws, charts included) and remembers it on this device; Done closes.
+function themeCard(t,on){const c=t.c,dk=t.base==='dark';return `<button class="th-card${on?' on':''}" onclick="themeSet('${t.id}')" aria-pressed="${on}"><span class="th-pv" style="background:${c.bg}"><span class="th-sf" style="background:${c.s1};border-color:${c.s3}"><i style="background:${c.ink};width:58%"></i><i style="background:${c.mute};width:38%;opacity:.8"></i><svg viewBox="0 0 60 18" preserveAspectRatio="none"><path d="M0 14L10 12L18 13L28 8L36 10L46 5L60 3" fill="none" stroke="${c.good}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></span><span class="th-dots"><em style="background:${c.kx}"></em><em style="background:${c.good}"></em><em style="background:${c.bad}"></em><em style="background:${c.accent}"></em></span></span><span class="th-nm"><b>${t.name}</b><small>${dk?'Dark':'Light'}</small>${on?'<i>✓</i>':''}</span><span class="th-d">${t.d}</span></button>`}
+function themePick(){const T=window.CR_THEMES||[],cur=document.documentElement.dataset.themePick||'auto',mq=matchMedia('(prefers-color-scheme: light)').matches;
+  modal(`<div class="th-wrap"><h2>Theme</h2><p class="th-sub">Saved on this device. Charts, tables and the live view all follow it.</p>
+   <button class="th-auto${cur==='auto'?' on':''}" onclick="themeSet('auto')" aria-pressed="${cur==='auto'}"><span class="th-half"><i style="background:#060913"></i><i style="background:#eef1f8"></i></span><span><b>Auto</b><small>Matches your phone: Daylight when it is in light mode, Midnight in dark mode${cur==='auto'?` (${mq?'Daylight':'Midnight'} now)`:''}</small></span>${cur==='auto'?'<i>✓</i>':''}</button>
+   <div class="th-grid">${T.map(t=>themeCard(t,cur===t.id)).join('')}</div>
+   <div class="th-ft"><button class="btn pri" onclick="closeModal()">Done</button></div></div>`);$('#modal .bk').onclick=closeModal;ST.modalEsc=closeModal}
+function themeSet(id){try{localStorage.setItem('cr-skin',id);localStorage.removeItem('cr-theme')}catch{}crThemeApply(id);render();const y=$('#mbox')?.scrollTop||0;themePick();const b=$('#mbox');if(b)b.scrollTop=y}
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(!$('#drawer').classList.contains('on')&&!$('#modal').classList.contains('on'))render()},150)});
 // MC 2026-11-13 charts were sometimes squashed or stretched on arriving: they were drawn while the page was still settling (the
 // scrollbar appearing on desktop, iOS restoring the page from the background, the sidebar sliding), and nothing redrew them
@@ -4135,7 +4183,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.1.8',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.2.0',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

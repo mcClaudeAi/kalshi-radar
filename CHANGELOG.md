@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.0 (Nov 14, 2026): Themes
+Pick how the dashboard looks. The half-circle button at the top (or "Theme" in search) opens the theme picker.
+- [new] Nine themes, each previewed in its own colors: Midnight (the original), Graphite, Ember, Ocean, Terminal, Amethyst, High contrast, Daylight and Sand.
+- [new] Auto follows your phone or computer: Daylight in light mode, Midnight in dark mode, switching when the device does.
+- [improved] Charts, tables, the live view, the logo and the settings pages all follow the theme. The Cockpit stays a dark instrument panel in every theme, and live trading stays red so it is never missed.
+- [improved] Every theme was checked for readable text: body text, labels, gains and losses all meet standard contrast levels on their backgrounds.
+- [improved] Your choice is saved on each device. A light or dark choice made with the old button carries over.
+
 ## 1.1.8 (Nov 14, 2026): Paper and live trades easier to tell apart
 - [improved] The paper table in Trades is now "Paper trades" and says they are simulated fills, with the real fills under Live.
 - [improved] Paper rows the live account also bought are tagged "also live" instead of "live".
