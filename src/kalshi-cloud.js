@@ -94,6 +94,14 @@ function labDefs(K) {
     // volatility check passed, and only 96c and up lost. Added beside the 95c playbook instead of changing it, so nobody's
     // live playbook changes under them. $41.60 a day at $50 a trade in the history against $33 for the plain rule.
     { id: 'mv96', name: 'Margin vs volatility, under 96¢', desc: 'Margin vs volatility, and it also skips anything priced 96¢ or more. In the four-month history the 95¢ trades still paid after fees once the coin was clear of its target, and only 96¢ and up lost. The most profit per trade of the playbooks tested: about 40% fewer trades than the plain rule and more profit.', color: '#F4A261', filter: t => t.z == null ? null : t.z >= 1 && t.px < 0.96 },
+    // MC 2026-11-14 asked whether Margin vs volatility under 95c could be made safer on wins. Tested on Aug 7 to Nov 9 (4,577 of its
+    // trades, $50 each, split in two halves): losses look almost the same as wins on every reading we keep (1.41 moves clear
+    // against 1.48, learned chance 93.7% against 94.0%), so every filter trades profit for safety. Tried and dropped: the 10-minute
+    // check on top (less profit, more red days), price sliding back (no effect), volatility picking up (worse), coins on the same
+    // side (helped one half, hurt the other). These two held up on both halves. Learned agreeing kept 82% of the profit with
+    // $1.20 a trade against $0.93 and a smaller worst day; 1.5 moves kept about half the profit and cut the worst day almost in half.
+    { id: 'mvl', name: 'Margin vs volatility + Learned', desc: 'Margin vs volatility under 95¢, and only when the self-learning model also gives the trade a better chance than Kalshi\'s price plus the fee and a cent. Two separate checks have to agree. In the history it kept about 80% of the profit on about 60% of the trades, with more profit per trade and a smaller worst day.', color: '#B5179E', filter: t => t.z == null || t.pl == null ? null : t.z >= 1 && t.px < 0.95 && t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
+    { id: 'mv15', name: 'Margin vs volatility, 1.5 moves', desc: 'Margin vs volatility under 95¢ with a higher bar: the coin must be at least 1.5 normal 10-minute moves past its target, not 1. About 40% of the trades and half the profit in the history, but the worst day and the worst drop were both about half as deep, and the win rate went from 94.2% to 95.2%.', color: '#80FFDB', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
     // none had a second half without a red day, because one loss costs about 15 wins. This is the steadiest that held up when
     // it was picked on the first two months and checked on the last two: at least two typical moves past the target on both

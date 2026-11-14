@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.0.99 (Nov 14, 2026): Two safer versions of Margin vs volatility
+- [new] Margin vs volatility + Learned: Margin vs volatility under 95¢, and only when the self-learning model agrees too. In the Aug 7 to Nov 9 history it kept about 80% of the profit on about 60% of the trades, made $1.20 a trade instead of $0.93, and its worst day was smaller.
+- [new] Margin vs volatility, 1.5 moves: the same, but the coin must be 1.5 normal moves past its target instead of 1. About half the profit, with the worst day and the worst drop each about half as deep and the win rate up from 94.2% to 95.2%.
+- [improved] Both are in Labs and the Backtest tab, and either can be picked for paper or live. Five other ideas were tested and left out because they did not hold up on both halves of the history.
+
 ## 1.0.98 (Nov 14, 2026): Cash out works on every coin again
 - [fixed] Since the price path capture started (1.0.95), it was using up Coinbase's allowance just as the minute-10 trend check needed it, so on most coins the check got no answer and "Cash out when the trend turns" did nothing for them. The capture and the volatility repair now pause from 7 to 3 minutes before each close, and the check waits and tries again if Coinbase is busy.
 - [improved] When there is still no trend reading, the minute-10 sale price is kept anyway, so the Min 10 column is filled in.
