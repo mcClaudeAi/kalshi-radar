@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.1.5 (Nov 14, 2026): What each account takes, in plain words
+- [new] The top of Paper settings and Live settings now says in one paragraph what that account takes right now: which trades the playbook buys, the price band (with the playbook's own price limit folded in, so "under 95¢" shows as 90¢ to 94.9¢), coins, trades a window, off hours, size, the daily stops, protect profit and cash out. It is built from the saved settings, so it changes when you save.
+
 ## 1.1.4 (Nov 14, 2026): Live numbers follow live settings only
 Steven: changing paper's daily profit target made the live account look active again.
 - [fixed] The profit target bar on the live numbers (header, Home Live view, Live account) read paper's target. It reads live's now. Live trading itself already stopped on live's own target, so no live trades were placed because of it.
