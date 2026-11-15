@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.42 (Nov 15, 2026): Analytics splits hand buys from the tracker's own
+- [new] Live analytics has three tiles under the header: All live trades, Tracker bought and Bought by hand, each with its result, trade count, win rate and average per trade for the range. Tap one and every figure and chart on the page shows only those trades.
+- [improved] The tiles appear once there is at least one hand buy in the range. Hand buys made before today are already marked, so the split covers them too.
+
 ## 1.2.41 (Nov 15, 2026): The coin box holds still
 - [fixed] On the web the coin box could jump up and down each time its figures refreshed. It was centred on the screen, so any change in its height moved the whole box. It now hangs from the top and the lines that vary in length keep room for two, so a refresh no longer moves it.
 
