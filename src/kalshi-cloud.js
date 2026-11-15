@@ -1478,7 +1478,8 @@ export function createKalshi(state, env, keep) {
         const o = { at: Date.now(), ok: !!l?.ok, limits: l?.ok ? l.j : null, err: l?.ok ? null : `${l?.status} ${errOf(l)}`, vol: v?.ok ? (v.j?.volume_progress || [])[0] || null : null };
         await kv.put('kapi', o); apiV = o; return o; };
       if (a?.op === 'upgrade') {
-        const r = await kreq('POST', '/account/api_usage_level/upgrade');
+        // MC 2026-11-14 sent with no body the request carried no content type and Kalshi answered 400 invalid_content_type; an empty JSON body fixes that
+        const r = await kreq('POST', '/account/api_usage_level/upgrade', {});
         say(`LIVE api usage upgrade asked: ${r?.status}`);
         const o = await read(); viewDirty = true; await publish(true);
         if (r?.ok) return { ok: true, msg: 'Kalshi granted the Advanced API level. Subaccounts can be created now.', api: o };

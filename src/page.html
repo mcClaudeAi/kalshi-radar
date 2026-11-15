@@ -1082,6 +1082,14 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-pbtag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .kx-pbtag.in{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 10%,transparent)}
 .kstrip .kp.kp-today{position:relative}.kstrip .kp-corner{position:absolute;top:11px;right:12px;font-style:normal;line-height:1.2;white-space:nowrap;font-size:11.5px}.kstrip .kp-corner small{font-size:11px;color:var(--mute);font-weight:500}.kstrip .kp-corner strong{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.kx-sb{cursor:pointer}.kx-sb:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
+.modal .box:has(.kx-coinv){width:min(700px,100%);max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain}
+.kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kx-coinc{display:block;width:100%;height:270px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}
+.kx-cvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.kx-cvs>div{padding:9px 11px;border:1px solid var(--line);border-radius:10px;min-width:0}
+.kx-cvs span{display:block;font-size:11px;color:var(--mute)}.kx-cvs b{display:block;font-size:15px;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap}.kx-cvs small{display:block;font-size:11px;color:var(--mute);margin-top:1px}.kx-cvs small.pos{color:var(--good)}.kx-cvs small.neg{color:var(--bad)}
+.kx-cva .kx-sellrow{margin-top:6px}.kx-cva .note{margin:6px 0 0}
+@media(max-width:600px){.kx-coinc{height:220px}.kx-cvs{grid-template-columns:1fr 1fr}.kx-cvs>div:last-child{grid-column:1/-1}}
 .kx-sbx{grid-column:1/-1;min-width:0}.kx-sbx:empty{display:none}.kx-sbx .kx-sellrow{margin-top:0}.kx-sbx .kx-hl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kx-sellrow.kx-buyrow{padding:5px 6px 5px 10px;border-color:var(--line);background:transparent}.kx-buyrow .btn{background:transparent;color:#ff4d5e;border:1px solid rgba(255,77,94,.5);box-shadow:none}.kx-buyrow .btn:hover{background:rgba(255,77,94,.1)}
 .kx-sellrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,77,94,.3);background:rgba(255,77,94,.06);font-size:12px;color:var(--ink2);flex-wrap:wrap}.kx-sellrow b{color:var(--ink)}.kx-sellrow b.pos{color:var(--good)}.kx-sellrow b.neg{color:var(--bad)}.kx-sellrow .btn{flex:none}
 .kx-bdiv{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:4px 0 -2px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}.kx-bdiv::before,.kx-bdiv::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -2724,6 +2732,9 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
   g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(tgt??px??1,tgt).replace('$','')).width)+18;
   const P={l:10,r:Math.max(64,axW),t:24,b:22},iw=W-P.l-P.r,ih=H-P.t-P.b;
   let lo=tgt??px??1,hi=lo;for(const p of S){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1])}if(px!=null){lo=Math.min(lo,px);hi=Math.max(hi,px)}
+  // the coin view makes room for where the trend lands at the close, up to one more chart height so a steep run cannot flatten the rest
+  if(o.trend&&now<x1){const T=S.filter(p=>p[0]>=now-180&&p[0]<=now);if(T.length>=8){const n=T.length,mx=T.reduce((a,p)=>a+p[0],0)/n,my=T.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of T){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}
+    if(sxx>0){const pj=my+sxy/sxx*(x1-mx),sp=Math.max(hi-lo,(tgt||px||1)*.0012);lo=Math.min(lo,Math.max(pj,lo-sp));hi=Math.max(hi,Math.min(pj,hi+sp))}}}
   const mn=Math.max((hi-lo)*.35,(tgt||px||1)*.0006);lo-=mn;hi+=mn;
   const X=t=>P.l+(t-x0)/(x1-x0)*iw,Y=v=>P.t+(1-(v-lo)/(hi-lo))*ih,xNow=X(Math.min(Math.max(now,x0),x1));
   const rr=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()};
@@ -2755,6 +2766,11 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
     g.lineWidth=1.8;g.lineJoin='round';g.lineCap='round';const grd=g.createLinearGradient(P.l,0,P.l+iw,0);grd.addColorStop(0,ink+'55');grd.addColorStop(Math.max(0,Math.min(1,(xNow-P.l)/iw)),ink);grd.addColorStop(1,ink);g.strokeStyle=grd;
     g.beginPath();S.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();
     const tail=S.filter(p=>p[0]>=now-45);if(tail.length>1){g.save();g.shadowColor=dc;g.shadowBlur=10;g.strokeStyle=dc;g.lineWidth=2.2;g.beginPath();tail.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.restore()}}
+  // MC 2026-11-14 trend line for the coin view: a straight line fitted to the last 3 minutes of prices and carried on to the close,
+  // so you can see where the coin lands if it keeps its pace. Needs 8 readings; drawn only when asked (o.trend), the board cards skip it.
+  let tr=null;if(o.trend&&now<x1){const T=S.filter(p=>p[0]>=now-180&&p[0]<=now);if(T.length>=8){const n=T.length,mx=T.reduce((a,p)=>a+p[0],0)/n,my=T.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of T){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}
+    if(sxx>0){const b=sxy/sxx,at=t=>my+b*(t-mx);tr={slope:b,proj:at(x1),from:T[0][0]};g.save();g.beginPath();g.rect(P.l,P.t,iw,ih);g.clip();g.strokeStyle=kx;g.lineWidth=1.6;g.setLineDash([6,4]);g.beginPath();g.moveTo(X(T[0][0]),Y(at(T[0][0])));g.lineTo(X(x1),Y(at(x1)));g.stroke();g.setLineDash([]);
+      const ye=Math.max(P.t+4,Math.min(P.t+ih-4,Y(at(x1))));g.fillStyle=kx;g.beginPath();g.arc(X(x1)-3,ye,3,0,7);g.fill();g.restore();pill('trend',Math.min(P.l+iw-44,X(Math.min(x1,now+(x1-now)/2))),Math.max(P.t+9,Math.min(P.t+ih-9,Y(at(now+(x1-now)/2))-11)),kx,'600 10px '+F,'center')}}}
   // the live price: pulsing dot, hairline to the axis, colored label
   if(px!=null){const win=tgt==null?null:(up?px>=tgt:px<tgt);const dc=win==null?ink:win?good:bad;const x=xNow,y=Y(px);
     g.strokeStyle=dc+'55';g.lineWidth=1;g.setLineDash([2,3]);g.beginPath();g.moveTo(x,y);g.lineTo(P.l+iw,y);g.stroke();g.setLineDash([]);
@@ -2762,7 +2778,7 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
     pill(kxFmt(px,tgt).replace('$',''),P.l+iw+4,lblY,dc,'700 10.5px '+M)}
   // the 60-second average that actually settles the market, once we are inside the last 2.5 minutes
   const a60=kxAvg60(c,o.close);if(a60!=null&&now>x1-150&&tgt!=null){const y=Y(a60);g.strokeStyle=kx;g.lineWidth=1.2;g.setLineDash([3,3]);g.beginPath();g.moveTo(P.l,y);g.lineTo(P.l+iw,y);g.stroke();g.setLineDash([]);pill('60s avg · what settles',P.l+6,y-11,kx,'600 10px '+F)}
-  return {px,tgt,a60}}
+  return {px,tgt,a60,tr}}
 // MC 2026-11-13 two or three points drew a lone straight stroke that read as a glitch; the sparkline waits for four
 function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<4)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
 // ----- live data: the tracker's snapshot via the worker, the bot's snapshot as fallback -----
@@ -2809,6 +2825,27 @@ function kxHandRow(s){const lv=kxLv();if(!lv?.on||Date.now()>=s.close-20000)retu
   if(x?.pend)return `<div class="kx-sellrow kx-buyrow"><span class="tx">Live · sending the order…</span></div>`;
   if(!s.leader||s.lask==null)return '';const S=s.leader.toUpperCase(),size=lv.size||10;
   return `<div class="kx-sellrow kx-buyrow"><span class="tx">Buy by hand at <b>${kxC(s.lask)}</b> · $${size} · <b class="pos">+$${Math.max(0,Math.floor(size/Math.min(.99,s.lask+.01))*(1-s.lask)).toFixed(2)}</b> if it wins</span><button class="btn sm dng" onclick="event.stopPropagation();kxBuyOne('${esc(s.tk)}','${s.leader}')">Buy ${S}</button></div>`}
+// MC 2026-11-14 coin view. Asked for: tap a scanner row and get the coin's live track with a trend line, plus Buy if live does
+// not hold it or Sell if it does. It reuses the board's chart (kxDraw) with the trend line switched on, and the same Buy and Sell
+// rows as the scanner, so the checks and hold-to-confirm are the same. It repaints four times a second while open.
+function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=row();if(!s0)return;clearInterval(KX.cvT);
+  modal(`<div class="kx-coinv" data-tk="${esc(tk)}"><div class="kx-cvh"><h2>${esc(s0.coin)}</h2><span data-k="lead"></span><span class="sp"></span><em data-k="left"></em></div>
+   <canvas class="kx-coinc"></canvas><div class="kx-cvs" data-k="st"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
+  const stop=()=>{clearInterval(KX.cvT);KX.cvT=null},shut=()=>{stop();closeModal()};$('#mbox [data-mx="0"]').onclick=shut;$('#modal .bk').onclick=shut;ST.modalEsc=shut;
+  const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
+    const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),pp=kxOpen().find(o=>o.tk===tk),side=x?.side||pp?.side||s.leader||'yes',S=side.toUpperCase();
+    const r=kxDraw(box.querySelector('canvas'),{...s,side,at:x?.at??pp?.at,px:x?.px??pp?.px,ask:pp?.ask,trend:1})||{},px=r.px,tg=s.strike,left=Math.max(0,Math.round((s.close-now)/1000));
+    box.querySelector('[data-k=lead]').innerHTML=s.leader&&s.lask!=null?`<i class="kx-side ${s.leader}">${s.leader.toUpperCase()}</i> <b>${kxC(s.lask)}</b>`:'';
+    box.querySelector('[data-k=left]').textContent=left?`settles in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'settling';
+    const mg=px!=null&&tg?(px-tg)/tg*100:null,win=mg==null?null:(side==='yes'?mg>=0:mg<0),t=r.tr,perMin=t&&px?t.slope*60/px*100:null,pw=t&&tg?(side==='yes'?t.proj>=tg:t.proj<tg):null,toward=t?(side==='yes'?t.slope>0:t.slope<0):null;
+    box.querySelector('[data-k=st]').innerHTML=`<div><span>Price now</span><b>${px!=null?kxFmt(px,tg):'–'}</b><small class="${win==null?'':win?'pos':'neg'}">${mg!=null?`${mg>=0?'+':''}${mg.toFixed(Math.abs(mg)<.1?3:2)}% vs target`:''}</small></div>
+     <div><span>Trend, last 3 min</span><b class="${toward==null?'':toward?'pos':'neg'}">${perMin!=null?`${perMin>=0?'+':''}${perMin.toFixed(3)}% a min`:'–'}</b><small>${t?(Math.abs(perMin)<.002?'flat':toward?`moving toward ${S}`:`moving against ${S}`):'needs a little more data'}</small></div>
+     <div><span>At this pace by the close</span><b>${t?kxFmt(t.proj,tg):'–'}</b><small class="${pw==null?'':pw?'pos':'neg'}">${t?(pw?`${S} would win`:`${S} would lose`):''}</small></div>`;
+    const act=box.querySelector('[data-k=act]');
+    kxSlot(act,x?`<div class="kx-hl"><span class="kx-pbtag lv tx">Live · bought ${x.fill} at ${kxC(x.px)}${x.hand?' · by hand':''}${x.sold?` · sold ${x.sold.fill}`:''}</span></div>${kxSellRow({...s,side:x.side})||'<p class="note tx">Too close to the close to sell.</p>'}`
+      :!lv?.on?`<p class="note tx">Live trading is off, so there is nothing to buy or sell here.${pp?` Paper holds ${esc(pp.side.toUpperCase())} at ${kxC(pp.px??pp.ask)}.`:''}</p>`
+      :(kxHandRow(s)||'<p class="note tx">Too close to the close to buy.</p>'))};
+  paint();KX.cvT=setInterval(paint,250)}
 async function kxBuyOne(tk,side){if(!ST.me.control){unlockFlow();return}
   let q=null;try{const r=await fetch(`/api/kbuyq?tk=${encodeURIComponent(tk)}&side=${side}`,{credentials:'same-origin',cache:'no-store'});q=r.ok?await r.json():null}catch{}
   if(!q?.ok){toast(q?.msg||'Could not read the market. Try again.');return}const S=q.side.toUpperCase(),left=Math.max(0,Math.round((q.close-Date.now())/1000));
@@ -2848,7 +2885,7 @@ function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.ka
   const sc=(L?.scan||[]).slice().sort((a,b)=>((b.lask??-1)-(a.lask??-1))||(a.coin<b.coin?-1:1));
   if(!sc.length){el.innerHTML='<div class="empty">Waiting for the tracker\'s first scan…</div>';return}
   const sig=sc.map(s=>s.tk).join(',');
-  if(el.dataset.sig!==sig){el.dataset.sig=sig;el.innerHTML=sc.map(s=>`<div class="kx-sb" data-coin="${esc(s.coin)}" data-tk="${esc(s.tk)}"><div class="kx-sbc"><b>${esc(s.coin)}</b><span data-k="t">–</span></div><div class="kx-sbl" data-k="lead"></div><div class="kx-sbs" data-k="sp"></div><div class="kx-sbp"><b data-k="px">–</b><span data-k="mg">–</span></div><div class="kx-sbg"><em class="l">-0.4%</em><em class="c">target ${kxFmt(s.strike,s.strike)}</em><em class="r">+0.4%</em><div class="t"><i data-k="g" style="left:50%;width:0"></i></div></div><div class="kx-sbx" data-k="hand"></div></div>`).join('')}
+  if(el.dataset.sig!==sig){el.dataset.sig=sig;el.innerHTML=sc.map(s=>`<div class="kx-sb" data-coin="${esc(s.coin)}" data-tk="${esc(s.tk)}" role="button" tabindex="0" title="Open ${esc(s.coin)}'s live chart" onclick="kxCoinView('${esc(s.tk)}')" onkeydown="if(event.key==='Enter'&&event.target===this)kxCoinView('${esc(s.tk)}')"><div class="kx-sbc"><b>${esc(s.coin)}</b><span data-k="t">–</span></div><div class="kx-sbl" data-k="lead"></div><div class="kx-sbs" data-k="sp"></div><div class="kx-sbp"><b data-k="px">–</b><span data-k="mg">–</span></div><div class="kx-sbg"><em class="l">-0.4%</em><em class="c">target ${kxFmt(s.strike,s.strike)}</em><em class="r">+0.4%</em><div class="t"><i data-k="g" style="left:50%;width:0"></i></div></div><div class="kx-sbx" data-k="hand"></div></div>`).join('')}
   else{const want=sc.map(s=>s.tk);const have=[...el.children].map(x=>x.dataset.tk);if(want.join()!==have.join())for(const tk of want){const n=el.querySelector(`[data-tk="${CSS.escape(tk)}"]`);if(n)el.appendChild(n)}}
   for(const s of sc){const t=el.querySelector(`[data-tk="${CSS.escape(s.tk)}"]`);if(!t)continue;const lead=t.querySelector('[data-k=lead]');kxSlot(t.querySelector('[data-k=hand]'),kxHandRow(s));
     const q=s.lask!=null&&s.lask>=minAsk,mark=s.close-10*60000,past=Date.now()>=mark;
@@ -4296,7 +4333,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.8',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.2.9',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

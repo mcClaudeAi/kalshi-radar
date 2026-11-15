@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.9 (Nov 14, 2026): Tap a coin for its live chart
+Tap or click any coin in the scanner to open its live chart, with a trend line and the Buy or Sell button.
+- [new] The chart shows the coin against its target for the whole window, with a dashed trend line fitted to the last 3 minutes and carried on to the close.
+- [new] Under the chart: the price now and how far it is from the target, the trend per minute and whether it is moving toward or against the leader, and where the coin lands by the close at that pace.
+- [new] If live does not hold the market, the chart has the Buy row. If live holds it, it shows the position and the Sell row. Both use the same check and hold-to-confirm as before.
+- [fixed] "Upgrade to Advanced" failed with "400 invalid_content_type". The request is now sent the way Kalshi expects.
+
 ## 1.2.8 (Nov 14, 2026): Cleaner header on desktop
 The four boxes at the top of the desktop dashboard are now one panel.
 - [improved] Mode, today's result, cash and paper sit in one panel split by thin lines, with labels, numbers and footers lined up and room above and below. The Mode cell carries the account's color and its chart for the day.
