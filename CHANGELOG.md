@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.31 (Nov 15, 2026): A likely line beside the trend line
+- [new] The coin view draws a second, amber line: where the coin is likely to be by the close. The straight trend line carries the last 3 minutes' pace all the way; the likely line lets that pace fade, and the shaded band around it is the coin's usual minute-to-minute swing over the time left.
+- [new] A "Likely by the close" tile gives that price, its range, and the rough chance the close lands on your side of the target. It is an estimate from the coin's own recent moves, not a prediction to rely on.
+
 ## 1.2.30 (Nov 15, 2026): Hand buys and sells pick their accounts
 - [new] Buying by hand now asks which accounts: a tick box for Main and each trading subaccount, all ticked to start. Every account buys at the same top price, each at its own size. An account that cannot take it (no cash, loss cap hit, already holds it) is greyed out with the reason.
 - [new] When Main already holds a market that a subaccount does not, its card shows "Add to it" to buy the same side in the subaccounts.
