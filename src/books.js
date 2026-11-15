@@ -302,10 +302,21 @@ export function createBooks(D) {
         const free = s.shard[0] ?? 0; amt = Math.round((a.amount === 'all' ? free : Math.min(want, free + 0.005)) * 100);
         if (a.amount !== 'all' && want > free + 0.005) return { ok: false, msg: `Only $${free.toFixed(2)} is free to move out${open ? ' while trades are open' : ''}.` };
       } else amt = Math.round(+a.amount * 100);
+      // MC 2026-11-15 moving $250 into a book was refused with "insufficient balance" while the main account showed $621. The
+      // subaccount transfer only takes money from the main account's shard 0, and live keeps about twelve trades' worth on the
+      // crypto shard, so shard 0 held about $21. When shard 0 is short, the shortfall is brought back from the crypto shard
+      // first (the main account tops its crypto shard up again from what is left at the next trade check). If both together are
+      // short, it says how much is there.
+      if (op === 'fund' && amt >= 100 && D.mainShards) { const sh = await D.mainShards(), free = sh?.[0] ?? 0, onX = sh?.[D.XI] ?? 0, need = amt / 100;
+        if (sh && need > free + 0.005) {
+          if (need > free + onX + 0.005) return { ok: false, msg: `The main account has $${(free + onX).toFixed(2)} in cash that can move right now, less than $${need.toFixed(2)}.` };
+          const mv = Math.ceil((need - free) * 100), back = await D.mainReq('POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: mv * 100, source_exchange_shard: D.XI, destination_exchange_shard: 0, client_transfer_id: crypto.randomUUID() });
+          if (!back?.ok) return { ok: false, msg: `Could not bring $${(mv / 100).toFixed(2)} back from the main account's crypto shard: ${errOf(back)} (code ${back?.status})` };
+          D.say(`LIVE moved $${(mv / 100).toFixed(2)} back from the crypto shard for a transfer to ${b.name}`); } }
       if (!(amt >= 100)) return { ok: false, msg: op === 'withdraw' && a.amount === 'all' ? 'There is less than $1 to move out.' : 'Move at least $1.' }; if (amt > 10000000) return { ok: false, msg: 'That is more than this screen moves at once.' };
       const res = await D.mainReq('POST', '/portfolio/subaccounts/transfer', { client_transfer_id: crypto.randomUUID(), from_subaccount: op === 'fund' ? 0 : b.sub, to_subaccount: op === 'fund' ? b.sub : 0, amount_cents: amt });
-      if (!res?.ok) return { ok: false, msg: `Kalshi refused the transfer: ${res?.status} ${errOf(res)}` };
-      S[b.id].balAt = 0; try { await balance(b, true); } catch { }
+      if (!res?.ok) return { ok: false, msg: `Kalshi refused the transfer: ${errOf(res)} (code ${res?.status})` };
+      S[b.id].balAt = 0; try { await balance(b, true); } catch { } if (D.mainShards) try { await D.mainShards(); } catch { }
       D.say(`BOOK ${b.name}: ${op === 'fund' ? 'moved in' : 'moved out'} $${(amt / 100).toFixed(2)}`);
       return { ok: true, msg: `$${(amt / 100).toFixed(2)} moved ${op === 'fund' ? `from the main account to ${b.name}` : `from ${b.name} back to the main account`}.` };
     }

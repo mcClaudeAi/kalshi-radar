@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.15 (Nov 15, 2026): Moving money into a book works when cash is on the crypto side
+- [fixed] "Move money" into a subaccount book was refused with "insufficient balance" even with plenty of cash. Kalshi only moves money to a subaccount from the main account's main balance, and live keeps most of the cash on the crypto trading balance. The shortfall is now brought back from there first, then moved. If there is not enough in total, it says how much can move.
+- [improved] Kalshi's refusals on transfers show the reason first and the code after it, so "400" no longer reads like an amount.
+
 ## 1.2.14 (Nov 15, 2026): Subaccounts follow the main account
 For trading the same rules on the main account and its subaccount books.
 - [new] When you change the main live account's playbook, size or daily loss cap, the dashboard asks whether to apply it to every subaccount book and lists what would change in each. Hold to apply. "Match main account" on the Books page does the same at any time. Each book keeps its own cash floor and its own on or off switch, and no money moves.
