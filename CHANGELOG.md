@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.24 (Nov 15, 2026): Books no longer run out of calls
+- [fixed] A book could show "balance check failed: Too many subrequests". Each balance check had grown to three calls to Kalshi per account every minute, which could use up what Cloudflare allows one run. A quiet minute is back to one call per account; the split between the main balance and crypto is read again only when the total changes, after a fill, settle or transfer, or every 10 minutes.
+- [improved] If a run does use up its calls, the book keeps its last figures and reads again on the next run, with no error on the row. A balance error also clears as soon as the next read works.
+
 ## 1.2.23 (Nov 15, 2026): A book's cash shows right after an update
 - [fixed] After each update a subaccount book showed a dash for its cash for a minute or so, and the all-accounts total left it out. A book now keeps its last known balance and shows it until the fresh one arrives.
 

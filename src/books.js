@@ -87,17 +87,26 @@ export function createBooks(D) {
   const realized = l => l.reduce((a, x) => a + (x.pnl ?? 0), 0);
   async function balance(b, force) {
     const s = S[b.id]; if (Date.now() - s.balAt < (force ? 30000 : 60000)) return s.bal;
+    // MC 2026-11-15 Steven's second book showed "balance check failed: 0 Too many subrequests by single Worker invocation".
+    // Cloudflare caps the outside calls one run may make (50 on the free plan), and the per-shard reads added today turned
+    // every balance check into three calls, for the main account and for each book, every minute. The split is now read
+    // again only when the total changed, when something set balAt to 0 (a fill, a settle, a transfer), or after 10 minutes;
+    // otherwise the last split is kept. Running out of calls is also no longer shown as an error on the book: the last
+    // figures stay and the next run reads again.
+    const stale = !s.balAt, was = s.bal, keep = s.shard;
     const r = await breq(b, 'GET', '/portfolio/balance');
-    if (r?.ok) { const j = r.j || {}; s.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; s.balAt = Date.now(); s.keyOk = true; s.shard = {}; for (const x of j.balance_breakdown || []) s.shard[x.exchange_index] = +x.balance;
+    if (r?.ok) { const j = r.j || {}; s.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; s.balAt = Date.now(); s.keyOk = true; if (/^balance check failed/.test(s.err || '')) s.err = null; s.shard = {}; for (const x of j.balance_breakdown || []) s.shard[x.exchange_index] = +x.balance;
       // MC 2026-11-15 Kalshi leaves balance_breakdown out for a key locked to one subaccount, which is every book's key. With no
       // breakdown the book saw nothing on either shard, so it never moved money to the crypto shard and its orders had no cash
       // behind them. Each shard is now asked for by itself with exchange_index whenever the breakdown is missing or does not
       // add up to the book's own balance.
       const sum = Object.values(s.shard).reduce((a, v) => a + v, 0);
       if (s.bal != null && (!(j.balance_breakdown || []).length || Math.abs(sum - s.bal) > 0.01)) {
+        if (!stale && was === s.bal && keep && Object.keys(keep).length && Date.now() - (s.shAt || 0) < 600000) s.shard = keep; else {
         const val = q => q?.ok ? (q.j?.balance_dollars != null ? +q.j.balance_dollars : q.j?.balance != null ? q.j.balance / 100 : null) : null;
         const [a0, ax] = await Promise.all([breq(b, 'GET', '/portfolio/balance?exchange_index=0'), breq(b, 'GET', `/portfolio/balance?exchange_index=${D.XI}`)]), v0 = val(a0), vx = val(ax);
-        if (v0 != null && vx != null) s.shard = { 0: v0, [D.XI]: vx }; } }
+        if (v0 != null && vx != null) { s.shard = { 0: v0, [D.XI]: vx }; s.shAt = Date.now(); } else if (keep && Object.keys(keep).length) s.shard = keep; } } }
+    else if (/subrequest/i.test(errOf(r) || '')) D.say(`BOOK ${b.name}: out of calls this run, balance kept`);
     else { s.keyOk = r?.status === 401 || r?.status === 403 ? false : s.keyOk; fail(b, `balance check failed: ${r?.status} ${errOf(r)}`); }
     if (r?.ok && s.bal != null && (b.lastBal !== s.bal || b.lastCx !== (s.shard[D.XI] ?? null))) { b.lastBal = s.bal; b.lastCx = s.shard[D.XI] ?? null; try { await saveList(); } catch { } }
     return s.bal;

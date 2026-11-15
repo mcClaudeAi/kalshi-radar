@@ -400,6 +400,10 @@ export function createKalshi(state, env, keep) {
   const realized = l => l.reduce((a, x) => a + (x.pnl ?? 0), 0);
   async function balance(force) {
     if (Date.now() - st.balAt < (force ? 30000 : 60000)) return st.bal;
+    // MC 2026-11-15 the per-shard reads below made every balance check three calls and Steven's copy ran into Cloudflare's cap
+    // on calls per run. The split is read again only when the total changed, when balAt was set to 0 (fill, settle, transfer),
+    // or after 10 minutes; otherwise the last split is kept. See books.js balance() for the same change.
+    const stale = !st.balAt, was = st.bal, keep = st.shard;
     const r = await kreq('GET', '/portfolio/balance');
     if (r?.ok) { const j = r.j || {}; st.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; st.balAt = Date.now(); st.keyOk = true; st.shard = {}; for (const b of j.balance_breakdown || []) st.shard[b.exchange_index] = +b.balance;
       // MC 2026-11-15 Steven's live orders were all refused and the top-up kept failing with "could not move $600.00 ... insufficient
@@ -409,6 +413,7 @@ export function createKalshi(state, env, keep) {
       // balance (or is missing), each shard is asked for by itself with exchange_index, which is scoped to the account.
       const sum = Object.values(st.shard).reduce((x, v) => x + v, 0);
       if (st.bal != null && (!(j.balance_breakdown || []).length || Math.abs(sum - st.bal) > 0.01)) {
+        if (!stale && was === st.bal && keep && Object.keys(keep).length && Date.now() - (st.shAt || 0) < 600000) st.shard = keep; else {
         const val = q => q?.ok ? (q.j?.balance_dollars != null ? +q.j.balance_dollars : q.j?.balance != null ? q.j.balance / 100 : null) : null;
         // MC 2026-11-15 second pass. With a book holding $200 the main account still read "$643.15 on crypto" against $443.15 of
         // cash, so asking by exchange_index alone also came back counting the subaccount. The primary account is now named in the
@@ -419,8 +424,9 @@ export function createKalshi(state, env, keep) {
         let v0 = val(a0) ?? st.shard[0] ?? 0, vx = val(ax) ?? st.shard[XI] ?? 0;
         if (v0 + vx > st.bal + 0.01) { let b0 = 0, bx = 0; try { for (const k of books.view()) { const c = k.crypto ?? 0; bx += c; b0 += Math.max(0, (k.bal ?? 0) - c); } } catch { } v0 = Math.max(0, v0 - b0); vx = Math.max(0, vx - bx); }
         if (v0 + vx > st.bal + 0.01) { vx = Math.min(vx, st.bal); v0 = Math.max(0, +(st.bal - vx).toFixed(2)); }
-        st.shard = { 0: +v0.toFixed(2), [XI]: +vx.toFixed(2) };
+        st.shard = { 0: +v0.toFixed(2), [XI]: +vx.toFixed(2) }; st.shAt = Date.now(); }
       } }
+    else if (/subrequest/i.test(errOf(r) || '')) say('LIVE out of calls this run, balance kept');
     else { st.keyOk = r?.status === 401 ? false : st.keyOk; fail(`balance check failed: ${r?.status} ${errOf(r)}`); }
     return st.bal;
   }
@@ -431,7 +437,9 @@ export function createKalshi(state, env, keep) {
     // top-ups only show after the next balance read, so the shard looked empty and the main balance looked full when neither was
     // true. The balances are read fresh before deciding now, and a refusal while the shard still covers the next order is logged,
     // not shown as an error.
-    if (Date.now() - st.balAt > 5000) { st.balAt = 0; await balance(true); }
+    // MC 2026-11-15 balAt = 1 (not 0) skips the cache without marking the shard split as stale, so this every-minute check costs
+    // one call, not three, while the total is unchanged.
+    if (Date.now() - st.balAt > 5000) { if (st.balAt) st.balAt = 1; await balance(true); }
     const have = st.shard[XI] ?? 0, src = Math.max(0, Math.min(st.shard[0] ?? 0, (st.bal ?? Infinity) - have) - vault.held()), want = Math.round(c.sizeUsd * 12), low = c.sizeUsd * 9;
     if (have >= low || src < 1) return;
     const amt = Math.floor(Math.min(src, want - have) * 100) / 100; if (amt < 1) return;
