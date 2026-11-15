@@ -125,12 +125,14 @@ export function createBooks(D) {
     if (cfgP.lockAt > 0) { const t2 = t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
       if (pk >= cfgP.lockAt) { const riding = [...Lb.values()].filter(x => x.close === r.close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), room = run - pk * (cfgP.lockKeep || 0) / 100 - riding; if (room < BOOK_MIN) return skip(b, r, `protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left`); size = Math.min(size, room); } }
     if ((s.shard[D.XI] ?? 0) - s.resv < size + 1) { s.xferAt = 0; await fund(b); }
-    const maxPx = Math.min(0.99, +(r.ask + 0.01).toFixed(4)), n = Math.floor(size / maxPx); if (n < 1) return;
+    // MC 2026-11-14 same top price as the main book: live's room, never past the maximum price or the playbook's limit
+    const lim = D.orderLimit(r, lab?.id || 'rule', cfgP), maxPx = lim.top; if (maxPx < r.ask - 1e-9) return skip(b, r, `the ${(r.ask * 100).toFixed(1)}c ask is over the limit (${lim.why})`);
+    const n = Math.floor(size / maxPx); if (n < 1) return;
     const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4);
     const cid = `cr${b.sub}-${r.ticker}`, body = r.side === 'yes'
       ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
       : { ticker: r.ticker, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
-    const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, size, fill: 0, strat: lab?.id || 'rule', pend: 1 };
+    const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, limWhy: lim.why, size, fill: 0, strat: lab?.id || 'rule', pend: 1 };
     Lb.set(r.ticker, row); saveRow(b, row); s.resv += size;
     const send = async () => {
       const t0 = Date.now(); row.sent = t0 - (r.at || t0);

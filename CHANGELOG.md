@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.3 (Nov 14, 2026): Live orders never pay past your limits
+Steven asked how much slippage a live order allows. It was 1¢ over the price read at the trade check, with no ceiling, so a coin picked at 94.8¢ under an under-95¢ playbook filled at 95.6¢.
+- [fixed] A live order's top price now stops at your Maximum price and at the playbook's own price limit (94.9¢ for the under-95¢ playbooks, 95.9¢ for under 96¢, your mix's price cap). It can mean a few more no-fills, never a fill in the range the rule skips.
+- [new] Price room in Live settings, under Money: how much over the price read a live order may pay, 0 to 3¢. It starts at 1¢, the same as before. Subaccount books use it too.
+- [improved] Opening a live trade says what set its top price (the room, or a limit that held it lower), and the "What live takes" summary names the room.
+
 ## 1.2.2 (Nov 14, 2026): Your trades first on the live board
 - [improved] The live board on Home now lists the trades you are in first: live buys, then paper's own trades, then a "Passed on" divider with the ones skipped, so there is no scrolling past skips to find your trades. A card moves up as soon as a live order fills.
 - [fixed] The part of each price chart that has not happened yet was shaded dark navy in every theme, which looked heavy in the light themes. It follows the theme now.
