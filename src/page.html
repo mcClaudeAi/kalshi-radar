@@ -3401,7 +3401,7 @@ function kxAccPanelH(where){const A=kxAccts();if(A.length<2)return '';const sel=
   const row=x=>{const t=x.today,T=x.total,l=kxLabOf(ST.D?.kalshi,x.pb||'rule');
     return `<article class="kx-accr${x.on?' on':''}${sel===x.id?' sel':''}" role="button" tabindex="0" onclick="kxAccGo('${x.id}')" onkeydown="if(event.key==='Enter'&&event.target===this)kxAccGo('${x.id}')">
      <div class="who">${kxAccAv(x)}<div><b>${esc(x.name)}${st(x)}</b><small><i class="pd" style="background:${l.color}"></i>${esc(l.name)}${x.size?` · $${n0(x.size)} a trade`:''}</small></div></div>
-     <div class="cl"><span>Cash</span><b>${kxAccM(x.bal)}</b><small>${x.crypto!=null?kxAccM(x.crypto)+' on crypto':'&nbsp;'}</small></div>
+     <div class="cl"><span>Cash</span><b>${kxAccM(x.bal)}</b><small>${x.bal==null?'checking with Kalshi…':x.crypto!=null?kxAccM(x.crypto)+' on crypto':'&nbsp;'}</small></div>
      <div class="cl"><span>Today</span><b class="${cls(t.net)}">${usd(t.net||0)}</b><small>${t.n?`${t.won||0} of ${t.n} won`:'no trades yet'}${x.open?` · ${x.open} open`:''}</small></div>
      <div class="cl at"><span>All time</span><b class="${cls(T.net)}">${usd(T.net||0)}</b><small>${T.n||0} trades</small></div>
      <div class="sp">${kxAccSpark(x.hist)}</div>
@@ -4537,7 +4537,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.22',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.23',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

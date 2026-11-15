@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.23 (Nov 15, 2026): A book's cash shows right after an update
+- [fixed] After each update a subaccount book showed a dash for its cash for a minute or so, and the all-accounts total left it out. A book now keeps its last known balance and shows it until the fresh one arrives.
+
 ## 1.2.22 (Nov 15, 2026): All-accounts box on the live hero, ring shows the profit target
 - [new] With a subaccount, a floating box beside the live hero's cash figure gives the totals across accounts: all cash, today's result, how much is on crypto and how many accounts are trading. The hero's own figure is labelled Main, so the main account's cash no longer reads as the whole balance. Tap the box to jump to the Accounts panel.
 - [improved] The ring on each account badge is now the daily profit target: it fills green as the account's result for the day climbs toward the target and closes into a full circle when the target is hit. A losing day fills red toward that account's daily stop. With no target set it shows the share of trades won.

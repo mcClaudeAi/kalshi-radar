@@ -53,7 +53,9 @@ export function createBooks(D) {
   async function load() {
     if (list) return;
     list = (await kv.get('kbooks')) || [];
-    for (const b of list) { L[b.id] = new Map(); S[b.id] = S[b.id] || { bal: null, balAt: 0, shard: {}, keyOk: null, err: null, errAt: 0, stopped: null, xferAt: 0, lastXfer: null, host: 0 }; }
+    for (const b of list) { L[b.id] = new Map(); // MC 2026-11-15 after every restart (each release is one) a book showed a dash for cash until its next balance check, which
+      // read as the money being gone. The last balance read is kept on the book and shown until the fresh one arrives.
+      S[b.id] = S[b.id] || { bal: b.lastBal ?? null, balAt: 0, shard: b.lastBal != null && b.lastCx != null ? { 0: Math.max(0, +(b.lastBal - b.lastCx).toFixed(2)), [D.XI]: b.lastCx } : {}, keyOk: null, err: null, errAt: 0, stopped: null, xferAt: 0, lastXfer: null, host: 0 }; }
     for (const r of sql.exec('SELECT bid, j FROM kb')) { try { const j = JSON.parse(r.j); (L[r.bid] = L[r.bid] || new Map()).set(j.tk, j); } catch { } }
   }
   const saveList = () => kv.put('kbooks', list);
@@ -97,6 +99,7 @@ export function createBooks(D) {
         const [a0, ax] = await Promise.all([breq(b, 'GET', '/portfolio/balance?exchange_index=0'), breq(b, 'GET', `/portfolio/balance?exchange_index=${D.XI}`)]), v0 = val(a0), vx = val(ax);
         if (v0 != null && vx != null) s.shard = { 0: v0, [D.XI]: vx }; } }
     else { s.keyOk = r?.status === 401 || r?.status === 403 ? false : s.keyOk; fail(b, `balance check failed: ${r?.status} ${errOf(r)}`); }
+    if (r?.ok && s.bal != null && (b.lastBal !== s.bal || b.lastCx !== (s.shard[D.XI] ?? null))) { b.lastBal = s.bal; b.lastCx = s.shard[D.XI] ?? null; try { await saveList(); } catch { } }
     return s.bal;
   }
   // the crypto markets trade on shard XI; keep about 12 trades' worth there, moved inside the book's own subaccount
