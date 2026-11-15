@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.33 (Nov 15, 2026): Hand buys show on the Live board
+- [fixed] A market bought by hand that the rule had not taken did not appear on the Live board, so the header could say "1 open" over a board saying "Nothing open". On the Live view the board now lists every open live position, Main's and the subaccounts', with its chart, Sell button and "Add to it".
+- [improved] The window line counts hand buys too, as in "0 taken this window · 1 by hand".
+
 ## 1.2.32 (Nov 15, 2026): The dashboard tells you when a newer version is ready
 - [new] An open dashboard kept running the version it loaded, so a new feature could be missing until you refreshed by hand. It now checks every 2 minutes and when you come back to it, and shows a "New version ready · tap to refresh" pill at the top. It never refreshes by itself, so nothing you are in the middle of is lost.
 
