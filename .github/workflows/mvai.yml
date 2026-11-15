@@ -1,0 +1,20 @@
+# Backtest data: every coin market's leader at the trade check with its volatility, trend and likely readings from Coinbase's minute prices, printed to the job log (public market data only).
+name: Trade check readings
+on:
+  workflow_dispatch:
+    inputs:
+      coins: { description: 'Coins as a JSON list', default: '["BTC","ETH","SOL","XRP","DOGE","BNB","HYPE","ZEC","NEAR"]' }
+      days: { description: 'Days back', default: '123' }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        coin: ${{ fromJSON(github.event.inputs.coins) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node research/mvai.mjs ${{ matrix.coin }} ${{ github.event.inputs.days }}
