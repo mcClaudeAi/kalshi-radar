@@ -1051,6 +1051,7 @@ export function createKalshi(state, env, keep) {
   // Each minute's verdict per coin is now kept (the latest one per market, last few windows) and shown on the Labs page: bought,
   // or the reason it was not (price outside 91c to 95c, not far enough past the target, no current price).
   let l2log = null;
+  let l2sum = null;
   async function secondLook(now, out) {
     if (!l2log) l2log = (await kv.get('kl2')) || {};
     let n = 0, touched = false; const note = (o, side, ask, left, why, took) => { const was = l2log[o.tk]; l2log[o.tk] = { coin: o.coin, close: o.close, side, ask, left: +left.toFixed(1), why, took: !!took, at: now, ...(was?.tr ? { tr: was.tr } : {}) }; touched = true; };
@@ -1062,6 +1063,18 @@ export function createKalshi(state, env, keep) {
     // a coin a window, after the minute-10 trend check has run, and it stops for the minute at the first 429.
     { let asked = 0; for (const [tk, x] of Object.entries(l2log)) { if (x.res || x.close > now - 90000 || (x.rt || 0) >= 5 || asked >= 9) continue; asked++;
         try { const m = await get(`/markets/${tk}`), r = (m?.market || m)?.result; if (r === 'yes' || r === 'no') x.res = r; else x.rt = (x.rt || 0) + 1; } catch { x.rt = (x.rt || 0) + 1; } touched = true; } }
+    // MC 2026-11-15 asked for a 24h / 7d / All summary and chart on top of the table: what taking these would have made. The
+    // table only holds the last hour, so each row is added to a running tally once, when its result arrives. Two lines are kept:
+    // (a) every coin the second look passed, bought on the leader's side at the last price seen, and (b) the side the trend line
+    // pointed to, bought at that side's price at the last look, for every coin with a reading. Paper size, fee in, same sums as
+    // the table. Kept by the hour for the last day and by the ET day for everything older, so it stays small.
+    if (!l2sum) l2sum = (await kv.get('kl2h')) || { h: {}, d: {}, since: now };
+    { const size = +cfgP.sizeUsd || 50, pay = (px, won) => { if (!(px > 0 && px < 1)) return null; const n = Math.floor(size / px); if (n < 1) return null; const c = n * px + fee(px, n); return won ? n - c : -c; }; let add = 0;
+      for (const x of Object.values(l2log)) { if (!x.res || x.h) continue; x.h = 1; touched = true;
+        const hk = Math.floor(x.close / 3600000) * 3600000, dk = etDay(x.close), put = (i, v, won) => { if (v == null) return; for (const [m, k] of [[l2sum.h, hk], [l2sum.d, dk]]) { const r = m[k] || (m[k] = [0, 0, 0, 0, 0, 0]); r[i]++; if (won) r[i + 1]++; r[i + 2] = +(r[i + 2] + v).toFixed(2); } add++; };
+        if (!x.took && x.why !== 'held' && x.side) put(0, pay(x.ask, x.res === x.side), x.res === x.side);
+        if (x.tr?.side && x.tr.ask != null) put(3, pay(x.tr.ask, x.res === x.tr.side), x.res === x.tr.side); }
+      if (add) { for (const k of Object.keys(l2sum.h)) if (+k < now - 26 * 3600000) delete l2sum.h[k]; await kv.put('kl2h', l2sum); } }
     for (const o of out) {
       const left = (o.close - now) / 60000; if (left > MIN_LEFT - 1 || left < L2_MIN_LEFT) continue;
       if (rec2.has(o.tk)) continue;
@@ -1404,6 +1417,7 @@ export function createKalshi(state, env, keep) {
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
       eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
+      look2sum: l2sum ? { since: l2sum.since, size: +cfgP.sizeUsd || 50, h: Object.entries(l2sum.h).map(([k, v]) => [+k, ...v]).sort((a, b) => a[0] - b[0]), d: Object.entries(l2sum.d).map(([k, v]) => [k, ...v]).sort((a, b) => a[0] < b[0] ? -1 : 1) } : null,
       look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }

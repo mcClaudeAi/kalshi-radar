@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.26 (Nov 15, 2026): Second look summary and chart
+- [new] The Second look section on Labs opens with "If we had taken them": 24H, 7D and All, each with the money, wins and a running-total chart. One line is every coin the second look passed, bought on the leader's side at the last price seen. The other is the side each coin's trend line pointed to at the last look. Paper size, fees in.
+- [improved] The tally is kept for good, where the table below only holds the last hour. It starts counting from this update, so 7D and All fill in over the coming days.
+
 ## 1.2.25 (Nov 15, 2026): A book passes cleanly when it cannot cover a trade
 - [improved] A subaccount book that does not have the cash for its full trade size now passes on that trade with a plain note, such as "cash $44.00 does not cover a $50 trade". Before, the order went to Kalshi, was refused, and the book showed an error. Money already set aside for the book's other orders in the same window is counted.
 
