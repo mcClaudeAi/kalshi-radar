@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.21 (Nov 15, 2026): Account badges, totals across accounts, and a balance fix
+- [fixed] With a subaccount funded, the main account could show more "on crypto" than it had in cash, because Kalshi's figure counted the subaccount's money too. The main account now shows, and sizes its top-ups from, its own money only.
+- [new] Each account in the Accounts panel has a ring badge: the ring is today's record (green for won, red for lost) and a dot pulses while the account is trading. Tap the badge for the account's sheet: cash, how much is on crypto trading, today, all time, open trades, a larger line of the day, and its actions (Move money, Settings, Turn on or off, See trades).
+- [new] With a subaccount, the header's cash is every account's cash added up, with a line for today's result across accounts and how much of the cash is on crypto. The big number and the target bar are still the main account's.
+- [fixed] Long playbook names and the lines under each figure in the Accounts panel were cut off on phones. They wrap now.
+
 ## 1.2.20 (Nov 15, 2026): Books can fund their own trading balance
 - [fixed] A subaccount book showed ERROR and placed no trades because it could not move its cash to its crypto trading balance. Kalshi takes that request in a different form for a numbered subaccount than for the main account, and the book was sending the main account's form.
 - [improved] When an account in the Accounts panel is in error or paused, the reason is written on its row. Before, it was only in a hover tip, which a phone cannot show.

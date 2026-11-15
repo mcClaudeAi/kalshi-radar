@@ -410,8 +410,16 @@ export function createKalshi(state, env, keep) {
       const sum = Object.values(st.shard).reduce((x, v) => x + v, 0);
       if (st.bal != null && (!(j.balance_breakdown || []).length || Math.abs(sum - st.bal) > 0.01)) {
         const val = q => q?.ok ? (q.j?.balance_dollars != null ? +q.j.balance_dollars : q.j?.balance != null ? q.j.balance / 100 : null) : null;
-        const [a0, ax] = await Promise.all([kreq('GET', '/portfolio/balance?exchange_index=0'), kreq('GET', `/portfolio/balance?exchange_index=${XI}`)]), v0 = val(a0), vx = val(ax);
-        if (v0 != null && vx != null) st.shard = { 0: v0, [XI]: vx }; else st.shard = { 0: Math.min(st.shard[0] ?? 0, st.bal), [XI]: Math.min(st.shard[XI] ?? 0, st.bal) };
+        // MC 2026-11-15 second pass. With a book holding $200 the main account still read "$643.15 on crypto" against $443.15 of
+        // cash, so asking by exchange_index alone also came back counting the subaccount. The primary account is now named in the
+        // request (subaccount=0). If the two shards still add up to more than this account's own cash, what the books hold on
+        // each shard (read with their own keys) is taken off, and whatever is left is held to the account's cash, so the main
+        // account is never shown, or sized, with money that belongs to a book.
+        const [a0, ax] = await Promise.all([kreq('GET', '/portfolio/balance?subaccount=0&exchange_index=0'), kreq('GET', `/portfolio/balance?subaccount=0&exchange_index=${XI}`)]);
+        let v0 = val(a0) ?? st.shard[0] ?? 0, vx = val(ax) ?? st.shard[XI] ?? 0;
+        if (v0 + vx > st.bal + 0.01) { let b0 = 0, bx = 0; try { for (const k of books.view()) { const c = k.crypto ?? 0; bx += c; b0 += Math.max(0, (k.bal ?? 0) - c); } } catch { } v0 = Math.max(0, v0 - b0); vx = Math.max(0, vx - bx); }
+        if (v0 + vx > st.bal + 0.01) { vx = Math.min(vx, st.bal); v0 = Math.max(0, +(st.bal - vx).toFixed(2)); }
+        st.shard = { 0: +v0.toFixed(2), [XI]: +vx.toFixed(2) };
       } }
     else { st.keyOk = r?.status === 401 ? false : st.keyOk; fail(`balance check failed: ${r?.status} ${errOf(r)}`); }
     return st.bal;
