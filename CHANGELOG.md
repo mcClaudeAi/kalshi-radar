@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.22 (Nov 15, 2026): All-accounts box on the live hero, ring shows the profit target
+- [new] With a subaccount, a floating box beside the live hero's cash figure gives the totals across accounts: all cash, today's result, how much is on crypto and how many accounts are trading. The hero's own figure is labelled Main, so the main account's cash no longer reads as the whole balance. Tap the box to jump to the Accounts panel.
+- [improved] The ring on each account badge is now the daily profit target: it fills green as the account's result for the day climbs toward the target and closes into a full circle when the target is hit. A losing day fills red toward that account's daily stop. With no target set it shows the share of trades won.
+- [improved] The header tile is back to its normal height; its corner still shows every account's cash added up.
+
 ## 1.2.21 (Nov 15, 2026): Account badges, totals across accounts, and a balance fix
 - [fixed] With a subaccount funded, the main account could show more "on crypto" than it had in cash, because Kalshi's figure counted the subaccount's money too. The main account now shows, and sizes its top-ups from, its own money only.
 - [new] Each account in the Accounts panel has a ring badge: the ring is today's record (green for won, red for lost) and a dot pulses while the account is trading. Tap the badge for the account's sheet: cash, how much is on crypto trading, today, all time, open trades, a larger line of the day, and its actions (Move money, Settings, Turn on or off, See trades).
