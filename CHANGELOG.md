@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.17 (Nov 15, 2026): Moving money into a book waits for the cash to land
+- [fixed] Moving money into a subaccount book could still be refused after the cash was brought back from the crypto trading balance. It now waits for Kalshi to show the money on the main balance before sending it on, and says so if it has not landed yet.
+- [improved] If Kalshi refuses a move into a book, the message includes what Kalshi shows on the main and crypto trading balances.
+
 ## 1.2.16 (Nov 15, 2026): See and move your two Kalshi balances
 - [new] The Live account page has a "Where your Kalshi cash is" card. It shows the main balance (deposits, withdrawals and moves to subaccount books use it) and the crypto trading balance (what live orders spend), with what each is for.
 - [new] Move money between the two from the card: pick an amount, then hold to confirm. It stays inside your own Kalshi account. With live on, the tracker still refills the crypto side before a trade check if it runs low.

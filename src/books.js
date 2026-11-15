@@ -312,10 +312,16 @@ export function createBooks(D) {
           if (need > free + onX + 0.005) return { ok: false, msg: `The main account has $${(free + onX).toFixed(2)} in cash that can move right now, less than $${need.toFixed(2)}.` };
           const mv = Math.ceil((need - free) * 100), back = await D.mainReq('POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: mv * 100, source_exchange_shard: D.XI, destination_exchange_shard: 0, client_transfer_id: crypto.randomUUID() });
           if (!back?.ok) return { ok: false, msg: `Could not bring $${(mv / 100).toFixed(2)} back from the main account's crypto shard: ${errOf(back)} (code ${back?.status})` };
-          D.say(`LIVE moved $${(mv / 100).toFixed(2)} back from the crypto shard for a transfer to ${b.name}`); } }
+          D.say(`LIVE moved $${(mv / 100).toFixed(2)} back from the crypto shard for a transfer to ${b.name}`);
+          // MC 2026-11-15 the first version sent the subaccount transfer straight after and was still refused on the real account
+          // (only "400" came back to the owner). The move between shards may not show on shard 0 at once, so wait for it, up to
+          // about 8 seconds, and say so plainly if it has not landed.
+          let landed = false; for (let i = 0; i < 6 && !landed; i++) { await new Promise(z => setTimeout(z, i ? 1500 : 600)); const s2 = await D.mainShards(); landed = !!s2 && (s2[0] ?? 0) >= need - 0.005; }
+          if (!landed) return { ok: false, msg: `$${(mv / 100).toFixed(2)} was moved back from the crypto trading balance, but Kalshi is not showing it on the main balance yet. Wait a minute and try the move again.` }; } }
       if (!(amt >= 100)) return { ok: false, msg: op === 'withdraw' && a.amount === 'all' ? 'There is less than $1 to move out.' : 'Move at least $1.' }; if (amt > 10000000) return { ok: false, msg: 'That is more than this screen moves at once.' };
       const res = await D.mainReq('POST', '/portfolio/subaccounts/transfer', { client_transfer_id: crypto.randomUUID(), from_subaccount: op === 'fund' ? 0 : b.sub, to_subaccount: op === 'fund' ? b.sub : 0, amount_cents: amt });
-      if (!res?.ok) return { ok: false, msg: `Kalshi refused the transfer: ${errOf(res)} (code ${res?.status})` };
+      if (!res?.ok) { let seen = ''; if (op === 'fund' && D.mainShards) { try { const s3 = await D.mainShards(); if (s3) seen = ` Kalshi shows $${(s3[0] ?? 0).toFixed(2)} on the main balance and $${(s3[D.XI] ?? 0).toFixed(2)} on crypto trading.`; } catch { } }
+        D.say(`BOOK ${b.name}: transfer of $${(amt / 100).toFixed(2)} refused: ${res?.status} ${errOf(res)}${seen}`); return { ok: false, msg: `Kalshi refused the transfer: ${errOf(res)} (code ${res?.status}).${seen}` }; }
       S[b.id].balAt = 0; try { await balance(b, true); } catch { } if (D.mainShards) try { await D.mainShards(); } catch { }
       D.say(`BOOK ${b.name}: ${op === 'fund' ? 'moved in' : 'moved out'} $${(amt / 100).toFixed(2)}`);
       return { ok: true, msg: `$${(amt / 100).toFixed(2)} moved ${op === 'fund' ? `from the main account to ${b.name}` : `from ${b.name} back to the main account`}.` };
