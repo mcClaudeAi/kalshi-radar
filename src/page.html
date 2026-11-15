@@ -3048,10 +3048,21 @@ async function kxBuyOne(tk,side,paper){if(!paper&&!ST.me.control){unlockFlow();r
 // would sell at. Each card the live account holds gets a row with what buyers pay right now (the bid for our side from the
 // tracker's last read, so "about"), what selling all of it would bring back against what it cost, and a Sell button. Sell reads
 // the book fresh, shows the exact numbers, and needs a hold to confirm; it never sells below the floor it showed.
+// MC 2026-11-15 a card read "Sells now for about 78.0c, -$2.03 on the trade" and the sell box opened a second later said 50.0c,
+// -$19.15. The card's price came from the tracker's last reading of the market, which can be up to a minute old; the box reads
+// Kalshi's order book fresh. With the coin crossing its target the two were 28c apart. The card now asks for the same fresh
+// quote the box uses, every 6 seconds while a held position's card is on screen, and shows that. Until the first one is in
+// (or if it is more than 20 seconds old) it shows the tracker's price and says it may be up to a minute old.
+function kxSq(tk){const C=KX.sq||(KX.sq={}),c=C[tk]||(C[tk]={at:0,q:null,req:0}),now=Date.now();
+  if(!document.hidden&&now-c.at>6000&&now-c.req>6000){c.req=now;fetch('/api/ksellq?tk='+encodeURIComponent(tk),{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(q=>{if(q){c.q=q;c.at=Date.now();try{kxBoard()}catch{}}}).catch(()=>{})}
+  return c.q&&now-c.at<20000?c.q:null}
 function kxSellRow(o){if(!kxHandOn())return kxSellRowP(o);const lv=kxLv(),x=(lv?.recent||[]).find(r=>r.tk===o.tk);if(!x||!(x.fill>0)||x.result||Date.now()>=o.close)return '';
-  const left=x.fill-(x.sold?.fill||0);if(left<=0)return '';const bid=o.side==='yes'?o.yb:(o.ya!=null?1-o.ya:null);
+  const left=x.fill-(x.sold?.fill||0);if(left<=0)return '';const q=kxSq(o.tk),btn=`<button class="btn sm dng" onclick="event.stopPropagation();kxSellOne('${esc(o.tk)}')">Sell${left<x.fill?' the rest':''}</button>`;
+  if(q&&q.ok)return `<div class="kx-sellrow"><span class="tx">Sells now for about <b>${kxC(q.best)}</b> · ${usd(q.proceeds).replace('+','')} back, <b class="${cls(q.pnl)}">${usd(q.pnl)}</b> on the trade${q.est<q.left?` · only ${q.est} of ${q.left} have buyers`:''}</span>${btn}</div>`;
+  if(q&&!q.ok&&/Nobody is buying/.test(q.msg||''))return `<div class="kx-sellrow"><span class="tx">Nobody is buying ${esc(x.side.toUpperCase())} right now</span>${btn}</div>`;
+  const bid=x.side==='yes'?o.yb:(o.ya!=null?1-o.ya:null);
   const back=bid!=null?left*bid-kxFeeC(bid,left):null,prior=x.sold?x.sold.fill*x.sold.px-(x.sold.fee||0):0,net=back!=null?back+prior-(x.cost||0):null;
-  return `<div class="kx-sellrow"><span class="tx">${bid!=null?`Sells now for about <b>${kxC(bid)}</b> · ${usd(back).replace('+','')} back, <b class="${cls(net)}">${usd(net)}</b> on the trade`:'No price for a sale yet'}</span><button class="btn sm dng" onclick="event.stopPropagation();kxSellOne('${esc(o.tk)}')">Sell${left<x.fill?' the rest':''}</button></div>`}
+  return `<div class="kx-sellrow"><span class="tx">${bid!=null?`About <b>${kxC(bid)}</b> at the tracker's last reading (up to a minute old) · ${usd(back).replace('+','')} back, <b class="${cls(net)}">${usd(net)}</b> on the trade`:'No price for a sale yet'}</span>${btn}</div>`}
 async function kxSellOne(tk,paper){if(!paper&&!ST.me.control){unlockFlow();return}
   let q=null;try{const r=await fetch('/api/ksellq?tk='+encodeURIComponent(tk)+(paper?'&book=paper':''),{credentials:'same-origin',cache:'no-store'});q=r.ok?await r.json():null}catch{}
   if(!q?.ok){toast(q?.msg||'Could not read the market. Try again.');return}const S=q.side.toUpperCase();
@@ -4704,7 +4715,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.46',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.47',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.47 (Nov 15, 2026): The card's sell price matches the sell box
+- [fixed] A position's card could read "Sells now for about 78¢" while the sell box, opened a second later, said 50¢. The card used the tracker's last reading of the market, up to a minute old; the box reads Kalshi's order book fresh. When a coin crosses its target those can be far apart. The card now gets the same fresh quote as the box every few seconds while it is on screen, so the two agree.
+- [improved] Until the first fresh quote arrives, the card says its figure is the tracker's last reading and may be up to a minute old. It also says when only part of the position has buyers, or when nobody is buying.
+
 ## 1.2.46 (Nov 15, 2026): Easier on the phone's battery
 - [improved] On phones the dashboard no longer keeps the screen redrawing all the time. The background and the hero glow stop drifting, and cards, tiles and chips are plain translucent panels (the top bar and bottom menu keep their frosted look).
 - [improved] On phones Coinbase's every-trade feed is now used only for coins with an open position or an open coin box; the other coins update every 5 seconds. The Cockpit still gets every trade.
