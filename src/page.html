@@ -555,7 +555,7 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 /* MC 2026-11-11 the bottom bar was left floating mid-screen on the iPhone home-screen app (a keyboard's height up) after typing,
    and the page's rubber-band bounce could drag it. The bounce is off (pull to refresh is our own and doesn't need it) and the bar
    hides while the keyboard is up; see kbFix below for the reset when it closes. */
-html{overscroll-behavior-y:none}html.kbd-up .bnav{display:none}
+html{overscroll-behavior-y:none}html.kbd-up .bnav{display:none}html.vv-off .bnav,html.vv-off .toasts,html.vv-off #toast{transform:translateY(var(--vvgap,0px))}html.vv-off .modal,html.vv-off .pal{bottom:calc(-1 * var(--vvgap,0px))}
 
 /* MC 2026-11-11 subaccount books */
 .sc{display:inline-flex;align-items:center;margin-left:8px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;vertical-align:2px;white-space:nowrap;line-height:1.5}.sc.both{background:color-mix(in srgb,var(--kx) 15%,transparent);color:var(--kx)}.sc.paper{background:color-mix(in srgb,var(--mute) 16%,transparent);color:var(--mute)}.sc.live{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}.sc.device{background:color-mix(in srgb,var(--mute) 10%,transparent);color:var(--faint)}.kx-fh .sc{margin:0 8px 0 0}
@@ -4525,13 +4525,26 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 // is up: with no text field focused the keyboard cannot be up, so the menu comes back and the page is nudged. The class on the
 // page was also named kb-open, the same name the subaccount books use for a row of chips, so the whole page picked up that
 // row's flex layout whenever the keyboard opened. It is kbd-up now.
-(()=>{const vv=window.visualViewport;if(!vv)return;let open=false;
-  const nudge=()=>requestAnimationFrame(()=>{window.scrollTo(window.scrollX,window.scrollY);document.documentElement.style.transform='translateZ(0)';requestAnimationFrame(()=>{document.documentElement.style.transform=''})});
+// MC 2026-11-15 third pass: the bottom menu was photographed floating in the middle of the screen. That is iOS leaving the page's
+// fixed layer at the height it had with the keyboard up, so everything pinned to the bottom sits that far above the real bottom.
+// The earlier nudge (scroll to the same spot) does nothing when the spot has not changed, so it never forced a re-layout. Now:
+// the nudge scrolls a real pixel and back; the page measures how far the visible bottom is below the fixed layer's bottom, and
+// when that gap is there with no keyboard up it rewrites the viewport tag (which makes iOS work the layer out again) and, until
+// iOS has caught up, moves the menu and the toasts down by the gap so they sit at the true bottom either way. It checks after a
+// field loses focus, when the app comes back, on a viewport change, after a touch, and every 3 seconds.
+(()=>{const vv=window.visualViewport;if(!vv)return;let open=false,metaAt=0;const R=document.documentElement;
+  const nudge=()=>requestAnimationFrame(()=>{const y=window.scrollY,max=Math.max(0,R.scrollHeight-innerHeight),d=y<max?1:-1;if(max>0){window.scrollTo(window.scrollX,y+d);requestAnimationFrame(()=>window.scrollTo(window.scrollX,y))}R.style.transform='translateZ(0)';requestAnimationFrame(()=>{R.style.transform=''})});
   window.kxNudge=nudge;
   const typing=()=>{const a=document.activeElement,t=a?.tagName;return !!a&&(t==='TEXTAREA'||a.isContentEditable||(t==='INPUT'&&!/^(checkbox|radio|button|submit|range|color|file)$/i.test(a.type||'text')))};
-  const chk=()=>{const now=vv.height<innerHeight-120&&typing();if(now!==open){open=now;document.documentElement.classList.toggle('kbd-up',now);if(!now)nudge()}};
-  vv.addEventListener('resize',chk);addEventListener('focusin',()=>setTimeout(chk,350));addEventListener('focusout',()=>{for(const ms of [120,450,1000])setTimeout(()=>{chk();if(!open)nudge()},ms)});addEventListener('orientationchange',()=>setTimeout(nudge,300));
-  setInterval(()=>{if(open||document.documentElement.classList.contains('kbd-up'))chk()},2000);
+  const gapNow=()=>Math.abs((vv.scale||1)-1)>.01?0:Math.round(vv.offsetTop+vv.height-innerHeight);
+  const heal=()=>{if(typing())return;const g=gapNow();if(g>24){R.style.setProperty('--vvgap',g+'px');R.classList.add('vv-off');nudge();
+      if(Date.now()-metaAt>4000){metaAt=Date.now();const m=document.querySelector('meta[name=viewport]');if(m){const c=m.getAttribute('content');m.setAttribute('content',c+',maximum-scale=1');requestAnimationFrame(()=>requestAnimationFrame(()=>m.setAttribute('content',c)))}}
+      setTimeout(heal,500)}
+    else if(R.classList.contains('vv-off')){R.classList.remove('vv-off');R.style.removeProperty('--vvgap')}};
+  const chk=()=>{const now=vv.height<innerHeight-120&&typing();if(now!==open){open=now;R.classList.toggle('kbd-up',now);if(!now)nudge()}if(!now)heal()};
+  vv.addEventListener('resize',chk);vv.addEventListener('scroll',()=>{if(!open)heal()});addEventListener('focusin',()=>setTimeout(chk,350));addEventListener('focusout',()=>{for(const ms of [120,450,1000,2000])setTimeout(()=>{chk();if(!open)nudge()},ms)});addEventListener('orientationchange',()=>setTimeout(()=>{nudge();heal()},300));
+  let tAt=0;addEventListener('touchend',()=>{const n=Date.now();if(n-tAt>1000){tAt=n;setTimeout(()=>{if(!open)heal()},60)}},{passive:true});
+  setInterval(()=>{if(document.hidden)return;if(open||R.classList.contains('kbd-up'))chk();else heal()},3000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{chk();nudge()},60)})})();
 
 // ===================== MC 2026-11-11 fx: motion, glow, dock and settle moments (styles under the same date) =====================
@@ -4666,7 +4679,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.42',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.43',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

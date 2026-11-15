@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.43 (Nov 15, 2026): The bottom menu stays at the bottom on iPhone
+- [fixed] On iPhone the bottom menu could end up floating in the middle of the screen. iOS sometimes leaves the app's fixed layer at the height it had with the keyboard up. The dashboard now measures that gap, makes iOS work the layer out again, and until it has, moves the menu down to the true bottom itself. It checks after typing, when you come back to the app, after a touch and every few seconds.
+
 ## 1.2.42 (Nov 15, 2026): Analytics splits hand buys from the tracker's own
 - [new] Live analytics has three tiles under the header: All live trades, Tracker bought and Bought by hand, each with its result, trade count, win rate and average per trade for the range. Tap one and every figure and chart on the page shows only those trades.
 - [improved] The tiles appear once there is at least one hand buy in the range. Hand buys made before today are already marked, so the split covers them too.
