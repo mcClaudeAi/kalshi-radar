@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.18 (Nov 15, 2026): Live orders refused after funding a subaccount
+- [fixed] After money was moved into a subaccount, the main account's orders could all be refused and the dashboard showed "could not move $600.00 to the crypto shard: insufficient balance". The tracker read how much sat on each of the account's two balances from a Kalshi figure that can count the subaccounts' money too, so it kept asking to move more than the main account had and the crypto trading balance stayed empty. It now asks Kalshi for each balance of each account by itself.
+- [fixed] Subaccount books could not see their own two balances at all (Kalshi leaves that figure out for a key locked to one subaccount), so a book never moved money to its crypto trading balance and its orders had no cash behind them. Books now read both balances the same way.
+
 ## 1.2.17 (Nov 15, 2026): Moving money into a book waits for the cash to land
 - [fixed] Moving money into a subaccount book could still be refused after the cash was brought back from the crypto trading balance. It now waits for Kalshi to show the money on the main balance before sending it on, and says so if it has not landed yet.
 - [improved] If Kalshi refuses a move into a book, the message includes what Kalshi shows on the main and crypto trading balances.

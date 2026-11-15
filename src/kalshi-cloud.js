@@ -401,7 +401,18 @@ export function createKalshi(state, env, keep) {
   async function balance(force) {
     if (Date.now() - st.balAt < (force ? 30000 : 60000)) return st.bal;
     const r = await kreq('GET', '/portfolio/balance');
-    if (r?.ok) { const j = r.j || {}; st.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; st.balAt = Date.now(); st.keyOk = true; st.shard = {}; for (const b of j.balance_breakdown || []) st.shard[b.exchange_index] = +b.balance; }
+    if (r?.ok) { const j = r.j || {}; st.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; st.balAt = Date.now(); st.keyOk = true; st.shard = {}; for (const b of j.balance_breakdown || []) st.shard[b.exchange_index] = +b.balance;
+      // MC 2026-11-15 Steven's live orders were all refused and the top-up kept failing with "could not move $600.00 ... insufficient
+      // balance" while his main account held $420.76, after he put money into subaccounts. The top-up trusted balance_breakdown
+      // for what sits on shard 0, and Kalshi's docs do not say that breakdown is limited to the account asked about; his numbers
+      // fit a breakdown that counts the subaccounts' money too. So when the breakdown does not add up to this account's own
+      // balance (or is missing), each shard is asked for by itself with exchange_index, which is scoped to the account.
+      const sum = Object.values(st.shard).reduce((x, v) => x + v, 0);
+      if (st.bal != null && (!(j.balance_breakdown || []).length || Math.abs(sum - st.bal) > 0.01)) {
+        const val = q => q?.ok ? (q.j?.balance_dollars != null ? +q.j.balance_dollars : q.j?.balance != null ? q.j.balance / 100 : null) : null;
+        const [a0, ax] = await Promise.all([kreq('GET', '/portfolio/balance?exchange_index=0'), kreq('GET', `/portfolio/balance?exchange_index=${XI}`)]), v0 = val(a0), vx = val(ax);
+        if (v0 != null && vx != null) st.shard = { 0: v0, [XI]: vx }; else st.shard = { 0: Math.min(st.shard[0] ?? 0, st.bal), [XI]: Math.min(st.shard[XI] ?? 0, st.bal) };
+      } }
     else { st.keyOk = r?.status === 401 ? false : st.keyOk; fail(`balance check failed: ${r?.status} ${errOf(r)}`); }
     return st.bal;
   }
@@ -413,9 +424,9 @@ export function createKalshi(state, env, keep) {
     // true. The balances are read fresh before deciding now, and a refusal while the shard still covers the next order is logged,
     // not shown as an error.
     if (Date.now() - st.balAt > 5000) { st.balAt = 0; await balance(true); }
-    const have = st.shard[XI] ?? 0, src = Math.max(0, (st.shard[0] ?? 0) - vault.held()), want = Math.round(c.sizeUsd * 12), low = c.sizeUsd * 9;
+    const have = st.shard[XI] ?? 0, src = Math.max(0, Math.min(st.shard[0] ?? 0, (st.bal ?? Infinity) - have) - vault.held()), want = Math.round(c.sizeUsd * 12), low = c.sizeUsd * 9;
     if (have >= low || src < 1) return;
-    const amt = Math.min(src, want - have); if (amt < 1) return;
+    const amt = Math.floor(Math.min(src, want - have) * 100) / 100; if (amt < 1) return;
     st.xferAt = Date.now();
     const res = await kreq('POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: Math.floor(amt * 100) * 100, source_exchange_shard: 0, destination_exchange_shard: XI, client_transfer_id: crypto.randomUUID() });
     if (!res?.ok) { const m = `could not move $${amt.toFixed(2)} to the crypto shard: ${res?.status} ${errOf(res)}`; st.balAt = 0; if (have >= c.sizeUsd + 1) console.log('fund: ' + m + ' (shard still covers the next order)'); else fail(m); return; }
@@ -1635,5 +1646,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
