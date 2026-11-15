@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.25 (Nov 15, 2026): A book passes cleanly when it cannot cover a trade
+- [improved] A subaccount book that does not have the cash for its full trade size now passes on that trade with a plain note, such as "cash $44.00 does not cover a $50 trade". Before, the order went to Kalshi, was refused, and the book showed an error. Money already set aside for the book's other orders in the same window is counted.
+
 ## 1.2.24 (Nov 15, 2026): Books no longer run out of calls
 - [fixed] A book could show "balance check failed: Too many subrequests". Each balance check had grown to three calls to Kalshi per account every minute, which could use up what Cloudflare allows one run. A quiet minute is back to one call per account; the split between the main balance and crypto is read again only when the total changes, after a fill, settle or transfer, or every 10 minutes.
 - [improved] If a run does use up its calls, the book keeps its last figures and reads again on the next run, with no error on the row. A balance error also clears as soon as the next read works.

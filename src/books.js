@@ -153,6 +153,11 @@ export function createBooks(D) {
     // MC 2026-11-14 same top price as the main book: live's room, never past the maximum price or the playbook's limit
     const lim = D.orderLimit(r, lab?.id || 'rule', cfgP), maxPx = lim.top; if (maxPx < r.ask - 1e-9) return skip(b, r, `the ${(r.ask * 100).toFixed(1)}c ask is over the limit (${lim.why})`);
     const n = Math.floor(size / maxPx); if (n < 1) return;
+    // MC 2026-11-15 a book with $144 took two $50 trades in a window and would have sent a third with $44 left, which Kalshi
+    // refuses and the row then shows as an error. The order is passed here instead when the book's cash, less what its other
+    // orders this moment have set aside, does not cover the whole trade and its fee. A smaller order with what is left was the
+    // other choice; Mitchell picked the plain skip.
+    { const need = n * maxPx + D.fee(maxPx, n), free = (s.bal ?? bal) - s.resv; if (free < need - 0.005) return skip(b, r, `cash $${Math.max(0, free).toFixed(2)} does not cover a $${size.toFixed(0)} trade`); }
     const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4);
     const cid = `cr${b.sub}-${r.ticker}`, body = r.side === 'yes'
       ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
