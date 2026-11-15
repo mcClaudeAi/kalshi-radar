@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.1 (Nov 14, 2026): Board cards say which account they mean
+- [fixed] With live on, a card on the live board could read "Skipped · daily profit target hit" while live was still short of its own target. That tag was paper's. It now reads "Paper skipped" or "Paper took it".
+- [new] A second tag on each card says what the live account did with the same market: bought (how many and at what price), skipped and why, no fill (with the ask it missed), or not taken because it was outside live's price band or coins. Cards live bought are no longer dimmed when paper skipped them.
+
 ## 1.2.0 (Nov 14, 2026): Themes
 Pick how the dashboard looks. The half-circle button at the top (or "Theme" in search) opens the theme picker.
 - [new] Nine themes, each previewed in its own colors: Midnight (the original), Graphite, Ember, Ocean, Terminal, Amethyst, High contrast, Daylight and Sand.
