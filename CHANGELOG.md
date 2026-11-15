@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.5 (Nov 14, 2026): Smaller pinned header on phones
+- [improved] On phones the pinned tiles at the top are down from four to two, so more of the page shows while scrolling. With live on: Mode and Live today, with your Kalshi cash in the corner of Live today. With live off: Mode and Paper today, with the paper bank in the corner. Paper's numbers are still on Home and Analytics, and the desktop bar keeps all four tiles.
+
 ## 1.2.4 (Nov 14, 2026): Your call on spilling past the playbook's limit
 - [new] "Room past the playbook's limit" in Live settings, under Money. Hold under it (the default) keeps a live order under the playbook's own price limit, 94.9¢ for the under-95¢ playbooks. Let the room spill past it lets a coin picked under the limit fill up to your price room above it, as before 1.2.3. Your Maximum price always holds either way.
 
