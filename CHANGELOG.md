@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.12 (Nov 15, 2026): Hand trading only on the Live view
+- [fixed] The scanner's Buy row also showed on Home's Paper view and placed a live order from there. Buying and selling by hand now show only when Home is switched to Live. On the Paper view the coin chart still opens and says where to find them.
+- [new] Live's Today line shows how many markets the live playbook passed on today and how they went, like paper's does, for example "6 passed (5-1)".
+- [improved] On a phone the second look list in Labs is stacked rows instead of a wide table, so there is no sideways scrolling and it no longer jumps back to the left.
+
 ## 1.2.11 (Nov 14, 2026): Board clock no longer overlaps
 - [fixed] Near the end of a window the clock above the live board's timeline ran into the window's times and stuck out past the edge. It now has its own line and stays inside the card.
 
