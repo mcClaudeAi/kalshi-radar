@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.36 (Nov 15, 2026): Profit target shows what is made and what is left
+- [improved] The profit target panel on the hero now reads, for example, "+$16.17 made · $83.83 left", where it used to show only the amount to go.
+
 ## 1.2.35 (Nov 15, 2026): Live board charts get the 15 minutes before, the trend and the likely line
 - [new] Every position card on the Live board now charts the same way as the coin view: the previous 15 minutes on the left with its trend line, the straight trend line from the last 3 minutes carried to the close, and the amber likely line with its range.
 - [improved] The earlier prices are fetched once a coin a window and shared between the board and the coin view.
