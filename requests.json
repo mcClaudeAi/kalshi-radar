@@ -1,6 +1,13 @@
 {
- "updated": "Nov 13, 2026",
+ "updated": "Nov 15, 2026",
  "items": [
+  {
+   "id": 11,
+   "text": "Now that the API is upgraded, create subaccounts called books and copy each live trade into every book marked for copy trading. In live settings, let me pick which books copy trades; only a checked book gets the trade. All books use the same live settings for now, replicated to new books as they are created.",
+   "status": "read",
+   "note": "Needs the owner. This places live orders in every copied book and changes live sizing and settings across subaccounts, which never ships from a request on its own. Questions for the owner: does the $5 to $50 cap and hold-to-confirm apply to each book's copy or to the total across books, and should a copy that fails in one book stop the others.",
+   "version": ""
+  },
   {
    "id": 10,
    "text": "Let the minimum and maximum price in the basic settings take three decimal places, like .945, instead of rounding to two.",
