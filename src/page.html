@@ -2849,7 +2849,7 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
     pill(`bought ${kxC(o.px??o.ask).replace('¢','')}¢`,xe,P.t-10,kx,'600 10px '+F,xe>P.l+iw-70?'right':xe<P.l+60?'left':'center')}
   let pv=null;if(hasPv){const n=PV.length,mx=PV.reduce((a,p)=>a+p[0],0)/n,my=PV.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of PV){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}const b=sxx?sxy/sxx:0,at=t=>my+b*(t-mx);pv={a:PV[0][1],b:PV.at(-1)[1],slope:b};
     g.save();g.beginPath();g.rect(P.l,P.t,wL-P.l,ih);g.clip();g.strokeStyle=mute;g.lineWidth=1.5;g.lineJoin='round';g.beginPath();PV.forEach((p,i)=>{const x=X(p[0]),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});if(S.length)g.lineTo(X(S[0][0]),Y(S[0][1]));g.stroke();
-    g.strokeStyle=kx;g.globalAlpha=.7;g.lineWidth=1.4;g.setLineDash([6,4]);g.beginPath();g.moveTo(X(xL),Y(at(xL)));g.lineTo(X(x0),Y(at(x0)));g.stroke();g.setLineDash([]);g.restore()}
+    g.restore()}
   // the price line: faint at the start, full at the live end, with a soft glow near now
   if(S.length>1){const win=tgt==null?null:px==null?null:(up?px>=tgt:px<tgt),dc=win==null?ink:win?good:bad;
     g.lineWidth=1.8;g.lineJoin='round';g.lineCap='round';const grd=g.createLinearGradient(wL,0,P.l+iw,0);grd.addColorStop(0,ink+'55');grd.addColorStop(Math.max(0,Math.min(1,(xNow-wL)/wW)),ink);grd.addColorStop(1,ink);g.strokeStyle=grd;
@@ -2857,22 +2857,28 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
     const tail=S.filter(p=>p[0]>=now-45);if(tail.length>1){g.save();g.shadowColor=dc;g.shadowBlur=10;g.strokeStyle=dc;g.lineWidth=2.2;g.beginPath();tail.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.restore()}}
   // MC 2026-11-14 trend line for the coin view: a straight line fitted to the last 3 minutes of prices and carried on to the close,
   // so you can see where the coin lands if it keeps its pace. Needs 8 readings; drawn only when asked (o.trend), the board cards skip it.
-  let tr=null;if(o.trend&&now<x1){const T=S.filter(p=>p[0]>=now-180&&p[0]<=now);if(T.length>=8){const n=T.length,mx=T.reduce((a,p)=>a+p[0],0)/n,my=T.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of T){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}
-    if(sxx>0){const b=sxy/sxx,at=t=>my+b*(t-mx);tr={slope:b,proj:at(x1),from:T[0][0]};g.save();g.beginPath();g.rect(P.l,P.t,iw,ih);g.clip();g.strokeStyle=kx;g.lineWidth=1.6;g.setLineDash([6,4]);g.beginPath();g.moveTo(X(T[0][0]),Y(at(T[0][0])));g.lineTo(X(x1),Y(at(x1)));g.stroke();g.setLineDash([]);
-      const ye=Math.max(P.t+4,Math.min(P.t+ih-4,Y(at(x1))));g.fillStyle=kx;g.beginPath();g.arc(X(x1)-3,ye,3,0,7);g.fill();g.restore();pill('trend',Math.min(P.l+iw-44,X(Math.min(x1,now+(x1-now)/2))),Math.max(P.t+9,Math.min(P.t+ih-9,Y(at(now+(x1-now)/2))-11)),kx,'600 10px '+F,'center')}}}
+  // MC 2026-11-15 second pass on the trend line. With the earlier 15 minutes on the chart, the line stopped at the start of this
+  // line: fitted from the start of the earlier 15 minutes through now, and carried on to the close. That is the trend now
+  // whenever the earlier prices are in (tr.long). The last-3-minutes pace is still worked out (tr.pace, from both stretches, so
+  // it is there from the first second) and feeds the likely line; it is drawn as the trend only when there is no earlier data.
+  let tr=null;if(o.trend&&now<x1){const fit=T=>{const n=T.length;if(n<2)return null;const mx=T.reduce((a,p)=>a+p[0],0)/n,my=T.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of T){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}return sxx>0?{b:sxy/sxx,at:t=>my+sxy/sxx*(t-mx)}:null};
+    const ALL=(hasPv?PV:[]).concat(S).filter(p=>p[0]<=now).sort((a,b)=>a[0]-b[0]),T3=ALL.filter(p=>p[0]>=now-180),sh=T3.length>=(hasPv?5:8)?fit(T3):null,GR=[];if(hasPv&&ALL.length>=8)for(let t=xL;t<=now;t+=15){const v=kxAt(ALL,t);if(v!=null)GR.push([t,v])}const lg=GR.length>=8?fit(GR):null,use=lg||sh;   // every 15 seconds counts once, so this window's ticks do not outweigh the earlier minute prices
+    
+    if(use){const from=lg?xL:T3[0][0];tr={slope:use.b,proj:use.at(x1),from,long:lg?1:0,pace:sh?sh.b:null};g.save();g.beginPath();g.rect(P.l,P.t,iw,ih);g.clip();g.strokeStyle=kx;g.lineWidth=1.6;g.setLineDash([6,4]);g.beginPath();g.moveTo(X(from),Y(use.at(from)));g.lineTo(X(x1),Y(use.at(x1)));g.stroke();g.setLineDash([]);
+      const ye=Math.max(P.t+4,Math.min(P.t+ih-4,Y(use.at(x1))));g.fillStyle=kx;g.beginPath();g.arc(X(x1)-3,ye,3,0,7);g.fill();g.restore();{const tp=lg?xL+(x0-xL)*.55:now+(x1-now)/2;pill('trend',Math.max(P.l+26,Math.min(P.l+iw-44,X(tp))),Math.max(P.t+9,Math.min(P.t+ih-9,Y(use.at(tp))-12)),kx,'600 10px '+F,'center')}}}
   // MC 2026-11-15 asked for a realistic line next to the straight one. The straight trend carries the last 3 minutes' pace all
   // the way to the close, which a coin rarely does. The likely line lets that pace fade (half of it gone every 90 seconds, so it
   // adds about two more minutes' worth in total) and the band around it is one usual minute-to-minute move, widened with the
   // time left. The 90 seconds is a rule of thumb, not something fitted to past windows. est.p is the chance the close lands on
   // our side of the target under that spread.
   if(tr&&px!=null&&now<x1){const TAU=130,A=(hasPv?PV:[]).concat(S).sort((a,b)=>a[0]-b[0]),D=[];if(A.length>3)for(let t=A[0][0]+60;t<=now;t+=60){const v0=kxAt(A,t-60),v1=kxAt(A,t);if(v0!=null&&v1!=null)D.push(v1-v0)}
-    const sg=D.length>=5?Math.sqrt(D.reduce((a,d)=>a+d*d,0)/D.length):null,mid=t=>px+tr.slope*TAU*(1-Math.exp(-(t-now)/TAU)),wd=t=>sg==null?0:sg*Math.sqrt(Math.max(0,t-now)/60),amb='#e0a23a',N=24,ts=Array.from({length:N+1},(_,i)=>now+(x1-now)*i/N);
+    const sg=D.length>=5?Math.sqrt(D.reduce((a,d)=>a+d*d,0)/D.length):null,mid=t=>px+(tr.pace??tr.slope)*TAU*(1-Math.exp(-(t-now)/TAU)),wd=t=>sg==null?0:sg*Math.sqrt(Math.max(0,t-now)/60),amb='#e0a23a',N=24,ts=Array.from({length:N+1},(_,i)=>now+(x1-now)*i/N);
     g.save();g.beginPath();g.rect(P.l,P.t,iw,ih);g.clip();
     if(sg!=null){g.fillStyle=amb+'22';g.beginPath();ts.forEach((t,i)=>{const x=X(t),y=Y(mid(t)+wd(t));i?g.lineTo(x,y):g.moveTo(x,y)});for(let i=N;i>=0;i--)g.lineTo(X(ts[i]),Y(mid(ts[i])-wd(ts[i])));g.closePath();g.fill()}
     g.strokeStyle=amb;g.lineWidth=1.8;g.beginPath();ts.forEach((t,i)=>{const x=X(t),y=Y(mid(t));i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.fillStyle=amb;g.beginPath();g.arc(X(x1)-3,Y(mid(x1)),3,0,7);g.fill();g.restore();
     const e=mid(x1),w=wd(x1),cdf=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),q=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-q:q};
     tr.est={proj:e,lo:e-w,hi:e+w,p:tgt!=null&&w>0?(up?cdf((e-tgt)/w):cdf((tgt-e)/w)):null};
-    const ly=Math.max(P.t+9,Math.min(P.t+ih-9,Y(e)+(tr.slope>=0?13:-13)));if(X(x1)-xNow>70)pill('likely',X(x1)-8,ly,amb,'600 10px '+F,'right')}
+    const ly=Math.max(P.t+9,Math.min(P.t+ih-9,Y(e)+(tr.proj>=e?13:-13)));if(X(x1)-xNow>70)pill('likely',X(x1)-8,ly,amb,'600 10px '+F,'right')}
   // the live price: pulsing dot, hairline to the axis, colored label
   if(px!=null){const win=tgt==null?null:(up?px>=tgt:px<tgt);const dc=win==null?ink:win?good:bad;const x=xNow,y=Y(px);
     g.strokeStyle=dc+'55';g.lineWidth=1;g.setLineDash([2,3]);g.beginPath();g.moveTo(x,y);g.lineTo(P.l+iw,y);g.stroke();g.setLineDash([]);
@@ -2965,8 +2971,8 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
     box.querySelector('[data-k=left]').textContent=left?`settles in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'settling';
     const mg=px!=null&&tg?(px-tg)/tg*100:null,win=mg==null?null:(side==='yes'?mg>=0:mg<0),t=r.tr,perMin=t&&px?t.slope*60/px*100:null,pw=t&&tg?(side==='yes'?t.proj>=tg:t.proj<tg):null,toward=t?(side==='yes'?t.slope>0:t.slope<0):null;
     box.querySelector('[data-k=st]').innerHTML=`<div><span>Price now</span><b>${px!=null?kxFmt(px,tg):'–'}</b><small class="${win==null?'':win?'pos':'neg'}">${mg!=null?`${mg>=0?'+':''}${mg.toFixed(Math.abs(mg)<.1?3:2)}% vs target`:''}</small></div>
-     <div><span>Trend, last 3 min</span><b class="${toward==null?'':toward?'pos':'neg'}">${perMin!=null?`${perMin>=0?'+':''}${perMin.toFixed(3)}% a min`:'–'}</b><small>${t?(Math.abs(perMin)<.002?'flat':toward?`moving toward ${S}`:`moving against ${S}`):'needs a little more data'}</small></div>
-     <div><span><i class="kx-lg" style="background:var(--kx)"></i>At this pace by the close</span><b>${t?kxFmt(t.proj,tg):'–'}</b><small class="${pw==null?'':pw?'pos':'neg'}">${t?(pw?`${S} would win`:`${S} would lose`):''}</small></div>
+     <div><span>${t?.long?'Trend since '+tm(s.open/1000-900):'Trend, last 3 min'}</span><b class="${toward==null?'':toward?'pos':'neg'}">${perMin!=null?`${perMin>=0?'+':''}${perMin.toFixed(3)}% a min`:'–'}</b><small>${t?(Math.abs(perMin)<.002?'flat':toward?`moving toward ${S}`:`moving against ${S}`):'needs a little more data'}</small></div>
+     <div><span><i class="kx-lg" style="background:var(--kx)"></i>${t?.long?'On that trend by the close':'At this pace by the close'}</span><b>${t?kxFmt(t.proj,tg):'–'}</b><small class="${pw==null?'':pw?'pos':'neg'}">${t?(pw?`${S} would win`:`${S} would lose`):''}</small></div>
      <div><span><i class="kx-lg" style="background:#e0a23a"></i>Likely by the close</span><b>${t?.est?kxFmt(t.est.proj,tg):'–'}</b><small class="${t?.est?.p==null?'':t.est.p>=.5?'pos':'neg'}">${t?.est?(t.est.p!=null?`${S} about ${Math.round(Math.min(.95,Math.max(.05,t.est.p))*100)}% · `:'')+(t.est.hi>t.est.lo?`${kxFmt(t.est.lo,tg)} to ${kxFmt(t.est.hi,tg)}`:'pace fading out'):'needs a little more data'}</small></div>`;
     const act=box.querySelector('[data-k=act]');
     kxSlot(act,!kxHandOn()?`${kxHandRowP(s,1)||'<p class="note tx">Too close to the close to trade.</p>'}<p class="note tx" style="margin-top:8px">Paper view: practice money only, nothing is sent to Kalshi.${lv?.on?' Switch Home to Live to trade by hand with real money.':''}</p>`
@@ -4636,7 +4642,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.37',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.38',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

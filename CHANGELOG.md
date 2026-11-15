@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.38 (Nov 15, 2026): One trend line across both windows
+- [improved] The trend line on the coin view and the Live board cards is now a single line: fitted from the start of the previous 15 minutes through the current price, and carried on to the close. Before, one line stopped where this window began and a second started from the last 3 minutes, so the first minutes of a window had no line at all.
+- [improved] The tiles follow it: "Trend since 3:15 PM" and "On that trend by the close". The amber likely line still works from the last 3 minutes' pace and is there from the first second of a window.
+
 ## 1.2.37 (Nov 15, 2026): Boxes stay on screen and the bottom menu comes back
 - [fixed] On iPhone a tall box such as the coin view could open with its top cut off above the screen. Boxes are now sized from the space they actually have, scroll inside themselves, and keep clear of the notch and the home bar.
 - [fixed] The bottom menu could stay hidden after the keyboard had been up. It now checks several times after a field loses focus and keeps checking until the menu is back.
