@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.39 (Nov 15, 2026): New playbook, Margin vs volatility (AI checked)
+- [new] A new playbook in Labs: Margin vs volatility under 95¢, taken only when both chart lines agree at the trade check. The trend line (the 15 minutes before the window plus the window so far, carried to the close) and the likely line (the last 3 minutes' pace, fading) must each finish on the side being bought.
+- [new] Every trade now records where those two lines pointed at the trade check. Trades from the last three weeks are filled in from Coinbase's history over the next hours, so the playbook's Labs card builds a history without waiting.
+- [improved] Both lines are formulas on Coinbase's minute prices. The name is the one asked for; there is no separate AI model behind it.
+
 ## 1.2.38 (Nov 15, 2026): One trend line across both windows
 - [improved] The trend line on the coin view and the Live board cards is now a single line: fitted from the start of the previous 15 minutes through the current price, and carried on to the close. Before, one line stopped where this window began and a second started from the last 3 minutes, so the first minutes of a window had no line at all.
 - [improved] The tiles follow it: "Trend since 3:15 PM" and "On that trend by the close". The amber likely line still works from the last 3 minutes' pace and is there from the first second of a window.
