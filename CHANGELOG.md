@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.30 (Nov 15, 2026): Hand buys and sells pick their accounts
+- [new] Buying by hand now asks which accounts: a tick box for Main and each trading subaccount, all ticked to start. Every account buys at the same top price, each at its own size. An account that cannot take it (no cash, loss cap hit, already holds it) is greyed out with the reason.
+- [new] When Main already holds a market that a subaccount does not, its card shows "Add to it" to buy the same side in the subaccounts.
+- [new] Selling by hand lists every account holding the market, so one sell can close it everywhere or only where you tick.
+- [improved] A hand buy for a subaccount always goes with Main (or adds to a market Main already holds), so the Sell button on the card covers it.
+
 ## 1.2.29 (Nov 15, 2026): The 15 minutes before, on the same chart
 - [improved] The coin view now draws the previous 15 minutes on the left of the live chart, not in a second chart under it: one continuous line across both windows, the earlier stretch dimmer with its own trend line. The target, the win and lose shading and the bought marker stay inside the current window. The summary of the earlier 15 minutes sits in one line under the chart.
 

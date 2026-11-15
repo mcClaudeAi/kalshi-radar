@@ -233,6 +233,58 @@ export function createBooks(D) {
       if (f >= x.fill) { x.pnl = +(f * px - fe - (x.cost ?? 0)).toFixed(2); x.result = 'sold'; }
       saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} cashed out ${x.tk}: ${f}/${x.fill}`); }
   }
+  // MC 2026-11-15 Mitchell bought XRP by hand and only the main account got it. Hand buys and sells can now name the books to
+  // include. A hand buy skips the playbook (it is a hand buy) but keeps the book's own limits: one position a market, the daily
+  // loss cap, the cash floor, and enough cash for the whole trade. Same ceiling price as the main order, the book's own size.
+  const handWhy = (b, tk) => { const x = L[b.id]?.get(tk), t = today(b), s = S[b.id]; return !b.on ? 'not trading' : x && busy(x) ? 'already holds it' : realized(t) <= -b.loss ? 'daily loss cap hit' : s.bal != null && s.bal < Math.max(b.floor, 1) ? 'under its cash floor' : s.bal != null && s.bal < b.size ? `cash $${s.bal.toFixed(2)} does not cover $${b.size}` : null; };
+  const handList = tk => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk); return { id: b.id, name: b.name, sub: b.sub, size: b.size, cash: S[b.id].bal, ok: !why, why }; });
+  const heldList = tk => (list || []).map(b => { const x = L[b.id]?.get(tk); return x && x.fill > 0 && !x.result && x.close > Date.now() && x.fill - (x.sold?.fill || 0) > 0 ? { id: b.id, name: b.name, sub: b.sub, left: x.fill - (x.sold?.fill || 0), px: x.px } : null; }).filter(Boolean);
+  async function handBuy(ids, o) {
+    await load();
+    return Promise.all(list.filter(b => ids.includes(b.id)).map(async b => { const s = S[b.id], Lb = L[b.id], nm = b.name;
+      try {
+        const w0 = handWhy(b, o.tk); if (w0) return { name: nm, ok: false, msg: w0 };
+        const bal = await balance(b, true); if (bal == null) return { name: nm, ok: false, msg: 'could not read its balance' };
+        const size = b.size, n = Math.floor(size / o.maxPx); if (n < 1) return { name: nm, ok: false, msg: 'its size is too small for one contract' };
+        if (bal < b.floor) return { name: nm, ok: false, msg: `cash $${bal.toFixed(2)} is under its $${b.floor} floor` };
+        if (bal < n * o.maxPx + D.fee(o.maxPx, n) - 0.005) return { name: nm, ok: false, msg: `cash $${bal.toFixed(2)} does not cover a $${size} trade` };
+        if ((s.shard[D.XI] ?? 0) < size + 1) { s.xferAt = 0; await fund(b); }
+        const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), cid = `crh${b.sub}-${Date.now() % 100000}-${o.tk}`.slice(0, 60);
+        const body = o.side === 'yes'
+          ? { ticker: o.tk, side: 'bid', count: String(n), price: down(o.maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
+          : { ticker: o.tk, side: 'ask', count: String(n), price: up(1 - o.maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
+        const res = await breq(b, 'POST', '/portfolio/events/orders', body);
+        if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 160); D.say(`BOOK ${nm} hand buy ${o.tk} refused: ${e}`); return { name: nm, ok: false, msg: `Kalshi refused it: ${e}` }; }
+        const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
+        if (!(fill > 0) || avgYes == null) return { name: nm, ok: false, msg: 'nothing filled, the price moved' };
+        const prev = Lb.get(o.tk), px = +(o.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees = +(fill * avgFee).toFixed(4);
+        const row = { tk: o.tk, coin: o.coin, side: o.side, at: Date.now(), close: o.close, ask: o.ask ?? null, want: n, limit: o.maxPx, limWhy: 'the price you confirmed', size, fill, avgYes, px, fees, cost: +(fill * px + fees).toFixed(2), id: j.order_id || null, strat: 'hand', hand: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
+        Lb.set(o.tk, row); saveRow(b, row); if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); s.balAt = 0;
+        D.say(`BOOK ${nm} bought ${o.tk} ${o.side.toUpperCase()} by hand: ${fill}/${n} at ${(px * 100).toFixed(1)}c`);
+        return { name: nm, ok: true, msg: `bought ${fill}${fill < n ? ` of ${n}` : ''} at ${(px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}` };
+      } catch (e) { return { name: nm, ok: false, msg: e.message }; } }));
+  }
+  async function handSell(ids, tk, minPx) {
+    await load();
+    return Promise.all(list.filter(b => ids.includes(b.id)).map(async b => { const x = L[b.id]?.get(tk), nm = b.name;
+      try {
+        if (!x || !(x.fill > 0) || x.result || x.close <= Date.now()) return { name: nm, ok: false, msg: 'no open position' };
+        const left = x.fill - (x.sold?.fill || 0); if (left <= 0) return { name: nm, ok: false, msg: 'nothing left to sell' };
+        const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), cid = `crm${b.sub}-${Date.now() % 100000}-${tk}`.slice(0, 60);
+        const body = x.side === 'yes'
+          ? { ticker: tk, side: 'ask', count: String(left), price: up(minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: cid }
+          : { ticker: tk, side: 'bid', count: String(left), price: down(1 - minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: cid };
+        const res = await breq(b, 'POST', '/portfolio/events/orders', body);
+        if (!res?.ok) return { name: nm, ok: false, msg: `Kalshi refused it: ${res?.status} ${errOf(res)}`.slice(0, 180) };
+        const j = res.j?.order || res.j || {}, f = +(j.fill_count ?? 0), avg = j.average_fill_price != null ? +j.average_fill_price : null, fe = j.average_fee_paid != null ? +j.average_fee_paid * f : 0;
+        if (!(f > 0) || avg == null) return { name: nm, ok: false, msg: 'nothing sold, the price moved' };
+        const px = +(x.side === 'yes' ? avg : 1 - avg).toFixed(4), was = x.sold, tf = f + (was?.fill || 0);
+        x.sold = { at: Date.now(), fill: tf, px: was ? +(((was.fill * was.px) + f * px) / tf).toFixed(4) : px, fee: +((was?.fee || 0) + fe).toFixed(4), cash: 1, manual: 1 };
+        if (tf >= x.fill) { x.pnl = +(x.sold.fill * x.sold.px - x.sold.fee - (x.cost ?? 0)).toFixed(2); x.result = 'sold'; }
+        saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${nm} sold ${tk} by hand: ${f}/${left}`);
+        return { name: nm, ok: true, msg: `sold ${f} of ${left} at ${(px * 100).toFixed(1)}¢` };
+      } catch (e) { return { name: nm, ok: false, msg: e.message }; } }));
+  }
   function onSettle(r) {
     if (!list) return;
     for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
@@ -382,5 +434,5 @@ export function createBooks(D) {
   const get = id => (list || []).find(x => x.id === id) || null;
   // coins the books with their own rules trade (null = every coin), so the trade check reads them
   const ownCoins = () => { const o = (list || []).filter(b => b.on && b.cfg); if (!o.length) return []; if (o.some(b => !b.cfg.coins?.length)) return null; return [...new Set(o.flatMap(b => b.cfg.coins))]; };
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell };
 }

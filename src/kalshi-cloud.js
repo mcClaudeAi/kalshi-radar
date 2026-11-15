@@ -562,7 +562,7 @@ export function createKalshi(state, env, keep) {
     const mine = x.side === 'yes' ? b.yes : b.no, best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is buying ${x.side.toUpperCase()} right now, so it cannot be sold.` };
     const avg = walk(mine, left) ?? null, depth = mine.reduce((a, l) => a + l[1], 0), est = Math.min(left, depth), px = avg ?? (mine.reduce((a, l) => a + l[0] * l[1], 0) / depth), fe = fee(px, est);
     const prior = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0, proceeds = +(est * px - fe).toFixed(2);
-    return { ok: true, tk, coin: x.coin, side: x.side, left, est, best, avg: +px.toFixed(4), minPx: +Math.max(0.01, best - 0.03).toFixed(4), proceeds, pnl: +(proceeds + prior - (x.cost ?? 0)).toFixed(2), ifWin: +(left + prior - (x.cost ?? 0)).toFixed(2), ifLose: +(prior - (x.cost ?? 0)).toFixed(2), paid: x.px };
+    return { ok: true, tk, coin: x.coin, side: x.side, left, est, best, avg: +px.toFixed(4), minPx: +Math.max(0.01, best - 0.03).toFixed(4), proceeds, pnl: +(proceeds + prior - (x.cost ?? 0)).toFixed(2), ifWin: +(left + prior - (x.cost ?? 0)).toFixed(2), ifLose: +(prior - (x.cost ?? 0)).toFixed(2), paid: x.px, accts: [{ id: 'main', name: 'Main', left, ok: true }, ...(await books.load(), books.heldList(tk)).map(b => ({ ...b, ok: true }))] };
   }
   // MC 2026-11-14 manual buy, the other half of the manual sell. Asked for after SOL led NO at 94c with 7 minutes left: the rule
   // only buys at the trade check, so there was no way to pick it up from the dashboard. buyQuote reads the book for the side asked:
@@ -581,14 +581,17 @@ export function createKalshi(state, env, keep) {
   const handMkt = (tk, side) => { const s = SERIES.find(z => String(tk).startsWith(z + '-')); return s && (side === 'yes' || side === 'no') ? s : null; };
   async function buyQuote(tk, side) {
     tk = String(tk || ''); const s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
-    const c = ctl(), g = handGate(c, tk); if (g) return { ok: false, msg: g };
+    // MC 2026-11-15 the quote lists the accounts a hand buy can go to (accts). When the main account already holds the market the
+    // quote still comes back if a book could take it, with mainHeld set, so a position can be added to the books afterwards.
+    await books.load(); const bkL = books.handList(tk), HELD = 'Live already holds this market.';
+    const c = ctl(), g = handGate(c, tk), mainHeld = g === HELD && bkL.some(b => b.ok); if (g && !mainHeld) return { ok: false, msg: g };
     let m, ob; try { [m, ob] = await Promise.all([get(`/markets/${tk}`), get(`/markets/${tk}/orderbook`)]); m = m?.market || m; } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
     const now = Date.now(), close = Date.parse(m?.close_time); if (!(close > now + 20000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
     const mine = book(ob)[side === 'yes' ? 'yesAsks' : 'noAsks'], best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is selling ${side.toUpperCase()} right now.` };
     const room = Math.min(3, Math.max(0, cfgL.slipC ?? 1)), maxPx = +Math.min(0.99, best + room / 100).toFixed(4), size = c.sizeUsd, n = Math.floor(size / maxPx);
     if (n < 1) return { ok: false, msg: 'Your live size is too small for one contract at this price.' };
     const near = mine.filter(([p]) => p <= maxPx + 1e-9), depth = near.reduce((a, l) => a + l[1], 0), est = Math.min(n, depth), avg = est ? walk(near, est) : best, fe = fee(avg, est), cost = +(est * avg + fe).toFixed(2);
-    const bal = await balance(false), floor = c.minBank ?? HARD.minBank; if (bal != null && bal - vault.held() - resv < floor) return { ok: false, msg: `Your Kalshi cash ($${bal.toFixed(2)}) is under the $${floor} floor.` };
+    const bal = await balance(false), floor = c.minBank ?? HARD.minBank; if (!mainHeld && bal != null && bal - vault.held() - resv < floor) return { ok: false, msg: `Your Kalshi cash ($${bal.toFixed(2)}) is under the $${floor} floor.` };
     const cn = coin(s), t = todayL(), mark = close - 10 * 60000, notes = [];
     notes.push(now < mark ? `${Math.round((mark - now) / 60000)} min before the trade check` : `after the trade check (${Math.max(0, Math.round((close - now) / 60000))} min left)`);
     if (best < 0.5) notes.push(`${side.toUpperCase()} is behind, under 50¢`);
@@ -598,7 +601,7 @@ export function createKalshi(state, env, keep) {
     if ((cfgL.skipHours || []).includes(etHour(now))) notes.push('this hour is one of your off hours');
     if (cfgL.dailyWinUsd > 0 && realized(t) >= cfgL.dailyWinUsd) notes.push(`live's daily profit target is already hit (+$${realized(t).toFixed(2)})`);
     { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9), inW = [...L.values()].filter(x => x.close === close && busy(x)).length; if (inW >= cap) notes.push(`this window already has ${inW} live trade${inW === 1 ? '' : 's'}, your cap is ${cap}`); }
-    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes };
+    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes, mainHeld, accts: [{ id: 'main', name: 'Main', size, ok: !mainHeld, why: mainHeld ? 'already holds it' : null }, ...bkL] };
   }
   function onSettle(r) {
     const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0)) return;
@@ -1549,6 +1552,17 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 buy one market now (the Buy button on a scanner card). The page shows the quote first; maxPx is the ceiling
       // it showed, so the order never pays more than what was confirmed. IOC: whatever does not fill at once is not bought.
       if (who.locked) return { ok: false, msg: 'Buying needs an unlocked device.' };
+      // MC 2026-11-15 a.accts picks the accounts: 'main' and book ids. Main and the books are sent side by side at the same
+      // ceiling price, each at its own size. Books go only with Main, or when Main already holds the market.
+      if (Array.isArray(a.accts) && !a.one) { const tk = String(a.tk || ''), s = handMkt(tk, a.side); if (!s) return { ok: false, msg: 'Unknown market.' };
+        const ids = a.accts.filter(x => x !== 'main').map(String), wantMain = a.accts.includes('main'), held = (() => { const x = L.get(tk); return !!(x && busy(x)); })();
+        if (!wantMain && !ids.length) return { ok: false, msg: 'Pick at least one account.' };
+        if (!wantMain && !held) return { ok: false, msg: 'A hand buy for a subaccount goes with Main, unless Main already holds that market.' };
+        const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); if (!(Number(a.maxPx) > 0)) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
+        let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { } const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
+        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1 }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, ask: Number(a.ask) || null }) : []]);
+        viewDirty = true; await publish(true);
+        return { ok: !!mr?.ok || br.some(x => x.ok), msg: [mr ? `Main: ${mr.msg}` : '', ...br.map(x => `${x.name}: ${x.msg}.`)].filter(Boolean).join(' ') }; }
       const tk = String(a.tk || ''), side = a.side, s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
       const c = ctl(), g = handGate(c, tk); if (g) return { ok: false, msg: g };
       const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)), size = c.sizeUsd, n = Math.floor(size / maxPx);
@@ -1582,6 +1596,11 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 sell one open live position now (the Sell button on its card). The page shows the quote first; minPx is the
       // floor it showed, so the sale never goes below what was confirmed. Needs an unlocked device.
       if (who.locked) return { ok: false, msg: 'Selling needs an unlocked device.' };
+      if (Array.isArray(a.accts) && !a.one) { const tk = String(a.tk || ''), ids = a.accts.filter(z => z !== 'main').map(String), wantMain = a.accts.includes('main'); if (!wantMain && !ids.length) return { ok: false, msg: 'Pick at least one account.' };
+        const minPx = Math.min(0.99, Math.max(0.01, Number(a.minPx) || 0.01));
+        const [mr, br] = await Promise.all([wantMain ? command('kalshiSellOne', { tk, minPx: a.minPx, one: 1 }, who) : null, ids.length ? books.handSell(ids, tk, minPx) : []]);
+        viewDirty = true; await publish(true);
+        return { ok: !!mr?.ok || br.some(z => z.ok), msg: [mr ? `Main: ${mr.msg}` : '', ...br.map(z => `${z.name}: ${z.msg}.`)].filter(Boolean).join(' ') }; }
       const x = L.get(String(a.tk || '')); if (!x || !(x.fill > 0) || x.result) return { ok: false, msg: 'No open live position in that market.' };
       if (x.close <= Date.now()) return { ok: false, msg: 'That market has closed; it settles on its own.' };
       const minPx = Math.min(0.99, Math.max(0.01, Number(a.minPx) || 0.01)), o = await sellPos(x, minPx, 'manual');
