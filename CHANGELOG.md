@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.20 (Nov 15, 2026): Books can fund their own trading balance
+- [fixed] A subaccount book showed ERROR and placed no trades because it could not move its cash to its crypto trading balance. Kalshi takes that request in a different form for a numbered subaccount than for the main account, and the book was sending the main account's form.
+- [improved] When an account in the Accounts panel is in error or paused, the reason is written on its row. Before, it was only in a hover tip, which a phone cannot show.
+
 ## 1.2.19 (Nov 15, 2026): Accounts view for subaccounts
 A proper home for subaccount books on the dashboard and in Trades, on web and phone. It only appears once you have a book.
 - [new] Accounts panel under the live hero on Home: the main account and every book in one list, each with whether it is trading, its playbook and size, cash (and how much is on crypto), today's result and record, all time, open trades and a small line of the day. Cash and today's result across all accounts are on top.

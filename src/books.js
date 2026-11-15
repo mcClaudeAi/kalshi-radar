@@ -100,14 +100,18 @@ export function createBooks(D) {
     return s.bal;
   }
   // the crypto markets trade on shard XI; keep about 12 trades' worth there, moved inside the book's own subaccount
+  const subXfer = (b, amount, from, to) => ({ source: 'event_contract', destination: 'event_contract', amount, source_exchange_shard: from, destination_exchange_shard: to, source_subaccount: b.sub, destination_subaccount: b.sub });
   async function fund(b) {
     const s = S[b.id]; if (Date.now() - s.xferAt < 60000) return;
     const have = s.shard[D.XI] ?? 0, src = s.shard[0] ?? 0, want = Math.round(b.size * 12), low = b.size * 9;
     if (have >= low || src < 1) return; const amt = Math.min(src, want - have); if (amt < 1) return;
     s.xferAt = Date.now();
-    const res = await breq(b, 'POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: Math.floor(amt * 100) * 100, source_exchange_shard: 0, destination_exchange_shard: D.XI, client_transfer_id: crypto.randomUUID() });
+    // MC 2026-11-15 the first book to go live showed ERROR with its $200 stuck off the crypto shard. For a numbered subaccount
+    // Kalshi's docs say this call rejects client_transfer_id (primary accounts only) and that both subaccount fields must name the
+    // key's own subaccount; the book was sending the main account's form of the request. subXfer builds the subaccount form.
+    const res = await breq(b, 'POST', '/portfolio/intra_exchange_instance_transfer', subXfer(b, Math.floor(amt * 100) * 100, 0, D.XI));
     if (!res?.ok) { fail(b, `could not move $${amt.toFixed(2)} to the crypto shard: ${res?.status} ${errOf(res)}`); return; }
-    s.lastXfer = { at: Date.now(), amt: +amt.toFixed(2) }; s.balAt = 0; D.say(`BOOK ${b.name} moved $${amt.toFixed(2)} to the crypto shard`);
+    s.lastXfer = { at: Date.now(), amt: +amt.toFixed(2) }; s.balAt = 0; if (/crypto shard/.test(s.err || '')) s.err = null; D.say(`BOOK ${b.name} moved $${amt.toFixed(2)} to the crypto shard`);
   }
 
   function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; }
@@ -305,7 +309,7 @@ export function createBooks(D) {
         S[b.id].balAt = 0; await balance(b, true); const s = S[b.id], open = [...L[b.id].values()].some(x => x.fill > 0 && !x.result);
         const onX = s.shard[D.XI] ?? 0, want = a.amount === 'all' ? Infinity : +a.amount;
         if (!open && onX >= 0.01 && want > (s.shard[0] ?? 0) + 0.005) {
-          const back = await breq(b, 'POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: Math.floor(onX * 100) * 100, source_exchange_shard: D.XI, destination_exchange_shard: 0, client_transfer_id: crypto.randomUUID() });
+          const back = await breq(b, 'POST', '/portfolio/intra_exchange_instance_transfer', subXfer(b, Math.floor(onX * 100) * 100, D.XI, 0));
           if (!back?.ok) return { ok: false, msg: `Could not bring ${b.name}'s money back from the crypto shard: ${back?.status} ${errOf(back)}` };
           s.balAt = 0; await balance(b, true); }
         const free = s.shard[0] ?? 0; amt = Math.round((a.amount === 'all' ? free : Math.min(want, free + 0.005)) * 100);
