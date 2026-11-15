@@ -1081,6 +1081,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @media(max-width:700px){.kx-pbtag{font-size:11px;margin-left:0}}
 .kx-pbtag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .kx-pbtag.in{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 10%,transparent)}
+.kx-bdiv{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:4px 0 -2px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}.kx-bdiv::before,.kx-bdiv::after{content:"";flex:1;height:1px;background:var(--line)}
 .kx-pbtag.lv{color:#ff6b7d;border-color:rgba(255,77,94,.5);background:rgba(255,77,94,.1)}.kx-pbtag.lvx{color:var(--mute);border-color:var(--line2);background:color-mix(in srgb,var(--ink) 4%,transparent)}.kx-pbtag+.kx-pbtag{margin-top:5px}
 .kx-pbtag.out{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent)}
 .kx-pos.kx-passed{border-style:dashed}.kx-pos.kx-passed .kx-pf .kx-pay{opacity:.6}
@@ -2680,7 +2681,7 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
   const pxY0=px!=null?Y(px):null;for(let v=Math.ceil(lo/step)*step;v<hi;v+=step){const y=Y(v);if(ty!=null&&Math.abs(y-ty)<10)continue;if(pxY0!=null&&Math.abs(y-pxY0)<13)continue;g.globalAlpha=.7;g.beginPath();g.moveTo(P.l,y);g.lineTo(P.l+iw,y);g.stroke();g.globalAlpha=1;g.fillText(kxFmt(v,tgt).replace('$',''),P.l+iw+6,y+3.5)}
   // time grid: 5-minute marks, elapsed vs remaining
   g.strokeStyle=line;for(let m=5;m<15;m+=5){const x=X(x0+m*60);g.beginPath();g.moveTo(x,P.t);g.lineTo(x,P.t+ih);g.stroke()}
-  if(xNow<P.l+iw-1){g.fillStyle='rgba(6,9,19,.42)';g.fillRect(xNow,P.t,P.l+iw-xNow,ih);g.strokeStyle=line;g.beginPath();g.moveTo(P.l+iw,P.t);g.lineTo(P.l+iw,P.t+ih);g.stroke()}
+  if(xNow<P.l+iw-1){g.save();g.globalAlpha=.45;g.fillStyle=col('--bg');g.fillRect(xNow,P.t,P.l+iw-xNow,ih);g.restore();g.strokeStyle=line;g.beginPath();g.moveTo(P.l+iw,P.t);g.lineTo(P.l+iw,P.t+ih);g.stroke()}
   g.font='500 10px '+F;g.fillStyle=faint;for(let m=0;m<=15;m+=5){g.textAlign=m===0?'left':m===15?'right':'center';g.fillText(m===0?tm(x0):m===15?'close':`${m}m`,X(x0+m*60),H-6)}
   // area between the price line and the target: green where we are winning, red where we are not
   if(S.length>1&&ty!=null){const path=()=>{g.beginPath();S.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.lineTo(X(Math.min(S.at(-1)[0],x1)),ty);g.lineTo(X(S[0][0]),ty);g.closePath()};
@@ -2734,10 +2735,15 @@ function kxLvOf(o){const lv=kxLv();if(!lv)return null;const x=(lv.recent||[]).fi
   return {cls:'lvx',txt:`Live · no fill${x.missAsk!=null?', ask was '+kxC(x.missAsk):''}`}}
 const kxPbTag=o=>{const b=kxPbOf(o),l=kxLvOf(o),lvOn=!!kxLv()?.on;if(b&&lvOn)b.txt=b.txt.replace(/^In your book/,'Paper took it').replace(/^Skipped/,'Paper skipped');
   return (b?`<span class="kx-pbtag ${b.cls}">${b.txt}</span>`:'')+(l?`<span class="kx-pbtag ${l.cls}">${l.txt}</span>`:'')};
-function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,open=kxOpen(),K=ST.D?.kalshi||{},c=K.cfg||{};const now=Date.now();
-  const sig=open.map(o=>o.tk).join(',');
+// MC 2026-11-14 asked for the trades we are in to come first so the skipped ones don't have to be scrolled past: live buys,
+// then paper's own trades, then the ones passed on, each group in the tracker's order. A card that moves group (a live fill
+// lands, say) redraws the board, and a divider names the passed group with its count.
+const kxRank=o=>kxLvOf(o)?.cls==='lv'?0:kxPbOf(o)?.cls==='in'?1:2;
+function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{};const now=Date.now();
+  const open=kxOpen().map((o,i)=>({o,i,r:kxRank(o)})).sort((a,b)=>a.r-b.r||a.i-b.i).map(x=>(x.o._r=x.r,x.o)),nOut=open.filter(o=>o._r===2).length,first2=open.findIndex(o=>o._r===2);
+  const sig=open.map(o=>o.tk+':'+o._r).join(',');
   if(el.dataset.sig!==sig){el.dataset.sig=sig;
-    el.innerHTML=open.length?open.map(o=>`<div class="kx-pos ${kxPbOf(o)?.cls==='out'&&kxLvOf(o)?.cls!=='lv'?'kx-passed':''}" data-tk="${esc(o.tk)}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span><span data-k="pb">${kxPbTag(o)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
+    el.innerHTML=open.length?open.map((o,i)=>`${i===first2&&i>0?`<div class="kx-bdiv"><span>Passed on · ${nOut}</span></div>`:''}<div class="kx-pos ${kxPbOf(o)?.cls==='out'&&kxLvOf(o)?.cls!=='lv'?'kx-passed':''}" data-tk="${esc(o.tk)}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span><span data-k="pb">${kxPbTag(o)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
       <div class="kx-pm"><span>Target<b>${kxFmt(o.strike,o.strike)}</b></span><span>Now<b data-k="px">–</b></span><span>Margin<b data-k="mg">–</b></span><span>60s avg<b data-k="avg">–</b></span><span class="kx-wp">Win chance<b data-k="wp">–</b><small data-k="wpk"></small></span></div>${o.z!=null?`<div class="kx-atchk">At the trade check: <b>${Number(o.z).toFixed(2)} moves</b> past the target, win chance <b>${(kxWinZ(Number(o.z))*100).toFixed(0)}%</b>${o.z2!=null&&o.z2!==o.z?` (v2 <b>${(kxWinZ(Number(o.z2))*100).toFixed(0)}%</b>)`:''}${o.z10!=null?`; 10-min measure <b>${Number(o.z10).toFixed(2)} moves</b>`:''} against ${kxC(o.px)} paid</div>`:''}
       <div class="kx-cvw"><canvas class="kx-cv"></canvas></div>
       <div class="kx-pf"><span>Kalshi now <b data-k="kp">${o.ya!=null?(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢':'–'}</b></span><span class="kx-spw" data-k="sp">${kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}</span><span class="kx-pay">pays $${o.n}.00 · <span class="pos">+$${(o.n-o.cost).toFixed(2)}</span> if ${o.side.toUpperCase()}, <span class="neg">-$${Number(o.cost).toFixed(2)}</span> if not</span></div></div>`).join('')
@@ -4194,7 +4200,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.1',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.2.2',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

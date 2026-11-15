@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.2 (Nov 14, 2026): Your trades first on the live board
+- [improved] The live board on Home now lists the trades you are in first: live buys, then paper's own trades, then a "Passed on" divider with the ones skipped, so there is no scrolling past skips to find your trades. A card moves up as soon as a live order fills.
+- [fixed] The part of each price chart that has not happened yet was shaded dark navy in every theme, which looked heavy in the light themes. It follows the theme now.
+
 ## 1.2.1 (Nov 14, 2026): Board cards say which account they mean
 - [fixed] With live on, a card on the live board could read "Skipped · daily profit target hit" while live was still short of its own target. That tag was paper's. It now reads "Paper skipped" or "Paper took it".
 - [new] A second tag on each card says what the live account did with the same market: bought (how many and at what price), skipped and why, no fill (with the ask it missed), or not taken because it was outside live's price band or coins. Cards live bought are no longer dimmed when paper skipped them.
