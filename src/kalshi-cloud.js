@@ -121,13 +121,15 @@ function labDefs(K) {
     // side (helped one half, hurt the other). These two held up on both halves. Learned agreeing kept 82% of the profit with
     // $1.20 a trade against $0.93 and a smaller worst day; 1.5 moves kept about half the profit and cut the worst day almost in half.
     { id: 'mvl', name: 'Margin vs volatility + Learned', desc: 'Margin vs volatility under 95¢, and only when the self-learning model also gives the trade a better chance than Kalshi\'s price plus the fee and a cent. Two separate checks have to agree. In the history it kept about 80% of the profit on about 60% of the trades, with more profit per trade and a smaller worst day.', color: '#B5179E', filter: t => t.z == null || t.pl == null ? null : t.z >= 1 && t.px < 0.95 && t.pl >= t.px + 0.07 * t.px * (1 - t.px) + 0.01 },
-    // MC 2026-11-15 Mitchell's rule, named by him: Margin vs volatility under 95c, and both lines he reads on the coin chart have
-    // to agree at the trade check. tl is where the trend line lands at the close (a straight line through the 15 minutes
-    // before the window and the 5 minutes of it so far, carried 10 minutes on) and lk is where the likely line lands (the last 3
-    // minutes' pace, fading with a 90-second half-life), both as the margin past the target on our side: above 0 means that
-    // line finishes on the side we are buying. They are formulas on Coinbase's minute prices, no model. A trade with no reading
-    // for them is passed. Readings for trades from before today are filled in from history by trendFill.
-    { id: 'mvai', name: 'Margin vs volatility (AI checked)', desc: 'Margin vs volatility under 95¢, and only when both chart lines agree at the trade check: the trend line (the 15 minutes before the window plus this window so far, carried to the close) and the likely line (the last 3 minutes\' pace, fading) must each finish on the side being bought. Both lines are worked out from Coinbase\'s minute prices.', color: '#4CC9F0', filter: t => t.z == null || t.tl == null || t.lk == null ? null : t.z >= 1 && t.px < 0.95 && t.tl > 0 && t.lk > 0 },
+    // MC 2026-11-15 Mitchell's rule, named by him. First version: Margin vs volatility under 95c, and the trend line and the
+    // likely line both had to finish on our side at the trade check. Tested the same day on every market from Sep 6 to Nov 15
+    // (4,673 Margin vs volatility trades): the likely line never vetoed a trade, the trend line vetoed 400 that won 94.5% and
+    // made more per trade than the ones it kept, and a shrinking lead was no warning either. What did hold in both halves of
+    // that stretch: a lead of 1.5 moves, and skipping lone leaders (with fewer than 3 coins leading the same way those trades
+    // lost money in both halves). Together: 95.4% won, $1.18 a trade against $0.81, 58 losses against 278, the worst day and
+    // the deepest drop about half as deep, on about a quarter of the trades and 40% of the profit. Rebuilt on those two checks
+    // at his say-so. The two lines stay on the charts and are still recorded on every trade (tl, lk) for later tests.
+    { id: 'mvai', name: 'Margin vs volatility (AI checked)', desc: 'Margin vs volatility under 95¢ with two extra checks that held up in testing: the coin must be at least 1.5 normal 10-minute moves past its target, and at least 3 coins must be leading the same way in that window. Far fewer trades (about 18 a day in the test), fewer losses and shallower bad days, and less profit in total.', color: '#4CC9F0', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 && t.same >= 3 },
     { id: 'mv15', name: 'Margin vs volatility, 1.5 moves', desc: 'Margin vs volatility under 95¢ with a higher bar: the coin must be at least 1.5 normal 10-minute moves past its target, not 1. About 40% of the trades and half the profit in the history, but the worst day and the worst drop were both about half as deep, and the win rate went from 94.2% to 95.2%.', color: '#80FFDB', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
     // none had a second half without a red day, because one loss costs about 15 wins. This is the steadiest that held up when
@@ -714,7 +716,7 @@ export function createKalshi(state, env, keep) {
       return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only) return { ok: false, why: 'playbook not available live' };
         if (sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = H.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
-        return f === true ? { ok: true, lab } : { ok: false, why: `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : sid === 'mvai' && r.vol?.z != null ? 'no trend reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}` }; }; };
+        return f === true ? { ok: true, lab } : { ok: false, why: `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}` }; }; };
     const gate = mkGate(cfgL, hitsL);
     const ownOf = cfg => { const H = seen.filter(r => (!cfg.coins?.length || cfg.coins.includes(coin(r.series))) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9).sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9)); return { hits: H, gate: mkGate(cfg, H), cfg, bench: coldSet(now, cfg) }; };
     const c = ctl(), sends = [], missed = [];
@@ -730,7 +732,7 @@ export function createKalshi(state, env, keep) {
         if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hitsL.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) { try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); } }
-        else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : sid === 'mvai' && r.vol?.z != null ? 'no trend reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
+        else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
     }
     if (hitsL.length || (seen.length && books.ownCoins()?.length !== 0)) {
@@ -1383,7 +1385,7 @@ export function createKalshi(state, env, keep) {
       const stopSk = !late && (halted || lockCut) && !strat && !off && !cold && !(perWin[w] > K.maxPerWindow) && (tookW[w] || 0) + (ifW[w] || 0) < wCap; if (stopSk) ifW[w] = (ifW[w] || 0) + 1;
       const capped = capped0 || lockCut || wcap, n = hand && r.n ? r.n : Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
-      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : sid === 'mvai' && r.vol?.z != null ? 'no trend reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null };
       if (r.result && !late) { let i = kQ.length; while (i > kI && kQ[i - 1].close > r.close) i--; kQ.splice(i, 0, { close: r.close, px, won: !!r.won }); }

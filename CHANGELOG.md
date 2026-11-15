@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.44 (Nov 15, 2026): Margin vs volatility (AI checked) rebuilt on what tested well
+- [improved] The AI checked playbook now takes Margin vs volatility under 95¢ only when the coin is at least 1.5 moves past its target and at least 3 coins are leading the same way. Tested on every market from Sep 6 to Nov 15: 95.4% won and $1.18 a trade against 94.1% and $0.81, with about a fifth of the losses and a worst day about half as deep, on roughly a quarter of the trades and 40% of the total profit.
+- [improved] The first version (the trend line and the likely line both agreeing) was dropped as a filter after the same test: the likely line never changed a decision, and the trades the trend line threw away did better than the ones it kept. Both lines stay on the charts and are still recorded on every trade.
+- [improved] The playbook's Labs card has its history at once, since both checks use readings every recorded trade already has.
+
 ## 1.2.43 (Nov 15, 2026): The bottom menu stays at the bottom on iPhone
 - [fixed] On iPhone the bottom menu could end up floating in the middle of the screen. iOS sometimes leaves the app's fixed layer at the height it had with the keyboard up. The dashboard now measures that gap, makes iOS work the layer out again, and until it has, moves the menu down to the true bottom itself. It checks after typing, when you come back to the app, after a touch and every few seconds.
 
