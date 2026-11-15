@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.29 (Nov 15, 2026): The 15 minutes before, on the same chart
+- [improved] The coin view now draws the previous 15 minutes on the left of the live chart, not in a second chart under it: one continuous line across both windows, the earlier stretch dimmer with its own trend line. The target, the win and lose shading and the bought marker stay inside the current window. The summary of the earlier 15 minutes sits in one line under the chart.
+
 ## 1.2.28 (Nov 15, 2026): The coin view shows the 15 minutes before
 - [new] Tap a coin on the board and the box now has a second chart under the live one: what the coin did in the 15 minutes before this window, with its trend line. The line above it says how far it moved, the trend per minute, and whether it ended above or below where it began.
 

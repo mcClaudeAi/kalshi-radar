@@ -1090,7 +1090,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-sb{cursor:pointer}.kx-sb:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
 .modal .box:has(.kx-coinv){width:min(700px,100%);max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain}
 .kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
-.kx-cvp{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:var(--s1);padding:10px 12px 6px}.kx-cvph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mute)}.kx-cvph span{font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;font-size:11px}.kx-cvph em{font-style:normal}.kx-coinp{display:block;width:100%;height:110px;margin-top:4px}
+.kx-cvph{display:flex;justify-content:space-between;align-items:baseline;gap:4px 10px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 2px 0}.kx-cvph span{font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;font-size:11px}.kx-cvph em{font-style:normal}
 .kx-coinc{display:block;width:100%;height:270px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}
 .kx-cvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.kx-cvs>div{padding:9px 11px;border:1px solid var(--line);border-radius:10px;min-width:0}
 .kx-cvs span{display:block;font-size:11px;color:var(--mute)}.kx-cvs b{display:block;font-size:15px;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap}.kx-cvs small{display:block;font-size:11px;color:var(--mute);margin-top:1px}.kx-cvs small.pos{color:var(--good)}.kx-cvs small.neg{color:var(--bad)}
@@ -2806,39 +2806,45 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
   const S0=kxSeries(c,o.open),x0=o.open/1000,pre0=S0.filter(p=>p[0]<x0).pop(),S=(pre0?[[x0,pre0[1]]]:[]).concat(S0.filter(p=>p[0]>=x0)),now=Date.now()/1000,x1=o.close/1000,tgt=o.strike,px=KX.px[c]?.last??S.at(-1)?.[1]??null;
   g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(tgt??px??1,tgt).replace('$','')).width)+18;
   const P={l:10,r:Math.max(64,axW),t:24,b:22},iw=W-P.l-P.r,ih=H-P.t-P.b;
-  let lo=tgt??px??1,hi=lo;for(const p of S){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1])}if(px!=null){lo=Math.min(lo,px);hi=Math.max(hi,px)}
+  // MC 2026-11-15 the coin view can carry the 15 minutes before this window on the same chart (o.prev, minute prices): the time
+  // axis then starts 15 minutes earlier, the earlier stretch is drawn dimmer with its own trend line, and the win and lose zones,
+  const PV=(o.prev||[]).filter(p=>p[0]<=x0+1),hasPv=PV.length>=6,xL=hasPv?x0-900:x0;
+  let lo=tgt??px??1,hi=lo;for(const p of S){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1])}if(hasPv)for(const p of PV){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1])}if(px!=null){lo=Math.min(lo,px);hi=Math.max(hi,px)}
   // the coin view makes room for where the trend lands at the close, up to one more chart height so a steep run cannot flatten the rest
   if(o.trend&&now<x1){const T=S.filter(p=>p[0]>=now-180&&p[0]<=now);if(T.length>=8){const n=T.length,mx=T.reduce((a,p)=>a+p[0],0)/n,my=T.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of T){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}
     if(sxx>0){const pj=my+sxy/sxx*(x1-mx),sp=Math.max(hi-lo,(tgt||px||1)*.0012);lo=Math.min(lo,Math.max(pj,lo-sp));hi=Math.max(hi,Math.min(pj,hi+sp))}}}
   const mn=Math.max((hi-lo)*.35,(tgt||px||1)*.0006);lo-=mn;hi+=mn;
-  const X=t=>P.l+(t-x0)/(x1-x0)*iw,Y=v=>P.t+(1-(v-lo)/(hi-lo))*ih,xNow=X(Math.min(Math.max(now,x0),x1));
+  const X=t=>P.l+(t-xL)/(x1-xL)*iw,wL=X(x0),wW=P.l+iw-wL,Y=v=>P.t+(1-(v-lo)/(hi-lo))*ih,xNow=X(Math.min(Math.max(now,x0),x1));
   const rr=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()};
   const pill=(txt,x,y,colr,font,align='left')=>{g.font=font;const w=g.measureText(txt).width+12,h=16,xx=align==='left'?x:align==='right'?x-w:x-w/2;rr(xx,y-h/2,w,h,5);g.fillStyle=bg;g.fill();g.strokeStyle=colr+'66';g.lineWidth=1;g.stroke();g.fillStyle=colr;g.textAlign='left';g.textBaseline='middle';g.fillText(txt,xx+6,y+.5);g.textBaseline='alphabetic'};
   // win and lose zones, strongest right at the target line and fading away from it
   const up=o.side==='yes',ty=tgt!=null?Y(tgt):null;
-  if(ty!=null){const zone=(y0,y1,colr,a)=>{if(Math.abs(y1-y0)<1)return;const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,colr+a);gr.addColorStop(1,colr+'00');g.fillStyle=gr;g.fillRect(P.l,Math.min(y0,y1),iw,Math.abs(y1-y0))};
+  if(ty!=null){const zone=(y0,y1,colr,a)=>{if(Math.abs(y1-y0)<1)return;const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,colr+a);gr.addColorStop(1,colr+'00');g.fillStyle=gr;g.fillRect(wL,Math.min(y0,y1),wW,Math.abs(y1-y0))};
     if(up){zone(ty,P.t,good,'22');zone(ty,P.t+ih,bad,'26')}else{zone(ty,P.t+ih,good,'22');zone(ty,P.t,bad,'26')}}
   // price grid with labels on the right
   const step=kxNice((hi-lo)/3.2);g.strokeStyle=line;g.lineWidth=1;g.font='500 10px '+M;g.fillStyle=faint;g.textAlign='left';
   const pxY0=px!=null?Y(px):null;for(let v=Math.ceil(lo/step)*step;v<hi;v+=step){const y=Y(v);if(ty!=null&&Math.abs(y-ty)<10)continue;if(pxY0!=null&&Math.abs(y-pxY0)<13)continue;g.globalAlpha=.7;g.beginPath();g.moveTo(P.l,y);g.lineTo(P.l+iw,y);g.stroke();g.globalAlpha=1;g.fillText(kxFmt(v,tgt).replace('$',''),P.l+iw+6,y+3.5)}
   // time grid: 5-minute marks, elapsed vs remaining
-  g.strokeStyle=line;for(let m=5;m<15;m+=5){const x=X(x0+m*60);g.beginPath();g.moveTo(x,P.t);g.lineTo(x,P.t+ih);g.stroke()}
+  g.strokeStyle=line;for(let m=hasPv?0:5;m<15;m+=5){const x=X(x0+m*60);g.beginPath();g.moveTo(x,P.t);g.lineTo(x,P.t+ih);g.stroke()}
   if(xNow<P.l+iw-1){g.save();g.globalAlpha=.45;g.fillStyle=col('--bg');g.fillRect(xNow,P.t,P.l+iw-xNow,ih);g.restore();g.strokeStyle=line;g.beginPath();g.moveTo(P.l+iw,P.t);g.lineTo(P.l+iw,P.t+ih);g.stroke()}
-  g.font='500 10px '+F;g.fillStyle=faint;for(let m=0;m<=15;m+=5){g.textAlign=m===0?'left':m===15?'right':'center';g.fillText(m===0?tm(x0):m===15?'close':`${m}m`,X(x0+m*60),H-6)}
+  g.font='500 10px '+F;g.fillStyle=faint;for(let m=0;m<=15;m+=5){if(hasPv&&m%15&&iw<420)continue;g.textAlign=m===0&&!hasPv?'left':m===15?'right':'center';g.fillText(m===0?tm(x0):m===15?'close':`${m}m`,X(x0+m*60),H-6)}if(hasPv){g.textAlign='left';g.fillText(tm(xL),P.l,H-6);g.font='600 9.5px '+F;g.fillText('previous 15 min',P.l+4,P.t+11)}
   // area between the price line and the target: green where we are winning, red where we are not
   if(S.length>1&&ty!=null){const path=()=>{g.beginPath();S.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.lineTo(X(Math.min(S.at(-1)[0],x1)),ty);g.lineTo(X(S[0][0]),ty);g.closePath()};
-    const side=(y0,y1,colr)=>{g.save();g.beginPath();g.rect(P.l,Math.min(y0,y1),iw,Math.abs(y1-y0));g.clip();path();const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,colr+'06');gr.addColorStop(1,colr+'3c');g.fillStyle=gr;g.fill();g.restore()};
+    const side=(y0,y1,colr)=>{g.save();g.beginPath();g.rect(wL,Math.min(y0,y1),wW,Math.abs(y1-y0));g.clip();path();const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,colr+'06');gr.addColorStop(1,colr+'3c');g.fillStyle=gr;g.fill();g.restore()};
     side(P.t,ty,up?good:bad);side(P.t+ih,ty,up?bad:good)}
   // target line and label
   const pxY=px!=null?Y(px):null,lblY=pxY==null?null:Math.max(P.t+8,Math.min(P.t+ih-8,ty!=null&&Math.abs(pxY-ty)<17?(pxY<ty?ty-17:ty+17):pxY));
-  if(ty!=null){g.setLineDash([5,4]);g.strokeStyle=ink;g.globalAlpha=.6;g.lineWidth=1.1;g.beginPath();g.moveTo(P.l,ty);g.lineTo(P.l+iw,ty);g.stroke();g.setLineDash([]);g.globalAlpha=1;pill(kxFmt(tgt,tgt).replace('$',''),P.l+iw+4,ty,mute,'600 10px '+M);
+  if(ty!=null){g.setLineDash([5,4]);g.strokeStyle=ink;g.globalAlpha=.6;g.lineWidth=1.1;g.beginPath();g.moveTo(wL,ty);g.lineTo(P.l+iw,ty);g.stroke();g.setLineDash([]);g.globalAlpha=1;pill(kxFmt(tgt,tgt).replace('$',''),P.l+iw+4,ty,mute,'600 10px '+M);
     g.font='600 9.5px '+F;g.fillStyle=mute;g.textAlign='right';g.fillText('target',P.l+iw-4,ty+(lblY!=null&&lblY<ty?13:-5))}
   // where we bought
   const xe=X(o.at/1000);if(xe>=P.l&&xe<=P.l+iw){g.strokeStyle=kx;g.globalAlpha=.75;g.setLineDash([2,3]);g.lineWidth=1;g.beginPath();g.moveTo(xe,P.t);g.lineTo(xe,P.t+ih);g.stroke();g.setLineDash([]);g.globalAlpha=1;
     pill(`bought ${kxC(o.px??o.ask).replace('¢','')}¢`,xe,P.t-10,kx,'600 10px '+F,xe>P.l+iw-70?'right':xe<P.l+60?'left':'center')}
+  let pv=null;if(hasPv){const n=PV.length,mx=PV.reduce((a,p)=>a+p[0],0)/n,my=PV.reduce((a,p)=>a+p[1],0)/n;let sxy=0,sxx=0;for(const p of PV){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}const b=sxx?sxy/sxx:0,at=t=>my+b*(t-mx);pv={a:PV[0][1],b:PV.at(-1)[1],slope:b};
+    g.save();g.beginPath();g.rect(P.l,P.t,wL-P.l,ih);g.clip();g.strokeStyle=mute;g.lineWidth=1.5;g.lineJoin='round';g.beginPath();PV.forEach((p,i)=>{const x=X(p[0]),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});if(S.length)g.lineTo(X(S[0][0]),Y(S[0][1]));g.stroke();
+    g.strokeStyle=kx;g.globalAlpha=.7;g.lineWidth=1.4;g.setLineDash([6,4]);g.beginPath();g.moveTo(X(xL),Y(at(xL)));g.lineTo(X(x0),Y(at(x0)));g.stroke();g.setLineDash([]);g.restore()}
   // the price line: faint at the start, full at the live end, with a soft glow near now
   if(S.length>1){const win=tgt==null?null:px==null?null:(up?px>=tgt:px<tgt),dc=win==null?ink:win?good:bad;
-    g.lineWidth=1.8;g.lineJoin='round';g.lineCap='round';const grd=g.createLinearGradient(P.l,0,P.l+iw,0);grd.addColorStop(0,ink+'55');grd.addColorStop(Math.max(0,Math.min(1,(xNow-P.l)/iw)),ink);grd.addColorStop(1,ink);g.strokeStyle=grd;
+    g.lineWidth=1.8;g.lineJoin='round';g.lineCap='round';const grd=g.createLinearGradient(wL,0,P.l+iw,0);grd.addColorStop(0,ink+'55');grd.addColorStop(Math.max(0,Math.min(1,(xNow-wL)/wW)),ink);grd.addColorStop(1,ink);g.strokeStyle=grd;
     g.beginPath();S.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();
     const tail=S.filter(p=>p[0]>=now-45);if(tail.length>1){g.save();g.shadowColor=dc;g.shadowBlur=10;g.strokeStyle=dc;g.lineWidth=2.2;g.beginPath();tail.forEach((p,i)=>{const x=X(Math.min(p[0],x1)),y=Y(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.restore()}}
   // MC 2026-11-14 trend line for the coin view: a straight line fitted to the last 3 minutes of prices and carried on to the close,
@@ -2853,7 +2859,7 @@ function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||20
     pill(kxFmt(px,tgt).replace('$',''),P.l+iw+4,lblY,dc,'700 10.5px '+M)}
   // the 60-second average that actually settles the market, once we are inside the last 2.5 minutes
   const a60=kxAvg60(c,o.close);if(a60!=null&&now>x1-150&&tgt!=null){const y=Y(a60);g.strokeStyle=kx;g.lineWidth=1.2;g.setLineDash([3,3]);g.beginPath();g.moveTo(P.l,y);g.lineTo(P.l+iw,y);g.stroke();g.setLineDash([]);pill('60s avg · what settles',P.l+6,y-11,kx,'600 10px '+F)}
-  return {px,tgt,a60,tr}}
+  return {px,tgt,a60,tr,pv}}
 // MC 2026-11-13 two or three points drew a lone straight stroke that read as a glitch; the sparkline waits for four
 function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<4)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
 // ----- live data: the tracker's snapshot via the worker, the bot's snapshot as fallback -----
@@ -2919,11 +2925,11 @@ function kxHandRow(s){if(!kxHandOn())return kxHandRowP(s);const lv=kxLv();if(!lv
 // rows as the scanner, so the checks and hold-to-confirm are the same. It repaints four times a second while open.
 function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=row();if(!s0)return;clearInterval(KX.cvT);
   modal(`<div class="kx-coinv" data-tk="${esc(tk)}"><div class="kx-cvh"><h2>${esc(s0.coin)}</h2><span data-k="lead"></span><span class="sp"></span><em data-k="left"></em></div>
-   <canvas class="kx-coinc"></canvas><div class="kx-cvp"><div class="kx-cvph"><span>Previous 15 minutes</span><em data-k="pv">loading</em></div><canvas class="kx-coinp"></canvas></div><div class="kx-cvs" data-k="st"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
+   <canvas class="kx-coinc"></canvas><div class="kx-cvph"><span>Previous 15 minutes</span><em data-k="pv">loading</em></div><div class="kx-cvs" data-k="st"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
   const stop=()=>{clearInterval(KX.cvT);KX.cvT=null},shut=()=>{stop();closeModal()};$('#mbox [data-mx="0"]').onclick=shut;$('#modal .bk').onclick=shut;ST.modalEsc=shut;
   const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
     const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),ph=kxPp(tk),pp=kxOpen().find(o=>o.tk===tk)||(ph?{side:ph.side,px:ph.px}:null),side=(kxHandOn()?x?.side||pp?.side:ph?.side||pp?.side||x?.side)||s.leader||'yes',S=side.toUpperCase();
-    const r=kxDraw(box.querySelector('canvas'),{...s,side,at:x?.at??pp?.at,px:x?.px??pp?.px,ask:pp?.ask,trend:1})||{},px=r.px,tg=s.strike,left=Math.max(0,Math.round((s.close-now)/1000));
+    const r=kxDraw(box.querySelector('canvas'),{...s,side,at:x?.at??pp?.at,px:x?.px??pp?.px,ask:pp?.ask,trend:1,prev:KX.cvPrev?.tk===tk?KX.cvPrev.pts:null})||{},px=r.px,tg=s.strike,left=Math.max(0,Math.round((s.close-now)/1000));
     box.querySelector('[data-k=lead]').innerHTML=s.leader&&s.lask!=null?`<i class="kx-side ${s.leader}">${s.leader.toUpperCase()}</i> <b>${kxC(s.lask)}</b>`:'';
     box.querySelector('[data-k=left]').textContent=left?`settles in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'settling';
     const mg=px!=null&&tg?(px-tg)/tg*100:null,win=mg==null?null:(side==='yes'?mg>=0:mg<0),t=r.tr,perMin=t&&px?t.slope*60/px*100:null,pw=t&&tg?(side==='yes'?t.proj>=tg:t.proj<tg):null,toward=t?(side==='yes'?t.slope>0:t.slope<0):null;
@@ -2937,23 +2943,13 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
       :(kxHandRow(s)||'<p class="note tx">Too close to the close to buy.</p>'))};
   paint();KX.cvT=setInterval(paint,250);
   // MC 2026-11-15 asked for: what the coin did in the 15 minutes before this window, with its trend, to judge the coin better.
-  // One request for Coinbase's minute candles when the box opens (each minute's open and close), drawn once under the live chart.
+  // One request for Coinbase's minute candles when the box opens (each minute's open and close). kxDraw puts them on the left
+  // of the same chart; the line under the chart sums that stretch up.
   kxCandleRange(s0.coin,s0.open-900000,s0.open).then(pts=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk)return;const P=(pts||[]).filter(p=>p[0]*1000<=s0.open+1000),em=box.querySelector('[data-k=pv]');
-    if(P.length<6){em.textContent='no price history for it';box.querySelector('.kx-coinp').style.display='none';return}
-    const r=kxDrawPrev(box.querySelector('.kx-coinp'),P,s0),mv=(r.b-r.a)/r.a*100,pm=r.slope*60/r.a*100,sg=v=>(v>=0?'+':'')+v.toFixed(Math.abs(v)<.1?3:2);
+    if(P.length<6){em.textContent='no price history for it';return}KX.cvPrev={tk,pts:P};
+    const a=P[0][1],b=P.at(-1)[1],n=P.length,mx=P.reduce((q,p)=>q+p[0],0)/n,my=P.reduce((q,p)=>q+p[1],0)/n;let sxy=0,sxx=0;for(const p of P){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}
+    const mv=(b-a)/a*100,pm=(sxx?sxy/sxx:0)*60/a*100,sg=v=>(v>=0?'+':'')+v.toFixed(Math.abs(v)<.1?3:2);
     em.innerHTML=`<b class="${mv>=0?'pos':'neg'}">${sg(mv)}%</b> over the window · trend ${sg(pm)}% a min · ${Math.abs(mv)<.005?'ended where it began':mv>0?'ended above where it began':'ended below where it began'}`})}
-function kxDrawPrev(cv,P,o){const W=cv.clientWidth||600,H=cv.clientHeight||120,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
-  const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim()||'#888',M='"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace',F='-apple-system,BlinkMacSystemFont,"Segoe UI",Sora,Inter,Roboto,sans-serif';
-  const a=P[0][1],b=P.at(-1)[1],x0=o.open/1000-900,x1=o.open/1000,n=P.length,mx=P.reduce((q,p)=>q+p[0],0)/n,my=P.reduce((q,p)=>q+p[1],0)/n;let sxy=0,sxx=0;for(const p of P){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}const slope=sxx?sxy/sxx:0,t0=my+slope*(x0-mx),t1=my+slope*(x1-mx);
-  g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(b,o.strike).replace('$','')).width)+18,L=10,R=Math.max(64,axW),T=10,B=20,iw=W-L-R,ih=H-T-B;
-  let lo=Math.min(...P.map(p=>p[1]),t0,t1),hi=Math.max(...P.map(p=>p[1]),t0,t1);const pad=Math.max((hi-lo)*.15,a*.0002);lo-=pad;hi+=pad;const X=t=>L+(t-x0)/(x1-x0)*iw,Y=v=>T+(hi-v)/(hi-lo)*ih,up=b>=a;
-  g.strokeStyle=col('--line');g.lineWidth=1;g.setLineDash([3,5]);g.beginPath();g.moveTo(L,Y(a));g.lineTo(L+iw,Y(a));g.stroke();g.setLineDash([]);
-  g.strokeStyle=up?col('--good'):col('--bad');g.lineWidth=1.8;g.lineJoin='round';g.beginPath();P.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.stroke();
-  g.strokeStyle=col('--kx');g.lineWidth=1.6;g.setLineDash([7,5]);g.beginPath();g.moveTo(X(x0),Y(t0));g.lineTo(X(x1),Y(t1));g.stroke();g.setLineDash([]);
-  g.fillStyle=up?col('--good'):col('--bad');g.beginPath();g.arc(X(P.at(-1)[0]),Y(b),3,0,7);g.fill();
-  g.fillStyle=col('--mute');g.font='600 10.5px '+M;g.textAlign='left';g.textBaseline='middle';const ya=Y(a),yb=Y(b),sep=Math.abs(ya-yb)<13;g.fillText(kxFmt(b,o.strike).replace('$',''),L+iw+8,yb);if(!sep){g.fillStyle=col('--faint');g.fillText(kxFmt(a,o.strike).replace('$',''),L+iw+8,ya)}
-  g.fillStyle=col('--faint');g.font='500 10.5px '+F;g.textBaseline='alphabetic';const tm=t=>new Date(t*1000).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'});g.textAlign='left';g.fillText(tm(x0),L,H-5);g.textAlign='right';g.fillText(tm(x1),L+iw,H-5);
-  return {a,b,slope}}
 async function kxBuyOne(tk,side,paper){if(!paper&&!ST.me.control){unlockFlow();return}
   let q=null;try{const r=await fetch(`/api/kbuyq?tk=${encodeURIComponent(tk)}&side=${side}${paper?'&book=paper':''}`,{credentials:'same-origin',cache:'no-store'});q=r.ok?await r.json():null}catch{}
   if(!q?.ok){toast(q?.msg||'Could not read the market. Try again.');return}const S=q.side.toUpperCase(),left=Math.max(0,Math.round((q.close-Date.now())/1000));
@@ -4586,7 +4582,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.28',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.29',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
