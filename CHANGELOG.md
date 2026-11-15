@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.11 (Nov 14, 2026): Board clock no longer overlaps
+- [fixed] Near the end of a window the clock above the live board's timeline ran into the window's times and stuck out past the edge. It now has its own line and stays inside the card.
+
 ## 1.2.10 (Nov 14, 2026): Second look shows how every row ended
 The second look table in Labs now scores every coin, whatever its price.
 - [new] Result at that price: once the window settles, each row shows whether its side won and the money a paper-size buy at the last price seen would have made or lost, fees in. Before this, rows under 85¢ never showed a result.
