@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.13 (Nov 15, 2026): Buy and sell by hand on paper
+The scanner's Buy and Sell now work on the Paper view too, with practice money.
+- [new] On Home's Paper view each scanner card has a paper Buy at the price now and your paper size. It goes into the paper book past your paper rules and stops, the same way a hand buy on live skips them. Nothing is sent to Kalshi.
+- [new] Any open paper position, the rule's or one you bought by hand, has a Sell on paper row on its board or scanner card showing what it sells for now. The paper book then scores that trade at the sale price in place of the settlement.
+- [new] The coin chart you get by tapping a scanner row has the same paper Buy or Sell on the Paper view.
+- Hand trades show in Trades as bought or sold by hand, and they do not count toward the rule's analytics or the labs.
+- [fixed] "Could not move $600.00 to the crypto shard: 400 insufficient balance" on the live card. The top-up worked from balances up to a minute old. It reads them fresh now, and stays quiet when the trading balance already covers the next order.
+
 ## 1.2.12 (Nov 15, 2026): Hand trading only on the Live view
 - [fixed] The scanner's Buy row also showed on Home's Paper view and placed a live order from there. Buying and selling by hand now show only when Home is switched to Live. On the Paper view the coin chart still opens and says where to find them.
 - [new] Live's Today line shows how many markets the live playbook passed on today and how they went, like paper's does, for example "6 passed (5-1)".
