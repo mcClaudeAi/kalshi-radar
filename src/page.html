@@ -1341,6 +1341,52 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .fr-lb{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);cursor:zoom-out;touch-action:pinch-zoom}
 .fr-lb img{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain}.fr-lb button{all:unset;position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:14px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.16);font-size:16px;cursor:pointer}
 .kt-keep b{display:inline!important;font-size:inherit!important;color:var(--ink)}
+
+/* MC 2026-11-14 desktop header deck. The four tiles were separate boxes of different widths, all as tall as the Mode tile's chart
+   and pressed against the top and bottom of the header, so the bar looked ragged and the cash tile was mostly empty. On desktop
+   they are now one panel: cells split by hairlines, label, number and footer lined up across all of them, room above and below,
+   and the Mode cell marked with the account's color. The phone strip (#kstrip, under 1100px) is untouched. */
+.kp-sub{display:block;font-size:11px;color:var(--mute);margin-top:2px}
+@media (min-width:1100px){
+ #kpis{display:grid;grid-auto-flow:column;grid-template-columns:minmax(258px,280px) minmax(140px,176px) minmax(160px,214px) minmax(205px,226px);gap:0;margin:10px 0;padding:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--s1) 94%,transparent),color-mix(in srgb,var(--s1) 72%,transparent));box-shadow:inset 0 1px 0 color-mix(in srgb,var(--ink) 5%,transparent),0 10px 28px rgba(0,0,0,.16)}
+ #kpis:has(.kp.mode.paper){grid-template-columns:minmax(258px,280px) minmax(205px,226px) minmax(160px,214px) minmax(140px,176px)}
+ .top .btn[data-act=pal] .hide-m{display:none}
+ #kpis .kp{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto 1fr;align-content:stretch;column-gap:10px;row-gap:2px;min-width:0;min-height:84px;padding:11px 16px 11px;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;transition:background .15s}
+ #kpis .kp+.kp{border-left:1px solid var(--line)}
+ #kpis .kp:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+ #kpis .kp>span{grid-column:1;align-self:center;font-size:11.5px;font-weight:500;letter-spacing:.01em;color:var(--mute);text-transform:none;line-height:1.35;white-space:nowrap}
+ #kpis .kp>b{grid-column:1/-1;font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap}
+ #kpis .kp .kxg.mini{grid-column:1/-1;align-self:end;margin:0;padding-top:6px}
+ #kpis .kp .kxg.mini .kxg-t{font-size:11px;color:var(--mute)}
+ #kpis .kp .kxg.mini .kxg-v{font-family:inherit;font-size:11px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums}
+ #kpis .kp .kxg.mini.hit .kxg-v{color:var(--good)}
+ #kpis .kp .kxg.mini .kxg-b{height:5px;margin-top:5px}
+ #kpis .kp .kx-nostop{grid-column:2;grid-row:1;align-self:center;margin:0;font-size:11px;color:var(--faint)}
+ #kpis .kp .kp-sub{grid-column:1/-1;align-self:end;margin:0;font-size:11px;line-height:1.35;color:var(--mute);white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+ #kpis .kp .kp-sub strong{font-weight:600}
+ #kpis .kp.mode{grid-template-areas:"b b" "sp sp" "wl nx";grid-template-rows:auto 1fr auto;padding-left:18px}
+ #kpis .kp.mode>span{display:none}
+ #kpis .kp.mode>b{grid-area:b;font-size:12.5px;letter-spacing:.09em;line-height:1.35}
+ #kpis .kp.mode .kx-msp{grid-area:sp;height:auto;min-height:26px;margin:5px 0 3px;padding:0}
+ #kpis .kp.mode .kx-msp i{transform:none}
+ #kpis .kp.mode .kx-mcap{display:contents}
+ #kpis .kp.mode .kx-mcap em{grid-area:wl;font-size:11.5px;align-self:end;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #kpis .kp.mode .nxw{display:none}
+ #kpis .kp.mode .kx-mcap em.nx{grid-area:nx;display:block;align-self:end;font-size:11px;color:var(--faint)}
+ #kpis .kp.mode.live{background:linear-gradient(120deg,rgba(255,77,94,.2),rgba(255,77,94,.05) 75%);box-shadow:inset 3px 0 0 #ff4d5e}
+ [data-theme=light] #kpis .kp.mode.live>b{color:#d3263b}
+ [data-theme=light] #kpis .kp.mode.live{background:linear-gradient(120deg,rgba(255,77,94,.13),rgba(255,77,94,.03) 75%)}
+ #kpis .kp.mode.live:hover{background:linear-gradient(120deg,rgba(255,77,94,.25),rgba(255,77,94,.08) 75%)}
+ #kpis .kp.mode.paper{background:linear-gradient(120deg,color-mix(in srgb,var(--kx) 15%,transparent),color-mix(in srgb,var(--kx) 4%,transparent) 75%);box-shadow:inset 3px 0 0 var(--kx)}
+}
+@media (min-width:1680px){.top .btn[data-act=pal] .hide-m{display:inline}}
+/* under 1400px there is not room for four cells beside the title and buttons, so the deck takes its own row and the cells share it */
+@media (min-width:1100px) and (max-width:1399px){
+ .top .in{flex-wrap:wrap;row-gap:10px;padding-top:10px;min-height:0}
+ #kpis{order:9;flex:1 1 100%;margin:0 0 12px;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1.2fr)}
+ #kpis:has(.kp.mode.paper){grid-template-columns:minmax(0,1.35fr) minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1fr)}
+}
 </style>
 <script id="themes">
 // MC 2026-11-14 themes. Asked for at least five theme choices that stay easy to read. Every theme is one row here (its base,
@@ -2513,13 +2559,14 @@ function paintChrome(){const D=ST.D||{},L=D.live||{},T=D.totals||{};
   // MC 2026-11-08 header is Kalshi only now
   // MC 2026-11-08 the strip says which mode it is first: paper only (live off) or live, and leads with that book's numbers
   const kwr=KK?.n?(KK.won/KK.n*100).toFixed(1)+'%':'–';
-  const kp=[...(KK?(kl?.on?[['Mode',`<b><i></i>Live trading</b>${kxModeSpark('live',KK,kl)}`,'klive',0,'mode live'],['Live today',`<b class="${cls(kl.today?.net)}">${usd(kl.today?.net||0)}</b>${kxGoal(kl.today?.net,1,1)}`,'klive'],['Kalshi cash',`<b>${kl?.bal!=null?'$'+Number(kl.bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'–'}</b>`,'klive'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop">${usd(KK.today.stop.ifNet)} with no stops</small>`:''}`,'kan']]
-      :[['Mode',`<b><i></i>Paper only</b>${kxModeSpark('paper',KK,kl)}`,'klive',0,'mode paper'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop">${usd(KK.today.stop.ifNet)} with no stops</small>`:''}`,'kan'],['Paper bank',`<b>$${Number(KK.balance||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`,'kan'],['Win rate',`<b>${kwr}</b>`,'kan']]):[]),...([]).concat(true?[]:[[`Live today`,`<b class="${cls(L.today?.net)}">${usd(L.today?.net||0)}</b>`,'live',1],['Paper today',`<b class="${cls(T.today?.net)}">${usd(T.today?.net)}</b>`,'overview'],['Live open',`<b>${lo} of ${D.settings?.maxOpen??L.maxOpen??'–'}</b>`,'open',1],['Daily stop',`<b>${lim?'$'+used.toFixed(2)+' / $'+lim:'–'}</b>`,'controls'],[(D.aud?.alist||[]).length?'A-list':'Proven',`<b>${(D.aud?.alist||[]).length||D.proven?.length||0}</b>`,'wallets']])]
+  const fm=v=>'$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const kp=[...(KK?(kl?.on?[['Mode',`<b><i></i>Live trading</b>${kxModeSpark('live',KK,kl)}`,'klive',0,'mode live'],['Live today',`<b class="${cls(kl.today?.net)}">${usd(kl.today?.net||0)}</b>${kxGoal(kl.today?.net,1,1)}`,'klive'],['Kalshi cash',`<b>${kl?.bal!=null?'$'+Number(kl.bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'–'}</b>${kl?.size?`<small class="kp-sub" title="Live size and daily loss cap">$${n0(kl.size)} a trade${kl.dailyLossUsd?` · loss cap $${n0(kl.dailyLossUsd)}`:''}</small>`:''}`,'klive'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop" title="What paper would show today if its stops had not paused it">No stops ${usd(KK.today.stop.ifNet)}</small>`:''}`,'kan']]
+      :[['Mode',`<b><i></i>Paper only</b>${kxModeSpark('paper',KK,kl)}`,'klive',0,'mode paper'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop" title="What paper would show today if its stops had not paused it">No stops ${usd(KK.today.stop.ifNet)}</small>`:''}`,'kan'],['Paper bank',`<b>$${Number(KK.balance||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b>${KK.net!=null?`<small class="kp-sub"><strong class="${cls(KK.net)}">${KK.net<0?'-':'+'}${fm(Math.abs(KK.net))}</strong> all time</small>`:''}`,'kan'],['Win rate',`<b>${kwr}</b>${KK.n?`<small class="kp-sub">${n0(KK.won)} of ${n0(KK.n)} trades</small>`:''}`,'kan']]):[]),...([]).concat(true?[]:[[`Live today`,`<b class="${cls(L.today?.net)}">${usd(L.today?.net||0)}</b>`,'live',1],['Paper today',`<b class="${cls(T.today?.net)}">${usd(T.today?.net)}</b>`,'overview'],['Live open',`<b>${lo} of ${D.settings?.maxOpen??L.maxOpen??'–'}</b>`,'open',1],['Daily stop',`<b>${lim?'$'+used.toFixed(2)+' / $'+lim:'–'}</b>`,'controls'],[(D.aud?.alist||[]).length?'A-list':'Proven',`<b>${(D.aud?.alist||[]).length||D.proven?.length||0}</b>`,'wallets']])]
     .filter(x=>KXTABS.includes(x[2])||D.mode==='live'||!x[3]).map(([a,b,t,l,x])=>`<div class="kp ${l?'live':''} ${x||''}" data-tab="${t}" ${x==='mode paper'?'title="Live trading is off. Tap to open Live account."':''}><span>${a}</span>${b}</div>`).join('');
   // MC 2026-11-14 the phone strip stays pinned while scrolling, and four tiles took half the screen. It now has two: the Mode tile
   // and today's result for the account in use, with that account's money in the corner (Kalshi cash when live, the paper bank
   // otherwise). Paper's numbers stay a tap away on Home and Analytics. The desktop bar keeps all four.
-  const fm=v=>'$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),corner=(l,v)=>`<em class="kp-corner"><small>${l}</small> <strong>${v}</strong></em>`;
+  const corner=(l,v)=>`<em class="kp-corner"><small>${l}</small> <strong>${v}</strong></em>`;
   const kpM=KK?(kl?.on?[['Mode',`<b><i></i>Live trading</b>${kxModeSpark('live',KK,kl)}`,'klive','mode live'],['Live today',`<b class="${cls(kl.today?.net)}">${usd(kl.today?.net||0)}</b>${corner('Cash',kl?.bal!=null?fm(kl.bal):'–')}${kxGoal(kl.today?.net,1,1)}`,'klive','kp-today']]
     :[['Mode',`<b><i></i>Paper only</b>${kxModeSpark('paper',KK,kl)}`,'klive','mode paper'],['Paper today',`<b class="${cls(KK.today?.net)}">${usd(KK.today?.net||0)}</b>${corner('Bank',fm(KK.balance||0))}${kxGoal(KK.today?.net,1)}${KK.today?.stop?`<small class="kx-nostop">${usd(KK.today.stop.ifNet)} with no stops</small>`:''}`,'kan','kp-today']]).map(([a,b,t,x])=>`<div class="kp ${x}" data-tab="${t}"><span>${a}</span>${b}</div>`).join(''):kp;
   $('#kpis').innerHTML=kp;$('#kstrip').innerHTML=kpM;
@@ -3036,7 +3083,7 @@ function kxModeSpark(kind,K,lv){const td=kxToday(),now=Date.now();
   const rows=kind==='live'?(lv?.recent||[]).filter(x=>x.fill>0&&x.result&&x.pnl!=null&&kxDay(x.close)===td).map(x=>[x.sold?.at||x.close,x.pnl]):(K?.recent||[]).filter(t=>t.done&&!t.capped&&t.pnl!=null&&kxDay(t.close)===td).map(t=>[t.close,t.pnl]);
   rows.sort((a,b)=>a[0]-b[0]);const open=kind==='live'?(lv?.recent||[]).filter(x=>x.fill>0&&!x.result).length:(K?.pending||[]).filter(t=>!t.capped).length;
   const nx=new Date(Math.ceil((now-5*60000+1)/(15*60000))*15*60000+5*60000).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'});
-  const w=rows.filter(r=>r[1]>0).length,l=rows.length-w,cap=`<div class="kx-mcap"><em><strong class="pos">${w}</strong> won · <strong class="${l?'neg':''}">${l}</strong> lost${open?` · ${open} open`:''}</em><em class="nx">next check ${nx}</em></div>`;
+  const w=rows.filter(r=>r[1]>0).length,l=rows.length-w,cap=`<div class="kx-mcap"><em><strong class="pos">${w}</strong> won · <strong class="${l?'neg':''}">${l}</strong> lost${open?` · ${open} open`:''}</em><em class="nx">next <bdi class="nxw">check </bdi>${nx}</em></div>`;
   if(!rows.length)return `<div class="kx-msp kx-msp0"><svg viewBox="0 0 200 40" preserveAspectRatio="none"><line x1="0" y1="20" x2="200" y2="20" class="z"/></svg><i style="left:100%;top:50%"></i></div>${cap}`;
   const t0=rows[0][0]-30*60000,t1=Math.max(now,rows[rows.length-1][0]+60000);let run=0;const pts=[[t0,0]];for(const [t,v] of rows){pts.push([t,run]);run+=v;pts.push([t,run])}pts.push([t1,run]);
   const vs=pts.map(p=>p[1]),lo=Math.min(0,...vs),hi=Math.max(0,...vs),sp=hi-lo||1,X=t=>(t-t0)/(t1-t0)*200,Y=v=>36-(v-lo)/sp*32;
@@ -4249,7 +4296,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.7',KR_DATE='Nov 14, 2026';
+const KR_VERSION='1.2.8',KR_DATE='Nov 14, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

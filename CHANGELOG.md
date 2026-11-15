@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.8 (Nov 14, 2026): Cleaner header on desktop
+The four boxes at the top of the desktop dashboard are now one panel.
+- [improved] Mode, today's result, cash and paper sit in one panel split by thin lines, with labels, numbers and footers lined up and room above and below. The Mode cell carries the account's color and its chart for the day.
+- [improved] The cash cell shows your live size and daily loss cap, the paper bank shows its all-time result, and win rate shows the trade count, so no cell is half empty.
+- [improved] On narrower windows the panel takes its own row under the title so nothing is cut off. Search is an icon until the window is wide.
+- The phone layout is unchanged.
+
 ## 1.2.7 (Nov 14, 2026): Buy a coin by hand
 When your rules pass on a market you still want, like a coin that only took a clear lead after the trade check, you can buy it from the scanner.
 - [new] With live on, each card in the scanner shows its leader's price now, your live size and what it pays if it wins, with a Buy button. Nothing shows in a market's last 20 seconds.
