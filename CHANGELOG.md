@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.46 (Nov 15, 2026): Easier on the phone's battery
+- [improved] On phones the dashboard no longer keeps the screen redrawing all the time. The background and the hero glow stop drifting, and cards, tiles and chips are plain translucent panels (the top bar and bottom menu keep their frosted look).
+- [improved] On phones Coinbase's every-trade feed is now used only for coins with an open position or an open coin box; the other coins update every 5 seconds. The Cockpit still gets every trade.
+- [improved] Charts that are scrolled off the screen are not redrawn, and nothing runs while the app is in the background: the price feed closes and reopens when you come back. Desktop is unchanged.
+
 ## 1.2.45 (Nov 15, 2026): Pause automatic buying, keep trading by hand
 - [new] The Live account tab has a "Pause automatic buying" button. While paused the tracker places no buys at the trade check, for Main and every subaccount, and live stays on so you can still buy and sell by hand on the Live board.
 - [new] The header and the Live pill read "Live · by hand only" while it is paused, and each market the tracker left alone is tagged "automatic buying is paused" on the board.
