@@ -495,23 +495,45 @@ export function createKalshi(state, env, keep) {
   }
   // MC 2026-11-14 live cash out at minute 10: sell the position at the bid seen at the check, giving up to 3 cents more for the
   // book moving, never lower. Whatever does not sell is held to the close. A partial sale settles the rest normally (onSettle).
+  // MC 2026-11-14 one sell for every early exit on the main live account: the minute-10 cash out and the manual Sell on a
+  // position. It sells what is still held, IOC and reduce-only, never below minPx; whatever does not sell stays open and settles
+  // normally (onSettle counts the sale in). A second sale on the same position adds to the first.
+  async function sellPos(x, minPx, kind) {
+    const left = x.fill - (x.sold?.fill || 0); if (!(left > 0)) return { f: 0 };
+    const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), cid = `cr${kind[0]}${Date.now() % 100000}-${x.tk}`.slice(0, 60);
+    const body = x.side === 'yes'
+      ? { ticker: x.tk, side: 'ask', count: String(left), price: up(minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: cid }
+      : { ticker: x.tk, side: 'bid', count: String(left), price: down(1 - minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: cid };
+    const res = await kreq('POST', '/portfolio/events/orders', body);
+    if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`; fail(`${kind === 'cash' ? 'cash out' : 'sell'} ${x.tk} refused: ${e}`); return { f: 0, err: e }; }
+    const j = res.j?.order || res.j || {}, f = +(j.fill_count ?? 0), avg = j.average_fill_price != null ? +j.average_fill_price : null, fe = j.average_fee_paid != null ? +j.average_fee_paid * f : 0;
+    if (!(f > 0) || avg == null) return { f: 0 };
+    const px = +(x.side === 'yes' ? avg : 1 - avg).toFixed(4), p0 = x.sold;
+    x.sold = p0 ? { ...p0, at: Date.now(), fill: p0.fill + f, px: +((p0.fill * p0.px + f * px) / (p0.fill + f)).toFixed(4), fee: +((p0.fee || 0) + fe).toFixed(4), [kind]: 1 } : { at: Date.now(), fill: f, px, fee: +fe.toFixed(4), [kind]: 1 };
+    if (x.sold.fill >= x.fill) { x.pnl = +(x.sold.fill * x.sold.px - x.sold.fee - (x.cost ?? 0)).toFixed(2); x.result = 'sold'; }
+    saveL(x); st.balAt = 0; viewDirty = true; return { f, px };
+  }
   async function cashLive(r, best) {
     const x = L.get(r.ticker); if (!x || !(x.fill > 0) || x.result || x.sold || x.close <= Date.now()) return;
-    const minPx = Math.max(0.01, best - 0.03), grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4);
-    const body = x.side === 'yes'
-      ? { ticker: x.tk, side: 'ask', count: String(x.fill), price: up(minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx-${x.tk}` }
-      : { ticker: x.tk, side: 'bid', count: String(x.fill), price: down(1 - minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx-${x.tk}` };
-    const res = await kreq('POST', '/portfolio/events/orders', body);
-    if (!res?.ok) { fail(`cash out ${x.tk} refused: ${res?.status} ${errOf(res)}`); return; }
-    const j = res.j?.order || res.j || {}, f = +(j.fill_count ?? 0), avg = j.average_fill_price != null ? +j.average_fill_price : null, fe = j.average_fee_paid != null ? +j.average_fee_paid * f : 0;
-    if (!(f > 0) || avg == null) { say(`LIVE cash out ${x.tk}: nothing sold at ${(minPx * 100).toFixed(1)}c or better, holding`); x.cashTry = { at: Date.now(), min: minPx }; saveL(x); return; }
-    const px = +(x.side === 'yes' ? avg : 1 - avg).toFixed(4); x.sold = { at: Date.now(), fill: f, px, fee: +fe.toFixed(4), cash: 1 };
-    if (f >= x.fill) { x.pnl = +(f * px - fe - (x.cost ?? 0)).toFixed(2); x.result = 'sold'; }
-    saveL(x); st.balAt = 0; viewDirty = true; say(`LIVE cashed out ${x.tk}: ${f}/${x.fill} at ${(px * 100).toFixed(1)}c`);
+    const minPx = Math.max(0.01, best - 0.03), o = await sellPos(x, minPx, 'cash');
+    if (o.err) return;
+    if (!o.f) { say(`LIVE cash out ${x.tk}: nothing sold at ${(minPx * 100).toFixed(1)}c or better, holding`); x.cashTry = { at: Date.now(), min: minPx }; saveL(x); return; }
+    say(`LIVE cashed out ${x.tk}: ${o.f}/${x.fill} at ${(o.px * 100).toFixed(1)}c`);
+  }
+  // MC 2026-11-14 manual sell. sellQuote reads the book for what is still held: best bid, the average a sale of all of it would get
+  // walking down the book, a floor 3c under the best bid, and what selling would book against holding to a win
+  async function sellQuote(tk) {
+    const x = L.get(tk); if (!x || !(x.fill > 0) || x.result) return { ok: false, msg: 'No open live position in that market.' };
+    if (x.close <= Date.now()) return { ok: false, msg: 'That market has closed; it settles on its own.' };
+    const left = x.fill - (x.sold?.fill || 0); let b; try { b = bids(await get(`/markets/${tk}/orderbook`)); } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
+    const mine = x.side === 'yes' ? b.yes : b.no, best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is buying ${x.side.toUpperCase()} right now, so it cannot be sold.` };
+    const avg = walk(mine, left) ?? null, depth = mine.reduce((a, l) => a + l[1], 0), est = Math.min(left, depth), px = avg ?? (mine.reduce((a, l) => a + l[0] * l[1], 0) / depth), fe = fee(px, est);
+    const prior = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0, proceeds = +(est * px - fe).toFixed(2);
+    return { ok: true, tk, coin: x.coin, side: x.side, left, est, best, avg: +px.toFixed(4), minPx: +Math.max(0.01, best - 0.03).toFixed(4), proceeds, pnl: +(proceeds + prior - (x.cost ?? 0)).toFixed(2), ifWin: +(left + prior - (x.cost ?? 0)).toFixed(2), ifLose: +(prior - (x.cost ?? 0)).toFixed(2), paid: x.px };
   }
   function onSettle(r) {
     const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0)) return;
-    if (x.sold && !x.sold.cash) return;
+    if (x.sold && !x.sold.cash && !x.sold.manual) return;
     // the rest of a partly cashed-out position settles here, with the sale counted in
     const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0;
     x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); saveL(x); st.balAt = 0;
@@ -1342,6 +1364,19 @@ export function createKalshi(state, env, keep) {
       viewDirty = true; await publish(true);
       return { ok: true, msg: `${isL ? 'Live' : 'Paper'} settings saved: ${ch.join(', ')}.` };
     }
+    if (type === 'kalshiSellOne') {
+      // MC 2026-11-14 sell one open live position now (the Sell button on its card). The page shows the quote first; minPx is the
+      // floor it showed, so the sale never goes below what was confirmed. Needs an unlocked device.
+      if (who.locked) return { ok: false, msg: 'Selling needs an unlocked device.' };
+      const x = L.get(String(a.tk || '')); if (!x || !(x.fill > 0) || x.result) return { ok: false, msg: 'No open live position in that market.' };
+      if (x.close <= Date.now()) return { ok: false, msg: 'That market has closed; it settles on its own.' };
+      const minPx = Math.min(0.99, Math.max(0.01, Number(a.minPx) || 0.01)), o = await sellPos(x, minPx, 'manual');
+      if (o.err) return { ok: false, msg: `Kalshi refused the sale: ${o.err}` };
+      await publish(true);
+      if (!o.f) return { ok: false, msg: `Nothing sold at ${(minPx * 100).toFixed(1)}¢ or better; the price moved. The position is still open.` };
+      say(`LIVE sold ${x.tk} by hand: ${o.f}/${x.fill} at ${(o.px * 100).toFixed(1)}c`);
+      return { ok: true, msg: `Sold ${o.f} of ${x.fill} ${x.coin} ${x.side.toUpperCase()} at ${(o.px * 100).toFixed(1)}¢${x.result === 'sold' ? `, ${x.pnl >= 0 ? '+' : '-'}$${Math.abs(x.pnl).toFixed(2)} on the trade` : '. The rest is still open'}.` };
+    }
     if (type === 'kalshiLive') {
       const next = { ...ctlL }, ch = [];
       if (a.enabled === true || a.enabled === false) { if (next.enabled !== a.enabled) ch.push(a.enabled ? 'live trading ON' : 'live trading OFF'); next.enabled = a.enabled; }
@@ -1433,5 +1468,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { sellQuote, pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

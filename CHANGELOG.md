@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.6 (Nov 14, 2026): Sell a live position by hand
+If a coin you hold live looks like it will not win, you can sell it from the dashboard before it settles.
+- [new] Each open live position on the live board shows what it would sell for right now (the best price buyers are paying), the money that would come back, and what that means for the trade, with a Sell button next to it.
+- [new] Sell opens a check first: how many contracts, the best price and the average across all of them, the money back, the result on the trade, and what holding would pay if it wins or lose if it does not. Hold the button to sell.
+- [improved] The sale never goes below 3¢ under the best price shown. Anything that does not sell at that price stays open and settles as usual, and a part-sold position shows "Sell the rest" and how many were sold.
+- [improved] The live trade's story in Trades has the same Sell button while the market is open. Selling needs an unlocked device, and it covers the main account (subaccount books still sell only through cash out).
+
 ## 1.2.5 (Nov 14, 2026): Smaller pinned header on phones
 - [improved] On phones the pinned tiles at the top are down from four to two, so more of the page shows while scrolling. With live on: Mode and Live today, with your Kalshi cash in the corner of Live today. With live off: Mode and Paper today, with the paper bank in the corner. Paper's numbers are still on Home and Analytics, and the desktop bar keeps all four tiles.
 
