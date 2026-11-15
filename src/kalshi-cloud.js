@@ -531,6 +531,42 @@ export function createKalshi(state, env, keep) {
     const prior = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0, proceeds = +(est * px - fe).toFixed(2);
     return { ok: true, tk, coin: x.coin, side: x.side, left, est, best, avg: +px.toFixed(4), minPx: +Math.max(0.01, best - 0.03).toFixed(4), proceeds, pnl: +(proceeds + prior - (x.cost ?? 0)).toFixed(2), ifWin: +(left + prior - (x.cost ?? 0)).toFixed(2), ifLose: +(prior - (x.cost ?? 0)).toFixed(2), paid: x.px };
   }
+  // MC 2026-11-14 manual buy, the other half of the manual sell. Asked for after SOL led NO at 94c with 7 minutes left: the rule
+  // only buys at the trade check, so there was no way to pick it up from the dashboard. buyQuote reads the book for the side asked:
+  // best ask, the average a buy at the live size would pay walking up the book, and a ceiling of the best ask plus the live price
+  // room. The live rules a buy like this would not have passed (the timing, price band, coins, window cap, profit target) are named
+  // in the quote, not enforced: buying by hand is the point. The hard stops stay: live on, an unlocked device, the daily loss cap,
+  // the daily order limit, the cash floor and the $50 size cap. One position per market, so a market live already holds is refused.
+  function handGate(c, tk) {
+    const t = todayL(), x = L.get(tk);
+    if (!c.enabled) return 'Turn live trading on first. A manual buy uses the live account.';
+    if (x && busy(x)) return 'Live already holds this market.';
+    if (realized(t) <= -c.dailyLossUsd) return `Live's daily loss cap is hit (${realized(t).toFixed(2)}), so no more buys today.`;
+    if (t.filter(busy).length >= HARD.maxPerDay) return 'Live has reached its daily order limit.';
+    return null;
+  }
+  const handMkt = (tk, side) => { const s = SERIES.find(z => String(tk).startsWith(z + '-')); return s && (side === 'yes' || side === 'no') ? s : null; };
+  async function buyQuote(tk, side) {
+    tk = String(tk || ''); const s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
+    const c = ctl(), g = handGate(c, tk); if (g) return { ok: false, msg: g };
+    let m, ob; try { [m, ob] = await Promise.all([get(`/markets/${tk}`), get(`/markets/${tk}/orderbook`)]); m = m?.market || m; } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
+    const now = Date.now(), close = Date.parse(m?.close_time); if (!(close > now + 20000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
+    const mine = book(ob)[side === 'yes' ? 'yesAsks' : 'noAsks'], best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is selling ${side.toUpperCase()} right now.` };
+    const room = Math.min(3, Math.max(0, cfgL.slipC ?? 1)), maxPx = +Math.min(0.99, best + room / 100).toFixed(4), size = c.sizeUsd, n = Math.floor(size / maxPx);
+    if (n < 1) return { ok: false, msg: 'Your live size is too small for one contract at this price.' };
+    const near = mine.filter(([p]) => p <= maxPx + 1e-9), depth = near.reduce((a, l) => a + l[1], 0), est = Math.min(n, depth), avg = est ? walk(near, est) : best, fe = fee(avg, est), cost = +(est * avg + fe).toFixed(2);
+    const bal = await balance(false), floor = c.minBank ?? HARD.minBank; if (bal != null && bal - vault.held() - resv < floor) return { ok: false, msg: `Your Kalshi cash ($${bal.toFixed(2)}) is under the $${floor} floor.` };
+    const cn = coin(s), t = todayL(), mark = close - 10 * 60000, notes = [];
+    notes.push(now < mark ? `${Math.round((mark - now) / 60000)} min before the trade check` : `after the trade check (${Math.max(0, Math.round((close - now) / 60000))} min left)`);
+    if (best < 0.5) notes.push(`${side.toUpperCase()} is behind, under 50¢`);
+    else if (best < (cfgL.minAsk ?? 0.9) || best > (cfgL.maxAsk ?? 0.99)) notes.push(`${(best * 100).toFixed(1)}¢ is outside your live price band (${Math.round((cfgL.minAsk ?? 0.9) * 100)} to ${Math.round((cfgL.maxAsk ?? 0.99) * 100)}¢)`);
+    if (cfgL.coins?.length && !cfgL.coins.includes(cn)) notes.push(`${cn} is not one of your live coins`);
+    if (coldSet(now, cfgL).has(cn)) notes.push(`${cn} is benched`);
+    if ((cfgL.skipHours || []).includes(etHour(now))) notes.push('this hour is one of your off hours');
+    if (cfgL.dailyWinUsd > 0 && realized(t) >= cfgL.dailyWinUsd) notes.push(`live's daily profit target is already hit (+$${realized(t).toFixed(2)})`);
+    { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9), inW = [...L.values()].filter(x => x.close === close && busy(x)).length; if (inW >= cap) notes.push(`this window already has ${inW} live trade${inW === 1 ? '' : 's'}, your cap is ${cap}`); }
+    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes };
+  }
   function onSettle(r) {
     const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0)) return;
     if (x.sold && !x.sold.cash && !x.sold.manual) return;
@@ -565,7 +601,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 limWhy: what set the order's top price (the room, or a cap that held it lower)
       // MC 2026-11-14 with the order's limit, the ask it was based on, how fast it went out, what a miss saw after, the fees, and
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
-      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null,
+      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, was: x.was || null,
         ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
       playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view() };
   }
@@ -1344,7 +1380,7 @@ export function createKalshi(state, env, keep) {
   async function command(type, a, who = {}) {
     await load();
     // MC 2026-11-10 a locked device may change paper settings and the paper playbook, and nothing else, and only while live is off
-    if (who.locked && (ctlL.enabled === true || !(type === 'kalshiSet' || (type === 'kalshiStrat' && a?.book === 'paper')))) return { ok: false, msg: ctlL.enabled === true ? 'Live trading is on, so settings need an unlocked device.' : 'That needs an unlocked device.' };
+    if (who.locked && (ctlL.enabled === true || !(type === 'kalshiSet' || (type === 'kalshiStrat' && a?.book === 'paper')))) return { ok: false, msg: type === 'kalshiBuyOne' || type === 'kalshiSellOne' ? `${type === 'kalshiBuyOne' ? 'Buying' : 'Selling'} needs an unlocked device.` : ctlL.enabled === true ? 'Live trading is on, so settings need an unlocked device.' : 'That needs an unlocked device.' };
     if (type === 'kalshiSet') {
       // MC 2026-11-14 paper and live keep separate rules: book 'live' edits the live set (LIVE_KEYS only), from an unlocked device.
       // copyFrom 'paper' sets every live rule to what paper uses now.
@@ -1363,6 +1399,39 @@ export function createKalshi(state, env, keep) {
       if (isL) { cfgL = { ...cfgL, ...out }; await kv.put('kcfgL', cfgL); say(`LIVE settings: ${ch.join(', ')}`); } else { cfgP = { ...cfgP, ...out }; await kv.put('kcfg', cfgP); }
       viewDirty = true; await publish(true);
       return { ok: true, msg: `${isL ? 'Live' : 'Paper'} settings saved: ${ch.join(', ')}.` };
+    }
+    if (type === 'kalshiBuyOne') {
+      // MC 2026-11-14 buy one market now (the Buy button on a scanner card). The page shows the quote first; maxPx is the ceiling
+      // it showed, so the order never pays more than what was confirmed. IOC: whatever does not fill at once is not bought.
+      if (who.locked) return { ok: false, msg: 'Buying needs an unlocked device.' };
+      const tk = String(a.tk || ''), side = a.side, s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
+      const c = ctl(), g = handGate(c, tk); if (g) return { ok: false, msg: g };
+      const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)), size = c.sizeUsd, n = Math.floor(size / maxPx);
+      if (!(Number(a.maxPx) > 0) || n < 1) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
+      let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { }
+      const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
+      const bal = await balance(true); if (bal == null) return { ok: false, msg: 'Could not read your Kalshi cash. Try again.' };
+      const floor = c.minBank ?? HARD.minBank; if (bal - vault.held() - resv < floor) return { ok: false, msg: `Your Kalshi cash ($${bal.toFixed(2)}) is under the $${floor} floor.` };
+      if ((st.shard[XI] ?? 0) - resv < size + 1) { st.xferAt = 0; await fund(c); }
+      const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), cid = `crh${Date.now() % 100000}-${tk}`.slice(0, 60);
+      const body = side === 'yes'
+        ? { ticker: tk, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
+        : { ticker: tk, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
+      const prev = L.get(tk), cn = coin(s), row = { tk, coin: cn, side, at: Date.now(), close, ask: Number(a.ask) || null, want: n, limit: maxPx, limWhy: 'the price you confirmed', size, fill: 0, strat: 'hand', hand: 1, pend: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
+      // a buy that does not happen leaves the market as it was (the rule's skip, say), so the record of why the rule passed stays
+      const undo = () => { if (prev) { L.set(tk, prev); saveL(prev); } else { L.delete(tk); sql.exec('DELETE FROM ko WHERE tk = ?', tk); } viewDirty = true; };
+      L.set(tk, row); saveL(row); resv += size;
+      const t0 = Date.now(); let res; try { res = await kreq('POST', '/portfolio/events/orders', body); } finally { delete row.pend; resv = Math.max(0, resv - size); }
+      row.rtt = Date.now() - t0;
+      if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 200); undo(); fail(`hand buy ${tk} refused: ${e}`); await publish(true); return { ok: false, msg: `Kalshi refused the order: ${e}` }; }
+      const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
+      if (!(fill > 0) || avgYes == null) { undo(); await publish(true); return { ok: false, msg: `Nothing bought at ${(maxPx * 100).toFixed(1)}¢ or less; the price moved. Nothing was spent.` }; }
+      Object.assign(row, { id: j.order_id || null, fill, avgYes, px: +(side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees: +(fill * avgFee).toFixed(4) });
+      row.cost = +(fill * row.px + row.fees).toFixed(2); saveL(row);
+      if (st.bal != null) st.bal = +(st.bal - row.cost).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - row.cost).toFixed(2);
+      st.balAt = 0; viewDirty = true; await publish(true);
+      say(`LIVE bought ${tk} ${side.toUpperCase()} by hand: ${fill}/${n} at ${(row.px * 100).toFixed(1)}c ($${row.cost.toFixed(2)})`);
+      return { ok: true, msg: `Bought ${fill}${fill < n ? ` of ${n}` : ''} ${cn} ${side.toUpperCase()} at ${(row.px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}. It pays $${fill}.00 if ${side.toUpperCase()} wins.` };
     }
     if (type === 'kalshiSellOne') {
       // MC 2026-11-14 sell one open live position now (the Sell button on its card). The page shows the quote first; minPx is the
@@ -1468,5 +1537,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { sellQuote, pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote, sellQuote, pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

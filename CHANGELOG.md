@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.7 (Nov 14, 2026): Buy a coin by hand
+When your rules pass on a market you still want, like a coin that only took a clear lead after the trade check, you can buy it from the scanner.
+- [new] With live on, each card in the scanner shows its leader's price now, your live size and what it pays if it wins, with a Buy button. Nothing shows in a market's last 20 seconds.
+- [new] Buy opens a check first: how many contracts, the best ask and the average across all of them, the cost, what it pays if it wins and loses if not, when it settles, and which of your live rules the buy would not have passed (the timing, price band, coins, window cap or profit target). Hold the button to buy.
+- [improved] The order never pays more than the best ask plus your price room, shown in the check. Anything not offered at that price is not bought and nothing is spent. Your daily loss cap, daily order limit, cash floor, the $50 size cap and an unlocked device still apply, and a market live already holds cannot be bought twice.
+- [improved] Once bought, the scanner card shows the position with its Sell row, and the trade's story in Trades says it was bought by hand. A hand buy settles and counts toward live's numbers like any other live trade. It covers the main account; subaccount books do not copy it.
+- [fixed] Gains and losses in the sell row now show in green and red.
+
 ## 1.2.6 (Nov 14, 2026): Sell a live position by hand
 If a coin you hold live looks like it will not win, you can sell it from the dashboard before it settles.
 - [new] Each open live position on the live board shows what it would sell for right now (the best price buyers are paying), the money that would come back, and what that means for the trade, with a Sell button next to it.
