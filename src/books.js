@@ -434,5 +434,7 @@ export function createBooks(D) {
   const get = id => (list || []).find(x => x.id === id) || null;
   // coins the books with their own rules trade (null = every coin), so the trade check reads them
   const ownCoins = () => { const o = (list || []).filter(b => b.on && b.cfg); if (!o.length) return []; if (o.some(b => !b.cfg.coins?.length)) return null; return [...new Set(o.flatMap(b => b.cfg.coins))]; };
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell };
+  // positions past their close that still have no result, for the engine's settle pass
+  const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks };
 }

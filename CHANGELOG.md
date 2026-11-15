@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.34 (Nov 15, 2026): Hand buys settle on Trades
+- [fixed] A position bought by hand in a market the tracker had not recorded (under 85¢ at the trade check) stayed "open" on Trades after the market closed. Kalshi had paid it out; the dashboard never closed its own row, so the day's result left it out. Any live position past its close is now looked up directly, for Main and the subaccounts, and positions already stuck are closed on the next pass.
+
 ## 1.2.33 (Nov 15, 2026): Hand buys show on the Live board
 - [fixed] A market bought by hand that the rule had not taken did not appear on the Live board, so the header could say "1 open" over a board saying "Nothing open". On the Live view the board now lists every open live position, Main's and the subaccounts', with its chart, Sell button and "Add to it".
 - [improved] The window line counts hand buys too, as in "0 taken this window · 1 by hand".

@@ -845,6 +845,16 @@ export function createKalshi(state, env, keep) {
       try { books.onSettle(r); } catch (e) { say('books settle error: ' + e.message); }
       any = true;
     }
+    // MC 2026-11-15 a hand buy stayed "open" on Trades after its market closed. Live positions were only ever settled through the
+    // tracker's own record of the market, and a market under 85c at the trade check has no record, so a hand buy there was
+    // paid by Kalshi but never closed here. Any live position (Main's or a book's) past its close with no record of its own
+    // is now asked for directly, six a pass.
+    { const due = new Set(); for (const x of L.values()) if (x.fill > 0 && !x.result && x.close <= now - 15000 && x.close > now - 86400000 && !(x.sold && !x.sold.cash && !x.sold.manual)) due.add(x.tk); try { for (const tk of books.dueTks(now - 15000)) due.add(tk); } catch { }
+      let n = 0; for (const tk of due) { const r0 = rec.get(tk); if (r0 && !r0.result && now < r0.close + 6 * 3600000) continue; if (++n > 6) break;
+        let res = r0?.result; if (res !== 'yes' && res !== 'no') { try { const j = await get(`/markets/${tk}`); res = j?.market?.result; } catch { continue; } }
+        if (res !== 'yes' && res !== 'no') continue;
+        const r = { ticker: tk, result: res }; say(`settled ${tk} (live position, no tracker record): ${res}`);
+        try { onSettle(r); } catch (e) { fail('settle error: ' + e.message); } try { books.onSettle(r); } catch (e) { say('books settle error: ' + e.message); } any = true; viewDirty = true; } }
     if (any) { st.balAt = 0; }
     return any;
   }
@@ -855,6 +865,8 @@ export function createKalshi(state, env, keep) {
       if (r.result || !ours(r) || now > r.close + 600000) continue;
       t = Math.min(t, now < r.close + 15000 ? r.close + 15000 : now + 20000);
     }
+    // live positions with no tracker record (hand buys) get the same quick look after their close
+    for (const x of L.values()) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
     return t;
   }
   async function alarm() {
@@ -1703,5 +1715,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
