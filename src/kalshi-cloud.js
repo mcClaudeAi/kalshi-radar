@@ -1467,6 +1467,23 @@ export function createKalshi(state, env, keep) {
       viewDirty = true; await publish(true);
       return { ok: true, msg: `${isL ? 'Live' : 'Paper'} settings saved: ${ch.join(', ')}.` };
     }
+    if (type === 'kalshiShard') {
+      // MC 2026-11-15 asked to see what is on the main balance and what is on the crypto trading balance, and to move money between
+      // them from the dashboard. Kalshi holds the 15-minute crypto markets' money on its own exchange shard: deposits, withdrawals
+      // and subaccount transfers use shard 0, orders spend the crypto shard, and until now only the automatic top-up moved money
+      // between them. This moves a chosen amount either way inside the same account, from a fresh balance read. Nothing leaves
+      // the account. With live on, the top-up still refills the crypto side before a trade check if it runs low.
+      if (who.locked) return { ok: false, msg: 'Moving money needs an unlocked device.' };
+      if (!hasKeys()) return { ok: false, msg: 'Connect the Kalshi key first.' };
+      const to = a.to === 'main' ? 'main' : a.to === 'crypto' ? 'crypto' : null, amt = Math.floor((+a.amount || 0) * 100) / 100; if (!to || !(amt >= 1)) return { ok: false, msg: 'Move at least $1.' };
+      st.balAt = 0; if (await balance(true) == null) return { ok: false, msg: 'Could not read your Kalshi balances. Try again.' };
+      const from = to === 'crypto' ? 0 : XI, dest = to === 'crypto' ? XI : 0, free = Math.max(0, (st.shard[from] ?? 0) - (from === 0 ? vault.held() : 0));
+      if (amt > free + 0.005) return { ok: false, msg: `Only $${free.toFixed(2)} is free on the ${to === 'crypto' ? 'main' : 'crypto trading'} balance right now.` };
+      const res = await kreq('POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: Math.round(amt * 100) * 100, source_exchange_shard: from, destination_exchange_shard: dest, client_transfer_id: crypto.randomUUID() });
+      if (!res?.ok) return { ok: false, msg: `Kalshi refused the move: ${errOf(res)} (code ${res?.status})` };
+      st.xferAt = Date.now(); st.balAt = 0; await balance(true); viewDirty = true; await publish(true); say(`LIVE moved $${amt.toFixed(2)} to the ${to === 'crypto' ? 'crypto shard' : 'main balance'} by hand`);
+      return { ok: true, msg: `$${amt.toFixed(2)} moved to the ${to === 'crypto' ? 'crypto trading' : 'main'} balance.` };
+    }
     if (type === 'kalshiPaperBuy') {
       const q = await paperBuyQuote(a.tk, a.side); if (!q.ok) return q;
       const r = { ticker: q.tk, hand: 1, late: 1, series: q.series, at: Date.now(), close: q.close, left: +((q.close - Date.now()) / 60000).toFixed(2), side: q.side, ask: q.best, avgN: q.avg, n: q.est, strike: q.strike, ya: q.ya, na: q.na, title: rec.get(q.tk)?.title || null, src: 'hand' };

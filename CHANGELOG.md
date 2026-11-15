@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.16 (Nov 15, 2026): See and move your two Kalshi balances
+- [new] The Live account page has a "Where your Kalshi cash is" card. It shows the main balance (deposits, withdrawals and moves to subaccount books use it) and the crypto trading balance (what live orders spend), with what each is for.
+- [new] Move money between the two from the card: pick an amount, then hold to confirm. It stays inside your own Kalshi account. With live on, the tracker still refills the crypto side before a trade check if it runs low.
+- Adding money by card or Apple Pay cannot be done from the dashboard. Kalshi only takes deposits in its own app and site, so the card links there.
+
 ## 1.2.15 (Nov 15, 2026): Moving money into a book works when cash is on the crypto side
 - [fixed] "Move money" into a subaccount book was refused with "insufficient balance" even with plenty of cash. Kalshi only moves money to a subaccount from the main account's main balance, and live keeps most of the cash on the crypto trading balance. The shortfall is now brought back from there first, then moved. If there is not enough in total, it says how much can move.
 - [improved] Kalshi's refusals on transfers show the reason first and the code after it, so "400" no longer reads like an amount.
