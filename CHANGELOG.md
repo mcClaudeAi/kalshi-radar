@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.37 (Nov 15, 2026): Boxes stay on screen and the bottom menu comes back
+- [fixed] On iPhone a tall box such as the coin view could open with its top cut off above the screen. Boxes are now sized from the space they actually have, scroll inside themselves, and keep clear of the notch and the home bar.
+- [fixed] The bottom menu could stay hidden after the keyboard had been up. It now checks several times after a field loses focus and keeps checking until the menu is back.
+- [fixed] Opening the keyboard gave the whole page a layout meant for a row of chips in the subaccount books (two things shared one name), which could shift the page while typing.
+
 ## 1.2.36 (Nov 15, 2026): Profit target shows what is made and what is left
 - [improved] The profit target panel on the hero now reads, for example, "+$16.17 made · $83.83 left", where it used to show only the amount to go.
 

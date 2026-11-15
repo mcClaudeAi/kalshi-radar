@@ -264,10 +264,11 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 .lockedmsg .btn{margin-left:auto}
 .lockedmsg svg{width:16px;height:16px;flex:none}
 /* modal */
-.modal{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:16px}
+/* MC 2026-11-15 the coin box sometimes opened with its top cut off above the screen. Its height was set from the screen (100dvh), and on iOS the fixed layer can be shorter than the screen after the keyboard has been up, so a box taller than that layer was centred with its top out of reach. The box is now sized from the layer it sits in, scrolls inside itself, keeps clear of the notch and home bar, and "safe" centring never pushes the top off. */
+.modal{position:fixed;inset:0;z-index:80;display:none;align-items:center;align-items:safe center;justify-content:center;padding:max(16px,calc(env(safe-area-inset-top,0px) + 8px)) 16px max(16px,calc(env(safe-area-inset-bottom,0px) + 8px));box-sizing:border-box}
 .modal.on{display:flex}
 .modal .bk{position:absolute;inset:0;background:rgba(5,7,10,.62);backdrop-filter:blur(3px)}
-.modal .box{position:relative;width:min(440px,100%);background:var(--s1);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--sh2);padding:20px;animation:pop .16s ease-out}
+.modal .box{position:relative;max-height:100%;overflow:auto;overscroll-behavior:contain;box-sizing:border-box;width:min(440px,100%);background:var(--s1);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--sh2);padding:20px;animation:pop .16s ease-out}
 @keyframes pop{from{transform:translateY(8px) scale(.98);opacity:0}}
 .modal h2{margin:0 0 6px;font-size:17px;letter-spacing:-.01em}
 .modal p{margin:0;color:var(--ink2);font-size:13.5px;line-height:1.5}
@@ -554,7 +555,7 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 /* MC 2026-11-11 the bottom bar was left floating mid-screen on the iPhone home-screen app (a keyboard's height up) after typing,
    and the page's rubber-band bounce could drag it. The bounce is off (pull to refresh is our own and doesn't need it) and the bar
    hides while the keyboard is up; see kbFix below for the reset when it closes. */
-html{overscroll-behavior-y:none}html.kb-open .bnav{display:none}
+html{overscroll-behavior-y:none}html.kbd-up .bnav{display:none}
 
 /* MC 2026-11-11 subaccount books */
 .sc{display:inline-flex;align-items:center;margin-left:8px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;vertical-align:2px;white-space:nowrap;line-height:1.5}.sc.both{background:color-mix(in srgb,var(--kx) 15%,transparent);color:var(--kx)}.sc.paper{background:color-mix(in srgb,var(--mute) 16%,transparent);color:var(--mute)}.sc.live{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}.sc.device{background:color-mix(in srgb,var(--mute) 10%,transparent);color:var(--faint)}.kx-fh .sc{margin:0 8px 0 0}
@@ -1088,7 +1089,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kstrip .kp-all{display:block;font-size:11px;line-height:1.35;color:var(--mute);margin-top:7px;white-space:normal}.kstrip .kp-all strong{font-weight:650}.kstrip .kp-all strong.pos{color:var(--good)}.kstrip .kp-all strong.neg{color:var(--bad)}
 .kstrip .kp.kp-today{position:relative}.kstrip .kp-corner{position:absolute;top:11px;right:12px;font-style:normal;line-height:1.2;white-space:nowrap;font-size:11.5px}.kstrip .kp-corner small{font-size:11px;color:var(--mute);font-weight:500}.kstrip .kp-corner strong{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 .kx-sb{cursor:pointer}.kx-sb:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
-.modal .box:has(.kx-coinv){width:min(700px,100%);max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain}
+.modal .box:has(.kx-coinv){width:min(700px,100%)}
 .kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
 .kx-apick{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left}.kx-apick label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px}.kx-apick label.off{opacity:.55;cursor:default}.kx-apick input{width:18px;height:18px;accent-color:var(--kx);flex:none}.kx-apick b{font-weight:600}.kx-addrow{margin-top:6px}
 .kx-cvph{display:flex;justify-content:space-between;align-items:baseline;gap:4px 10px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 2px 0}.kx-cvph span{font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;font-size:11px}.kx-cvph em{font-style:normal}
@@ -2096,7 +2097,7 @@ function toastP(title,sub){const box=document.createElement('div');box.className
   return {upd:s=>set('pend',title,s),ok:(t,s)=>{set('ok',t,s);end(6000)},err:(t,s)=>{set('err',t,s);end(9000)}}}
 function toast(t){const x=toastP(t,'');x.ok(t,'')}
 // modal
-function modal(html){$('#mbox').innerHTML=html;$('#modal').classList.add('on');setTimeout(()=>$('#mbox').querySelector('[autofocus]')?.focus(),30)}
+function modal(html){$('#mbox').innerHTML=html;$('#modal').classList.add('on');$('#mbox').scrollTop=0;try{window.kxNudge?.()}catch{}setTimeout(()=>$('#mbox').querySelector('[autofocus]')?.focus(),30)}
 function closeModal(){$('#modal').classList.remove('on');$('#mbox').innerHTML=''}
 function confirmBox({title,body='',summary=[],warn='',confirm='Confirm',danger=false,hold=false}){return new Promise(res=>{
   modal(`<h2>${esc(title)}</h2>${body?`<p>${body}</p>`:''}${summary.length?`<div class="summ">${summary.map(([k,v])=>`<span>${esc(k)}</span><b>${v}</b>`).join('')}</div>`:''}${warn?`<div class="warnbox">${warn}</div>`:''}
@@ -4488,11 +4489,20 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 // MC 2026-11-11 iOS keeps the layout scrolled by the keyboard's height after it closes, which leaves fixed bars stranded mid-screen
 // until the next real scroll. When the visible area grows back to the full screen, the page is nudged to the same scroll position,
 // which makes iOS put fixed bars back. The bottom bar hides while the keyboard is up.
+// MC 2026-11-15 the bottom menu sometimes stayed gone. It hides while the keyboard is up, and the only signals that the keyboard
+// had closed were a resize event (iOS does not always send one) and one look 120ms after the field lost focus, before the
+// keyboard had finished sliding away. Now it looks again at 120, 450 and 1000ms, and every 2 seconds while it thinks the keyboard
+// is up: with no text field focused the keyboard cannot be up, so the menu comes back and the page is nudged. The class on the
+// page was also named kb-open, the same name the subaccount books use for a row of chips, so the whole page picked up that
+// row's flex layout whenever the keyboard opened. It is kbd-up now.
 (()=>{const vv=window.visualViewport;if(!vv)return;let open=false;
   const nudge=()=>requestAnimationFrame(()=>{window.scrollTo(window.scrollX,window.scrollY);document.documentElement.style.transform='translateZ(0)';requestAnimationFrame(()=>{document.documentElement.style.transform=''})});
-  const chk=()=>{const now=vv.height<innerHeight-120;if(now!==open){open=now;document.documentElement.classList.toggle('kb-open',now);if(!now)nudge()}};
-  vv.addEventListener('resize',chk);addEventListener('focusout',()=>setTimeout(()=>{chk();if(!open)nudge()},120));addEventListener('orientationchange',()=>setTimeout(nudge,300));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(nudge,60)})})();
+  window.kxNudge=nudge;
+  const typing=()=>{const a=document.activeElement,t=a?.tagName;return !!a&&(t==='TEXTAREA'||a.isContentEditable||(t==='INPUT'&&!/^(checkbox|radio|button|submit|range|color|file)$/i.test(a.type||'text')))};
+  const chk=()=>{const now=vv.height<innerHeight-120&&typing();if(now!==open){open=now;document.documentElement.classList.toggle('kbd-up',now);if(!now)nudge()}};
+  vv.addEventListener('resize',chk);addEventListener('focusin',()=>setTimeout(chk,350));addEventListener('focusout',()=>{for(const ms of [120,450,1000])setTimeout(()=>{chk();if(!open)nudge()},ms)});addEventListener('orientationchange',()=>setTimeout(nudge,300));
+  setInterval(()=>{if(open||document.documentElement.classList.contains('kbd-up'))chk()},2000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{chk();nudge()},60)})})();
 
 // ===================== MC 2026-11-11 fx: motion, glow, dock and settle moments (styles under the same date) =====================
 // Hooks render, go and paintChrome instead of touching the views. Everything is wrapped so a failure here never stops the page.
@@ -4626,7 +4636,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.36',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.37',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
