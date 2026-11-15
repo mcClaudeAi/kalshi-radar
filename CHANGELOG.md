@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.28 (Nov 15, 2026): The coin view shows the 15 minutes before
+- [new] Tap a coin on the board and the box now has a second chart under the live one: what the coin did in the 15 minutes before this window, with its trend line. The line above it says how far it moved, the trend per minute, and whether it ended above or below where it began.
+
 ## 1.2.27 (Nov 15, 2026): Each subaccount can have its own live settings
 - [new] Live settings has an account switch: Main and each subaccount book. Pick a book and the same page shows and saves that book's own rules: cash out when the trend turns, stops and profit target, schedule, coins, price band, trades a window, price room, and its size, loss cap and cash floor.
 - [new] A book follows the main account until you save a rule change for it. From then on it keeps its own copy and Main's changes no longer reach it. "Follow Main again" on the book's settings drops its copy.

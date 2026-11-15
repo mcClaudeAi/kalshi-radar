@@ -1090,6 +1090,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-sb{cursor:pointer}.kx-sb:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
 .modal .box:has(.kx-coinv){width:min(700px,100%);max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain}
 .kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kx-cvp{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:var(--s1);padding:10px 12px 6px}.kx-cvph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mute)}.kx-cvph span{font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;font-size:11px}.kx-cvph em{font-style:normal}.kx-coinp{display:block;width:100%;height:110px;margin-top:4px}
 .kx-coinc{display:block;width:100%;height:270px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}
 .kx-cvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.kx-cvs>div{padding:9px 11px;border:1px solid var(--line);border-radius:10px;min-width:0}
 .kx-cvs span{display:block;font-size:11px;color:var(--mute)}.kx-cvs b{display:block;font-size:15px;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap}.kx-cvs small{display:block;font-size:11px;color:var(--mute);margin-top:1px}.kx-cvs small.pos{color:var(--good)}.kx-cvs small.neg{color:var(--bad)}
@@ -2918,7 +2919,7 @@ function kxHandRow(s){if(!kxHandOn())return kxHandRowP(s);const lv=kxLv();if(!lv
 // rows as the scanner, so the checks and hold-to-confirm are the same. It repaints four times a second while open.
 function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=row();if(!s0)return;clearInterval(KX.cvT);
   modal(`<div class="kx-coinv" data-tk="${esc(tk)}"><div class="kx-cvh"><h2>${esc(s0.coin)}</h2><span data-k="lead"></span><span class="sp"></span><em data-k="left"></em></div>
-   <canvas class="kx-coinc"></canvas><div class="kx-cvs" data-k="st"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
+   <canvas class="kx-coinc"></canvas><div class="kx-cvp"><div class="kx-cvph"><span>Previous 15 minutes</span><em data-k="pv">loading</em></div><canvas class="kx-coinp"></canvas></div><div class="kx-cvs" data-k="st"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
   const stop=()=>{clearInterval(KX.cvT);KX.cvT=null},shut=()=>{stop();closeModal()};$('#mbox [data-mx="0"]').onclick=shut;$('#modal .bk').onclick=shut;ST.modalEsc=shut;
   const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
     const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),ph=kxPp(tk),pp=kxOpen().find(o=>o.tk===tk)||(ph?{side:ph.side,px:ph.px}:null),side=(kxHandOn()?x?.side||pp?.side:ph?.side||pp?.side||x?.side)||s.leader||'yes',S=side.toUpperCase();
@@ -2934,7 +2935,25 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
       :x?`<div class="kx-hl"><span class="kx-pbtag lv tx">Live · bought ${x.fill} at ${kxC(x.px)}${x.hand?' · by hand':''}${x.sold?` · sold ${x.sold.fill}`:''}</span></div>${kxSellRow({...s,side:x.side})||'<p class="note tx">Too close to the close to sell.</p>'}`
       :!lv?.on?`<p class="note tx">Live trading is off, so there is nothing to buy or sell here.${pp?` Paper holds ${esc(pp.side.toUpperCase())} at ${kxC(pp.px??pp.ask)}.`:''}</p>`
       :(kxHandRow(s)||'<p class="note tx">Too close to the close to buy.</p>'))};
-  paint();KX.cvT=setInterval(paint,250)}
+  paint();KX.cvT=setInterval(paint,250);
+  // MC 2026-11-15 asked for: what the coin did in the 15 minutes before this window, with its trend, to judge the coin better.
+  // One request for Coinbase's minute candles when the box opens (each minute's open and close), drawn once under the live chart.
+  kxCandleRange(s0.coin,s0.open-900000,s0.open).then(pts=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk)return;const P=(pts||[]).filter(p=>p[0]*1000<=s0.open+1000),em=box.querySelector('[data-k=pv]');
+    if(P.length<6){em.textContent='no price history for it';box.querySelector('.kx-coinp').style.display='none';return}
+    const r=kxDrawPrev(box.querySelector('.kx-coinp'),P,s0),mv=(r.b-r.a)/r.a*100,pm=r.slope*60/r.a*100,sg=v=>(v>=0?'+':'')+v.toFixed(Math.abs(v)<.1?3:2);
+    em.innerHTML=`<b class="${mv>=0?'pos':'neg'}">${sg(mv)}%</b> over the window · trend ${sg(pm)}% a min · ${Math.abs(mv)<.005?'ended where it began':mv>0?'ended above where it began':'ended below where it began'}`})}
+function kxDrawPrev(cv,P,o){const W=cv.clientWidth||600,H=cv.clientHeight||120,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim()||'#888',M='"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace',F='-apple-system,BlinkMacSystemFont,"Segoe UI",Sora,Inter,Roboto,sans-serif';
+  const a=P[0][1],b=P.at(-1)[1],x0=o.open/1000-900,x1=o.open/1000,n=P.length,mx=P.reduce((q,p)=>q+p[0],0)/n,my=P.reduce((q,p)=>q+p[1],0)/n;let sxy=0,sxx=0;for(const p of P){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}const slope=sxx?sxy/sxx:0,t0=my+slope*(x0-mx),t1=my+slope*(x1-mx);
+  g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(b,o.strike).replace('$','')).width)+18,L=10,R=Math.max(64,axW),T=10,B=20,iw=W-L-R,ih=H-T-B;
+  let lo=Math.min(...P.map(p=>p[1]),t0,t1),hi=Math.max(...P.map(p=>p[1]),t0,t1);const pad=Math.max((hi-lo)*.15,a*.0002);lo-=pad;hi+=pad;const X=t=>L+(t-x0)/(x1-x0)*iw,Y=v=>T+(hi-v)/(hi-lo)*ih,up=b>=a;
+  g.strokeStyle=col('--line');g.lineWidth=1;g.setLineDash([3,5]);g.beginPath();g.moveTo(L,Y(a));g.lineTo(L+iw,Y(a));g.stroke();g.setLineDash([]);
+  g.strokeStyle=up?col('--good'):col('--bad');g.lineWidth=1.8;g.lineJoin='round';g.beginPath();P.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.stroke();
+  g.strokeStyle=col('--kx');g.lineWidth=1.6;g.setLineDash([7,5]);g.beginPath();g.moveTo(X(x0),Y(t0));g.lineTo(X(x1),Y(t1));g.stroke();g.setLineDash([]);
+  g.fillStyle=up?col('--good'):col('--bad');g.beginPath();g.arc(X(P.at(-1)[0]),Y(b),3,0,7);g.fill();
+  g.fillStyle=col('--mute');g.font='600 10.5px '+M;g.textAlign='left';g.textBaseline='middle';const ya=Y(a),yb=Y(b),sep=Math.abs(ya-yb)<13;g.fillText(kxFmt(b,o.strike).replace('$',''),L+iw+8,yb);if(!sep){g.fillStyle=col('--faint');g.fillText(kxFmt(a,o.strike).replace('$',''),L+iw+8,ya)}
+  g.fillStyle=col('--faint');g.font='500 10.5px '+F;g.textBaseline='alphabetic';const tm=t=>new Date(t*1000).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'});g.textAlign='left';g.fillText(tm(x0),L,H-5);g.textAlign='right';g.fillText(tm(x1),L+iw,H-5);
+  return {a,b,slope}}
 async function kxBuyOne(tk,side,paper){if(!paper&&!ST.me.control){unlockFlow();return}
   let q=null;try{const r=await fetch(`/api/kbuyq?tk=${encodeURIComponent(tk)}&side=${side}${paper?'&book=paper':''}`,{credentials:'same-origin',cache:'no-store'});q=r.ok?await r.json():null}catch{}
   if(!q?.ok){toast(q?.msg||'Could not read the market. Try again.');return}const S=q.side.toUpperCase(),left=Math.max(0,Math.round((q.close-Date.now())/1000));
@@ -4567,7 +4586,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.27',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.28',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
