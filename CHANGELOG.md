@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.41 (Nov 15, 2026): The coin box holds still
+- [fixed] On the web the coin box could jump up and down each time its figures refreshed. It was centred on the screen, so any change in its height moved the whole box. It now hangs from the top and the lines that vary in length keep room for two, so a refresh no longer moves it.
+
 ## 1.2.40 (Nov 15, 2026): Accounts panel tidied on the web
 - [fixed] On the web the account rows ran past the edge of the panel: the arrow sat outside the card and the playbook line wrapped onto four lines. The row now lays itself out from the panel's own width, not the browser's.
 - [improved] In a mid-width panel each account is a two-line card: name, cash, today, all time and the sparkline across the top with dividers between the figures, then the playbook and size on the left of a second line with the buttons on the right. The all-accounts totals sit in their own framed box. Phones are unchanged.

@@ -1089,7 +1089,11 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kstrip .kp-all{display:block;font-size:11px;line-height:1.35;color:var(--mute);margin-top:7px;white-space:normal}.kstrip .kp-all strong{font-weight:650}.kstrip .kp-all strong.pos{color:var(--good)}.kstrip .kp-all strong.neg{color:var(--bad)}
 .kstrip .kp.kp-today{position:relative}.kstrip .kp-corner{position:absolute;top:11px;right:12px;font-style:normal;line-height:1.2;white-space:nowrap;font-size:11.5px}.kstrip .kp-corner small{font-size:11px;color:var(--mute);font-weight:500}.kstrip .kp-corner strong{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 .kx-sb{cursor:pointer}.kx-sb:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
-.modal .box:has(.kx-coinv){width:min(700px,100%)}
+/* MC 2026-11-15 the coin box jumped up and down on the web each time its figures refreshed. It was centred on the screen, so any
+   change in its height (a tile's small line going from one line to two, the buy row swapping for a note) moved the whole box.
+   It now hangs from the top, so a change in height only moves its bottom edge, and the lines that vary keep room for two. */
+.modal:has(.kx-coinv){align-items:flex-start}.modal .box:has(.kx-coinv){width:min(700px,100%);margin-top:clamp(0px,5vh,56px);max-height:calc(100% - clamp(0px,5vh,56px))}
+.kx-cvs small{min-height:2.7em}.kx-cvph{min-height:2.9em}.kx-cva{min-height:74px}
 .kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
 .kx-apick{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left}.kx-apick label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px}.kx-apick label.off{opacity:.55;cursor:default}.kx-apick input{width:18px;height:18px;accent-color:var(--kx);flex:none}.kx-apick b{font-weight:600}.kx-addrow{margin-top:6px}
 .kx-cvph{display:flex;justify-content:space-between;align-items:baseline;gap:4px 10px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 2px 0}.kx-cvph span{font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;font-size:11px}.kx-cvph em{font-style:normal}
@@ -4656,7 +4660,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.40',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.41',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
