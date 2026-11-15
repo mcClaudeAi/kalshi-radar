@@ -1570,6 +1570,7 @@ export function createKalshi(state, env, keep) {
     }
     if (type === 'kalshiBook') {
       if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
+      if (a?.op === 'match') { const c = ctl(); a.main = { strat: stratAt(c.strat, Date.now()), size: c.sizeUsd, loss: c.dailyLossUsd, floor: c.minBank ?? HARD.minBank }; }
       const r = await books.command(a || {}, LAB_IDS.filter(id => !labDefs(cfgP).find(l => l.id === id).m10Only)); viewDirty = true; await publish(true); return r;
     }
     if (type === 'kalshiStrat') {

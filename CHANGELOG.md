@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.14 (Nov 15, 2026): Subaccounts follow the main account
+For trading the same rules on the main account and its subaccount books.
+- [new] When you change the main live account's playbook, size or daily loss cap, the dashboard asks whether to apply it to every subaccount book and lists what would change in each. Hold to apply. "Match main account" on the Books page does the same at any time. Each book keeps its own cash floor and its own on or off switch, and no money moves.
+- [new] In Trades, each live trade has a line underneath for every account that looked at that market: how many contracts it filled and at what price, the result, or why it has nothing (skipped, refused, no fill).
+- [new] The live dashboard's top line names the accounts that are trading right now and how many books are off.
+- The rule settings (coins, price band, schedule, window cap, profit target, price room) were already shared by every book, and each account's orders already go out on their own, so a miss on one account does not hold back another.
+
 ## 1.2.13 (Nov 15, 2026): Buy and sell by hand on paper
 The scanner's Buy and Sell now work on the Paper view too, with practice money.
 - [new] On Home's Paper view each scanner card has a paper Buy at the price now and your paper size. It goes into the paper book past your paper rules and stops, the same way a hand buy on live skips them. Nothing is sent to Kalshi.

@@ -254,6 +254,24 @@ export function createBooks(D) {
       await kv.put('kbk:' + bk.id, await seal({ id, pem })); list.push(bk); await saveList();
       return { ok: true, msg: `${name} is linked to subaccount ${sub}. Cash there: $${bal.toFixed(2)}.`, id: bk.id };
     }
+    // MC 2026-11-15 Steven: when a live setting changes on the main account, ask whether to carry it to every subaccount, then
+    // update them all. The rule settings (coins, price band, schedule, window cap, profit target, price room) were already
+    // shared: every book reads live's. What each book keeps for itself is its playbook, $ a trade, daily loss cap and cash
+    // floor. 'match' copies the first three from the main live account to every book. The cash floor stays each book's own: it
+    // depends on the money in that account, and the main account's floor on a small subaccount would stop it trading. With dry
+    // it only lists what would change. It never switches a book on or off and never moves money.
+    if (op === 'match') {
+      const m = a.main || {}, out = [];
+      for (const k of list) { const ch = [];
+        if (m.strat && labIds.includes(m.strat) && D.stratAt(k.strat, Date.now()) !== m.strat) { ch.push(`playbook ${D.labName(m.strat)}`); if (!a.dry) k.strat = [...(k.strat || []), { at: Date.now(), id: m.strat, by: 'match' }].slice(-60); }
+        if (isFinite(+m.size)) { const v = Math.min(BOOK_MAX, Math.max(BOOK_MIN, Math.round(+m.size))); if (v !== k.size) { ch.push(`$${k.size} -> $${v} a trade`); if (!a.dry) k.size = v; } }
+        if (isFinite(+m.loss)) { const v = Math.min(1000, Math.max(10, Math.round(+m.loss))); if (v !== k.loss) { ch.push(`daily loss cap $${k.loss} -> $${v}`); if (!a.dry) k.loss = v; } }
+        if (ch.length) out.push({ name: k.name, ch }); }
+      if (a.dry) return { ok: true, dry: 1, books: list.length, changes: out };
+      if (!out.length) return { ok: false, msg: list.length ? 'Every book already matches the main account.' : 'There are no books yet.' };
+      await saveList(); D.say(`BOOKS matched to main: ${out.map(o => `${o.name} (${o.ch.join(', ')})`).join('; ')}`);
+      return { ok: true, msg: `${out.length} book${out.length === 1 ? '' : 's'} now match${out.length === 1 ? 'es' : ''} the main account.` };
+    }
     if (!b) return { ok: false, msg: 'No such book.' };
     if (op === 'set') {
       const ch = [];
