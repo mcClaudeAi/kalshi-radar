@@ -1017,7 +1017,15 @@ export function createKalshi(state, env, keep) {
   let l2log = null;
   async function secondLook(now, out) {
     if (!l2log) l2log = (await kv.get('kl2')) || {};
-    let n = 0, touched = false; const note = (o, side, ask, left, why, took) => { l2log[o.tk] = { coin: o.coin, close: o.close, side, ask, left: +left.toFixed(1), why, took: !!took, at: now }; touched = true; };
+    let n = 0, touched = false; const note = (o, side, ask, left, why, took) => { const was = l2log[o.tk]; l2log[o.tk] = { coin: o.coin, close: o.close, side, ask, left: +left.toFixed(1), why, took: !!took, at: now, ...(was?.tr ? { tr: was.tr } : {}) }; touched = true; };
+    // MC 2026-11-14 asked for: every second-look row should show how it ended and the money, whatever its price, judged by the
+    // coin's trend line. Two additions. (1) Results: the tracker only keeps markets that were 85c or more at the mark, so a 58c
+    // row never learned its result; settled rows now ask Kalshi for it, nine a minute at most, five tries each. (2) Trend: at the
+    // last look of a window (4 to 5 minutes left) each coin's last five 1-minute closes are fitted with a straight line and
+    // carried to the close; the side that line lands on, and that side's ask then, are kept on the row (tr). One Coinbase request
+    // a coin a window, after the minute-10 trend check has run, and it stops for the minute at the first 429.
+    { let asked = 0; for (const [tk, x] of Object.entries(l2log)) { if (x.res || x.close > now - 90000 || (x.rt || 0) >= 5 || asked >= 9) continue; asked++;
+        try { const m = await get(`/markets/${tk}`), r = (m?.market || m)?.result; if (r === 'yes' || r === 'no') x.res = r; else x.rt = (x.rt || 0) + 1; } catch { x.rt = (x.rt || 0) + 1; } touched = true; } }
     for (const o of out) {
       const left = (o.close - now) / 60000; if (left > MIN_LEFT - 1 || left < L2_MIN_LEFT) continue;
       if (rec2.has(o.tk)) continue;
@@ -1034,6 +1042,12 @@ export function createKalshi(state, env, keep) {
       const r = { ticker: o.tk, late: 1, series, at: now, close: o.close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: o.strike, title: rec.get(o.tk)?.title || null, ya, na, depth: asks.reduce((a, x) => a + x[1], 0), vol: v, src: 'cloud' };
       rec2.set(o.tk, r); saveRec2(r); viewDirty = true; note(o, side, ask, left, 'bought:' + v.z, true); say(`${o.tk} ${side.toUpperCase()} at ${Math.round(ask * 100)}c <- second look, ${left.toFixed(1)} min left`);
     }
+    for (const o of out) { const left = (o.close - now) / 60000, x = l2log[o.tk]; if (!(left < L2_MIN_LEFT + 1 && left >= L2_MIN_LEFT) || !x || x.tr || !(o.strike > 0) || !CBPID[o.coin]) continue;
+      let pts = null; try { const sec = Math.floor(now / 1000), raw = await advCandles(CBPID[o.coin], sec - 360, sec); pts = raw.map(k => [k[0] + 60, k[4]]).filter(p => p[0] <= sec + 5).sort((a, b) => a[0] - b[0]).slice(-5); } catch (e) { console.log(`look2 trend ${o.coin}: ${e.message}`); if (e.status === 429) break; }
+      if (!pts || pts.length < 3) { x.tr = { none: 1 }; touched = true; continue; }
+      const m = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / m, my = pts.reduce((a, p) => a + p[1], 0) / m; let sxx = 0, sxy = 0; for (const p of pts) { sxx += (p[0] - mx) ** 2; sxy += (p[0] - mx) * (p[1] - my); }
+      const slope = sxx ? sxy / sxx : 0, proj = my + slope * (o.close / 1000 - mx), side = proj >= o.strike ? 'yes' : 'no', ask = side === 'yes' ? o.ya : (o.yb != null ? +(1 - o.yb).toFixed(4) : null);
+      x.tr = { side, ask: ask > 0 && ask < 1 ? ask : null, proj: +proj.toPrecision(8), pm: +(slope * 60 / my * 100).toFixed(4), left: +left.toFixed(1) }; touched = true; await sleep(250); }
     const inWin = out.filter(o => { const l = (o.close - now) / 60000; return l <= MIN_LEFT - 1 && l >= L2_MIN_LEFT; }); if (inWin.length) console.log(`look2 minute: ${inWin.length} coins, prices ${inWin.map(o => o.coin + ' ' + (o.lask == null ? '-' : Math.round(o.lask * 100))).join(', ')}; read ${n}`);
     if (touched) { for (const k of Object.keys(l2log)) if (l2log[k].close < now - 4 * Q) delete l2log[k]; await kv.put('kl2', l2log); viewDirty = true; }
   }
@@ -1310,7 +1324,7 @@ export function createKalshi(state, env, keep) {
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
       eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
-      look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: rec.get(tk)?.result ? (rec.get(tk).result === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
+      look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 
@@ -1538,5 +1552,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote, sellQuote, pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote, sellQuote, pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

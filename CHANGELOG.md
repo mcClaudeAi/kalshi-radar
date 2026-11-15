@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.10 (Nov 14, 2026): Second look shows how every row ended
+The second look table in Labs now scores every coin, whatever its price.
+- [new] Result at that price: once the window settles, each row shows whether its side won and the money a paper-size buy at the last price seen would have made or lost, fees in. Before this, rows under 85¢ never showed a result.
+- [new] Trend line pointed to: at the last look of each window (4 to 5 minutes left) the coin's last five 1-minute prices are fitted with a straight line and carried to the close. The row shows the side that line lands on, that side's price then, the pace, and what buying it would have paid.
+- These are what-ifs for the rows it passed on. Rows it bought show the real result.
+
 ## 1.2.9 (Nov 14, 2026): Tap a coin for its live chart
 Tap or click any coin in the scanner to open its live chart, with a trend line and the Buy or Sell button.
 - [new] The chart shows the coin against its target for the whole window, with a dashed trend line fitted to the last 3 minutes and carried on to the close.
