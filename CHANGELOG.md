@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.35 (Nov 15, 2026): Live board charts get the 15 minutes before, the trend and the likely line
+- [new] Every position card on the Live board now charts the same way as the coin view: the previous 15 minutes on the left with its trend line, the straight trend line from the last 3 minutes carried to the close, and the amber likely line with its range.
+- [improved] The earlier prices are fetched once a coin a window and shared between the board and the coin view.
+
 ## 1.2.34 (Nov 15, 2026): Hand buys settle on Trades
 - [fixed] A position bought by hand in a market the tracker had not recorded (under 85¢ at the trade check) stayed "open" on Trades after the market closed. Kalshi had paid it out; the dashboard never closed its own row, so the day's result left it out. Any live position past its close is now looked up directly, for Main and the subaccounts, and positions already stuck are closed on the next pass.
 

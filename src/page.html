@@ -2799,6 +2799,11 @@ const kxAvg60=(c,endMs)=>{const o=KX.px[c];if(!o)return null;const end=Math.floo
 // MC 2026-11-08 redrawn: price grid with labels, elapsed vs remaining shading, the area between price and target colored by who is
 // winning it, glow on the live end of the line, pill labels on the axis, and a line that is tick-accurate (see kxTrades above).
 const kxNice=r=>{const p=Math.pow(10,Math.floor(Math.log10(r))),m=r/p;return (m<1.5?1:m<3?2:m<7?5:10)*p};
+// MC 2026-11-15 the 15 minutes before a window, for the charts (minute prices from Coinbase). One request a coin a window,
+// queued a quarter second apart so a full board does not trip the public rate limit; a miss is tried again after 20 seconds.
+// Returns the points once they are in, null until then.
+function kxPrev(c,openMs){if(!c||!openMs||!KXPID[c])return null;const C=KX.prevC||(KX.prevC={}),key=c+':'+Math.floor(openMs/60000),v=C[key];if(Array.isArray(v))return v;if(v&&v>Date.now())return null;
+  C[key]=Date.now()+20000;KX.prevQ=(KX.prevQ||Promise.resolve()).then(async()=>{const pts=await kxCandleRange(c,openMs-900000,openMs),P=(pts||[]).filter(p=>p[0]*1000<=openMs+1000);if(P.length>=6){C[key]=P;for(const k of Object.keys(C))if(+k.split(':')[1]*60000<Date.now()-3600000)delete C[k]}await new Promise(r=>setTimeout(r,250))});return null}
 function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||200,dpr=window.devicePixelRatio||1;if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim()||'#888';const good=col('--good'),bad=col('--bad'),line=col('--line'),faint=col('--faint'),mute=col('--mute'),ink=col('--ink'),kx=col('--kx'),bg=col('--s1')||'#0b1120';
@@ -2954,7 +2959,7 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
   const stop=()=>{clearInterval(KX.cvT);KX.cvT=null},shut=()=>{stop();closeModal()};$('#mbox [data-mx="0"]').onclick=shut;$('#modal .bk').onclick=shut;ST.modalEsc=shut;
   const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
     const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),ph=kxPp(tk),pp=kxOpen().find(o=>o.tk===tk)||(ph?{side:ph.side,px:ph.px}:null),side=(kxHandOn()?x?.side||pp?.side:ph?.side||pp?.side||x?.side)||s.leader||'yes',S=side.toUpperCase();
-    const r=kxDraw(box.querySelector('canvas'),{...s,side,at:x?.at??pp?.at,px:x?.px??pp?.px,ask:pp?.ask,trend:1,prev:KX.cvPrev?.tk===tk?KX.cvPrev.pts:null})||{},px=r.px,tg=s.strike,left=Math.max(0,Math.round((s.close-now)/1000));
+    const r=kxDraw(box.querySelector('canvas'),{...s,side,at:x?.at??pp?.at,px:x?.px??pp?.px,ask:pp?.ask,trend:1,prev:kxPrev(s.coin,s.open)})||{},px=r.px,tg=s.strike,left=Math.max(0,Math.round((s.close-now)/1000));
     box.querySelector('[data-k=lead]').innerHTML=s.leader&&s.lask!=null?`<i class="kx-side ${s.leader}">${s.leader.toUpperCase()}</i> <b>${kxC(s.lask)}</b>`:'';
     box.querySelector('[data-k=left]').textContent=left?`settles in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'settling';
     const mg=px!=null&&tg?(px-tg)/tg*100:null,win=mg==null?null:(side==='yes'?mg>=0:mg<0),t=r.tr,perMin=t&&px?t.slope*60/px*100:null,pw=t&&tg?(side==='yes'?t.proj>=tg:t.proj<tg):null,toward=t?(side==='yes'?t.slope>0:t.slope<0):null;
@@ -2969,13 +2974,11 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
       :(kxHandRow(s)||'<p class="note tx">Too close to the close to buy.</p>'))};
   paint();KX.cvT=setInterval(paint,250);
   // MC 2026-11-15 asked for: what the coin did in the 15 minutes before this window, with its trend, to judge the coin better.
-  // One request for Coinbase's minute candles when the box opens (each minute's open and close). kxDraw puts them on the left
-  // of the same chart; the line under the chart sums that stretch up.
-  kxCandleRange(s0.coin,s0.open-900000,s0.open).then(pts=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk)return;const P=(pts||[]).filter(p=>p[0]*1000<=s0.open+1000),em=box.querySelector('[data-k=pv]');
-    if(P.length<6){em.textContent='no price history for it';return}KX.cvPrev={tk,pts:P};
+  // kxDraw puts those prices on the left of the same chart (kxPrev fetches them once); the line under the chart sums them up.
+  const pvT=setInterval(()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk){clearInterval(pvT);return}const P=kxPrev(s0.coin,s0.open),em=box.querySelector('[data-k=pv]');if(!P){if(Date.now()-t00>15000)em.textContent='no price history for it yet';return}clearInterval(pvT);
     const a=P[0][1],b=P.at(-1)[1],n=P.length,mx=P.reduce((q,p)=>q+p[0],0)/n,my=P.reduce((q,p)=>q+p[1],0)/n;let sxy=0,sxx=0;for(const p of P){sxy+=(p[0]-mx)*(p[1]-my);sxx+=(p[0]-mx)**2}
     const mv=(b-a)/a*100,pm=(sxx?sxy/sxx:0)*60/a*100,sg=v=>(v>=0?'+':'')+v.toFixed(Math.abs(v)<.1?3:2);
-    em.innerHTML=`<b class="${mv>=0?'pos':'neg'}">${sg(mv)}%</b> over the window · trend ${sg(pm)}% a min · ${Math.abs(mv)<.005?'ended where it began':mv>0?'ended above where it began':'ended below where it began'}`})}
+    em.innerHTML=`<b class="${mv>=0?'pos':'neg'}">${sg(mv)}%</b> over the window · trend ${sg(pm)}% a min · ${Math.abs(mv)<.005?'ended where it began':mv>0?'ended above where it began':'ended below where it began'}`},300),t00=Date.now()}
 // MC 2026-11-15 a hand buy only reached the main account. The confirm box now lists the accounts with a tick box each (Main and
 // every trading subaccount), all ticked to start. KX.hsel holds the ticks while the box is open. Main stays ticked when it can
 // buy, so a position by hand is always in Main too and the Sell button on its card covers every account that holds it.
@@ -3044,7 +3047,7 @@ function kxTimeline(now){const el=$('#kxtl');if(!el)return;const sc=KX.live?.sca
   const cur=el.querySelector('.cur'),a=el.querySelector('.a');cur.style.left=`calc(${(p*100).toFixed(2)}% - 1px)`;cur.classList.toggle('e',p>.9);cur.classList.toggle('s',p<.1);a.style.width=`${(p*100).toFixed(2)}%`;cur.querySelector('b').textContent=new Date(now).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit',second:'2-digit'});
   const qe=el.querySelector('[data-k=q]'),txt=now<mark?(q.length?`<span class="q">${q.length} would qualify now: ${q.join(', ')}</span>`:`<span>none at ${kxCt(minAsk)}¢ yet</span>`):`<span>${sc.filter(s=>s.taken==='rule').length} taken this window${(h=>h?` · ${h} by hand`:'')(kxOpen().filter(o=>o.hand&&sc.some(z=>z.tk===o.tk)).length)}</span>`;if(qe.innerHTML!==txt)qe.innerHTML=txt}
 function kxFrame(force){if(!KX.on)return;if($('#kxck'))ckPaint(force);const el=$('#kxboard');const now=Date.now(),K=ST.D?.kalshi||{};KX.frame++;
-  if(el){for(const o of kxOpen()){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const cv=card.querySelector('canvas');const r=kxDraw(cv,o);
+  if(el){for(const o of kxOpen()){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const cv=card.querySelector('canvas');const r=kxDraw(cv,{...o,trend:1,prev:kxPrev(o.coin,o.open)});
     const win=r.tgt==null||r.px==null?null:(o.side==='yes'?r.px>=r.tgt:r.px<r.tgt),mg=r.tgt&&r.px!=null?(r.px-r.tgt)/r.tgt*(o.side==='yes'?1:-1):null,edge=mg!=null&&Math.abs(mg)<.0003;
     const st=card.querySelector('[data-k=st]'),done=now>=o.close;
     // MC 2026-11-08 past the close the coin price no longer matters; say we are waiting on Kalshi's result instead of a frozen 0:00
@@ -4623,7 +4626,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.34',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.35',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
