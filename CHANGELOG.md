@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.32 (Nov 15, 2026): The dashboard tells you when a newer version is ready
+- [new] An open dashboard kept running the version it loaded, so a new feature could be missing until you refreshed by hand. It now checks every 2 minutes and when you come back to it, and shows a "New version ready · tap to refresh" pill at the top. It never refreshes by itself, so nothing you are in the middle of is lost.
+
 ## 1.2.31 (Nov 15, 2026): A likely line beside the trend line
 - [new] The coin view draws a second, amber line: where the coin is likely to be by the close. The straight trend line carries the last 3 minutes' pace all the way; the likely line lets that pace fade, and the shaded band around it is the coin's usual minute-to-minute swing over the time left.
 - [new] A "Likely by the close" tile gives that price, its range, and the rough chance the close lands on your side of the target. It is an estimate from the coin's own recent moves, not a prediction to rely on.

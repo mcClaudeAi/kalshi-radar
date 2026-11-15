@@ -1237,6 +1237,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-l2h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}.kx-l2h b{display:block;font-size:15px;color:var(--ink)}.kx-l2h span{font-size:12px;color:var(--mute)}.kx-l2t small i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}.kx-l2c{margin:0 0 18px;padding:12px 12px 8px;border:1px solid var(--line);border-radius:12px;color:var(--mute)}.kx-l2c svg{display:block;width:100%;height:130px}.kx-l2c .ax{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--faint);margin-top:6px}
 .kx-l2{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:var(--s1);padding:16px 18px}.kx-l2 h4{margin:0 0 10px;font-size:15px;color:var(--ink);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}.kx-l2 h4 span{font-size:11.5px;font-weight:500;color:var(--faint)}.kx-2nd{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:6px;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);white-space:nowrap}</style>
 <style id="ptr-css">
+#updpill{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 8px);transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:99px;border:1px solid color-mix(in srgb,var(--kx) 60%,var(--line2));background:var(--s1);color:var(--ink);font:600 13px/1 inherit;cursor:pointer;box-shadow:0 8px 28px rgba(0,0,0,.35);white-space:nowrap}#updpill i{width:8px;height:8px;border-radius:50%;background:var(--kx)}
 #ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6px);transform:translate(-50%,0);z-index:90;display:none;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;background:var(--s1);border:1px solid var(--line2);box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:12.5px;font-weight:600;color:var(--mute);pointer-events:none;opacity:0}
 #ptr.on{display:flex}#ptr.go{color:var(--ink);border-color:color-mix(in srgb,var(--kx) 60%,var(--line2))}
 #ptr i{width:14px;height:14px;border-radius:50%;border:2px solid var(--kx);border-top-color:transparent;display:block}#ptr.spin i{animation:ptrspin .7s linear infinite}
@@ -4525,6 +4526,13 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
   go=function(k){const was=ST.tab+(ST.fv?.id||'');const out=g0.apply(this,arguments);if(ST.tab+(ST.fv?.id||'')!==was)safe(enter)();return out};
   paintChrome=function(){const out=p0.apply(this,arguments);safe(dock)();return out};
   addEventListener('resize',safe(dock));
+  // MC 2026-11-15 a hand buy showed no account picker minutes after it shipped: the phone still had the page from before the
+  // update, and nothing tells an open page that a newer one exists. The page now notes its own version tag when it loads and
+  // asks again every 2 minutes and whenever the app comes back to the front. When the tag differs a pill offers a refresh.
+  // It never reloads by itself, so a half-filled form or an open buy box is not lost.
+  {let tag0=null,shown=false;const tagNow=async()=>{try{const r=await fetch('/',{cache:'no-store',credentials:'same-origin'});const t=r.headers.get('etag');try{r.body?.cancel()}catch{}return r.ok?t:null}catch{return null}};
+    const chk=async()=>{if(shown||document.visibilityState!=='visible')return;const t=await tagNow();if(!t)return;if(tag0==null){tag0=t;return}if(t!==tag0){shown=true;const b=document.createElement('button');b.id='updpill';b.innerHTML='<i></i>New version ready · tap to refresh';b.onclick=()=>location.reload();document.body.appendChild(b)}};
+    setTimeout(chk,4000);setInterval(chk,120000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(chk,800)})}
   // shimmer placeholders until the first data arrives
   const m=$('#main');if(m&&!m.children.length&&!ST.D)m.innerHTML='<div class="fx-sk" aria-hidden="true"><i></i><i></i><i></i></div>';
 })();
@@ -4605,7 +4613,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.31',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.32',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
