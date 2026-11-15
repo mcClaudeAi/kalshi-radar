@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.40 (Nov 15, 2026): Accounts panel tidied on the web
+- [fixed] On the web the account rows ran past the edge of the panel: the arrow sat outside the card and the playbook line wrapped onto four lines. The row now lays itself out from the panel's own width, not the browser's.
+- [improved] In a mid-width panel each account is a two-line card: name, cash, today, all time and the sparkline across the top with dividers between the figures, then the playbook and size on the left of a second line with the buttons on the right. The all-accounts totals sit in their own framed box. Phones are unchanged.
+
 ## 1.2.39 (Nov 15, 2026): New playbook, Margin vs volatility (AI checked)
 - [new] A new playbook in Labs: Margin vs volatility under 95¢, taken only when both chart lines agree at the trade check. The trend line (the 15 minutes before the window plus the window so far, carried to the close) and the likely line (the last 3 minutes' pace, fading) must each finish on the side being bought.
 - [new] Every trade now records where those two lines pointed at the trade check. Trades from the last three weeks are filled in from Coinbase's history over the next hours, so the playbook's Labs card builds a history without waiting.
