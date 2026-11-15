@@ -1,7 +1,8 @@
 // Kalshi 15-minute crypto: every market's leader at the trade check (10 minutes before the close) with three readings worked out
 // from Coinbase's 1-minute prices at that moment, for testing playbooks that read the coin's chart. Public market data only, no keys.
 // Usage: node mvai.mjs COIN DAYS   (prints one ROW line per market, so a stopped run keeps what it has)
-// ROW: [close minute, 1 if the leader is YES, leader ask in tenths of a cent, 1 if it won, z x100, trend x1e6, likely x1e6, strike]
+// ROW: [close minute, 1 if the leader is YES, leader ask in tenths of a cent, 1 if it won, z x100, trend x1e6, likely x1e6, strike,
+//       lead now x1e6, lead 20 minutes ago x1e6, lead 3 minutes ago x1e6]
 //   z      = the lead over the target divided by one usual 10-minute move (the last hour's 1-minute spread x sqrt 10)
 //   trend  = where a straight line through the last 20 minutes lands at the close, as the lead past the target on the leader's side
 //   likely = the same for the last 3 minutes' pace fading with a 90-second half-life
@@ -27,5 +28,5 @@ let i = 0, n = 0, noCb = 0; await Promise.all(Array.from({ length: 6 }, async ()
   const rets = []; for (let q = 1; q < rows.length; q++) rets.push(Math.log(rows[q][1] / rows[q - 1][1])); const mu = rets.reduce((a, b) => a + b, 0) / rets.length, sg = Math.sqrt(rets.reduce((a, b) => a + (b - mu) ** 2, 0) / rets.length);
   const p = rows.at(-1)[1], lead = v => (yes ? v - k : k - v) / k, z = sg > 0 ? lead(p) / (sg * Math.sqrt(10)) : null, T = rows.slice(-20), end = T.at(-1)[0] + 600, L = fit(T), S3 = fit(T.slice(-4));
   if (z == null || !L || !S3) continue; n++;
-  console.log('ROW ' + JSON.stringify([Math.round(c / 60), yes ? 1 : 0, Math.round(ask * 1000), (m.result === 'yes') === yes ? 1 : 0, Math.round(z * 100), Math.round(lead(L.at(end)) * 1e6), Math.round(lead(p + S3.b * 130 * (1 - Math.exp(-600 / 130))) * 1e6), k])); } }));
+  console.log('ROW ' + JSON.stringify([Math.round(c / 60), yes ? 1 : 0, Math.round(ask * 1000), (m.result === 'yes') === yes ? 1 : 0, Math.round(z * 100), Math.round(lead(L.at(end)) * 1e6), Math.round(lead(p + S3.b * 130 * (1 - Math.exp(-600 / 130))) * 1e6), k, Math.round(lead(p) * 1e6), Math.round(lead(T[0][1]) * 1e6), Math.round(lead(T[T.length - 4][1]) * 1e6)])); } }));
 console.log(`RESULT ${S} markets=${ms.length} rows=${n} noCoinbase=${noCb}`);
