@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.19 (Nov 15, 2026): Accounts view for subaccounts
+A proper home for subaccount books on the dashboard and in Trades, on web and phone. It only appears once you have a book.
+- [new] Accounts panel under the live hero on Home: the main account and every book in one list, each with whether it is trading, its playbook and size, cash (and how much is on crypto), today's result and record, all time, open trades and a small line of the day. Cash and today's result across all accounts are on top.
+- [new] Tap an account to open its trades. Books have Move money and Settings right on their row.
+- [new] Trades, Live: an account filter (All accounts, Main, each book) with that account's count and result for the day. All accounts merges them by market, keeps the line per account under each trade, and marks a trade only a book took. Picking one account shows only its orders, and a row opens the order's story.
+- [new] Live board cards say which books hold that market too, with contracts and price.
+- [fixed] The $ sign sat on top of the number in the Move money amount box.
+
 ## 1.2.18 (Nov 15, 2026): Live orders refused after funding a subaccount
 - [fixed] After money was moved into a subaccount, the main account's orders could all be refused and the dashboard showed "could not move $600.00 to the crypto shard: insufficient balance". The tracker read how much sat on each of the account's two balances from a Kalshi figure that can count the subaccounts' money too, so it kept asking to move more than the main account had and the crypto trading balance stayed empty. It now asks Kalshi for each balance of each account by itself.
 - [fixed] Subaccount books could not see their own two balances at all (Kalshi leaves that figure out for a key locked to one subaccount), so a book never moved money to its crypto trading balance and its orders had no cash behind them. Books now read both balances the same way.
