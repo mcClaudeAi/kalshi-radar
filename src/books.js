@@ -193,11 +193,17 @@ export function createBooks(D) {
 
   // ---------- hooks from the engine ----------
   // gate(sid, r) -> { ok, why, lab } is the engine's own playbook check, the one the main live book uses
-  async function onMark(hits, now, gate, cfgP, bench, missed = null) {
-    await load(); if (!hits.length) return;
-    const offNow = (cfgP.skipHours || []).includes(D.etHour(now));
+  // MC 2026-11-15 asked for: the cash out rule and the rest of Live settings per subaccount. A book followed the main account's
+  // live rules for everything but playbook, size, loss cap and floor. A book may now hold its own copy (b.cfg, the same keys as
+  // the main account's live rules); without one it follows Main as before. own(b) hands back that book's trades to consider,
+  // playbook check and benched coins worked out from its own rules, so its price band, coins, off hours, stops and window cap
+  // are its own.
+  const cfgOf = (b, main) => b.cfg ? { ...main, ...b.cfg } : main;
+  async function onMark(hits0, now, gate0, cfg0, bench0, missed = null, own = null) {
+    await load(); if (!hits0.length && !own) return;
     await Promise.all(list.filter(b => b.on).map(async b => {
-      const sid = D.stratAt(b.strat, now), sends = [];
+      const sid = D.stratAt(b.strat, now), sends = [], o = b.cfg && own ? own(cfgOf(b, cfg0)) : null, hits = o ? o.hits : hits0, gate = o ? o.gate : gate0, cfgP = o ? o.cfg : cfg0, bench = o ? o.bench : bench0;
+      const offNow = (cfgP.skipHours || []).includes(D.etHour(now));
       try {
         for (const r of hits) {
           if (offNow) { skip(b, r, `off schedule (${D.etHour(now)}:00 ET hour)`); continue; }
@@ -211,9 +217,10 @@ export function createBooks(D) {
   // read every live book's balance ahead of the orders (called while the coins are being scanned)
   async function warm() { await load(); await Promise.all(list.filter(b => b.on).map(b => balance(b, true).catch(() => { }))); }
   // MC 2026-11-14 live cash out at minute 10, each book on its own key, same terms as the main book (kalshi-cloud.js cashLive)
-  async function cashOut(r, best) {
+  // MC 2026-11-15 want(cfg) is the cash out rule read with the book's own settings (or Main's when it follows Main)
+  async function cashOut(r, best, want = null, main = null) {
     await load();
-    for (const b of list) { if (!b.on) continue; const x = L[b.id]?.get(r.ticker); if (!x || !(x.fill > 0) || x.result || x.sold || x.close <= Date.now()) continue;
+    for (const b of list) { if (!b.on) continue; if (want && !want(cfgOf(b, main))) continue; const x = L[b.id]?.get(r.ticker); if (!x || !(x.fill > 0) || x.result || x.sold || x.close <= Date.now()) continue;
       const minPx = Math.max(0.01, best - 0.03), grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4), down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4);
       const body = x.side === 'yes'
         ? { ticker: x.tk, side: 'ask', count: String(x.fill), price: up(minPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', reduce_only: true, client_order_id: `crx${b.sub}-${x.tk}` }
@@ -243,7 +250,7 @@ export function createBooks(D) {
   function view() {
     if (!list) return [];
     return list.map(b => { const s = S[b.id], all = [...L[b.id].values()].sort((a, z) => z.at - a.at), t = today(b).filter(x => x.fill > 0), done = t.filter(x => x.result);
-      return { id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null,
+      return { id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
         bal: s.bal, balAt: s.balAt || null, crypto: s.shard[D.XI] ?? null, keyOk: s.keyOk, err: s.err && Date.now() - s.errAt < 3600000 ? s.err : null, stopped: s.stopped, xfer: s.lastXfer,
         playbook: { id: D.stratAt(b.strat, Date.now()), since: D.stratSince(b.strat, Date.now()) },
         today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length },
@@ -303,6 +310,7 @@ export function createBooks(D) {
       return { ok: true, msg: `${out.length} book${out.length === 1 ? '' : 's'} now match${out.length === 1 ? 'es' : ''} the main account.` };
     }
     if (!b) return { ok: false, msg: 'No such book.' };
+    if (op === 'follow') { if (!b.cfg) return { ok: false, msg: `${b.name} already follows the main account.` }; delete b.cfg; await saveList(); D.say(`BOOK ${b.name} follows the main account's live rules again`); return { ok: true, msg: `${b.name} follows the main account's live rules again, from the next trade check.` }; }
     if (op === 'set') {
       const ch = [];
       if (a.name != null) { const n = nm(a.name); if (n && n !== b.name) { if (list.some(x => x !== b && x.name.toLowerCase() === n.toLowerCase())) return { ok: false, msg: 'There is already a book with that name.' }; ch.push(`renamed to ${n}`); b.name = n; } }
@@ -369,5 +377,10 @@ export function createBooks(D) {
     return { ok: false, msg: 'Unknown book request.' };
   }
   const anyOn = () => !!list?.some(b => b.on);
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut };
+  // the engine checks and bounds the values (the same checks as the main account's live rules) before handing them over
+  async function setCfg(id, cfg, note) { await load(); const b = list.find(x => x.id === id); if (!b) return false; b.cfg = cfg; await saveList(); D.say(`BOOK ${b.name} own live rules: ${note}`); return true; }
+  const get = id => (list || []).find(x => x.id === id) || null;
+  // coins the books with their own rules trade (null = every coin), so the trade check reads them
+  const ownCoins = () => { const o = (list || []).filter(b => b.on && b.cfg); if (!o.length) return []; if (o.some(b => !b.cfg.coins?.length)) return null; return [...new Set(o.flatMap(b => b.cfg.coins))]; };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins };
 }

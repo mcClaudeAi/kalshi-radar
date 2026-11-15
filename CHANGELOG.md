@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.27 (Nov 15, 2026): Each subaccount can have its own live settings
+- [new] Live settings has an account switch: Main and each subaccount book. Pick a book and the same page shows and saves that book's own rules: cash out when the trend turns, stops and profit target, schedule, coins, price band, trades a window, price room, and its size, loss cap and cash floor.
+- [new] A book follows the main account until you save a rule change for it. From then on it keeps its own copy and Main's changes no longer reach it. "Follow Main again" on the book's settings drops its copy.
+- [improved] A book with its own coins or prices now takes trades Main passes on, and passes ones Main takes. Its account ring uses its own daily profit target. The book's quick settings box links to its full live settings.
+
 ## 1.2.26 (Nov 15, 2026): Second look summary and chart
 - [new] The Second look section on Labs opens with "If we had taken them": 24H, 7D and All, each with the money, wins and a running-total chart. One line is every coin the second look passed, bought on the leader's side at the last price seen. The other is the side each coin's trend line pointed to at the last look. Paper size, fees in.
 - [improved] The tally is kept for good, where the table below only holds the last hour. It starts counting from this update, so 7D and All fill in over the coming days.
