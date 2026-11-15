@@ -354,7 +354,7 @@ export function createKalshi(state, env, keep) {
   }
   const saveRec = r => saveT('kt', r), saveRec2 = r => saveT('k2', r), saveRec3 = r => saveT('k3', r);
   const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.tk, x.at, JSON.stringify(x));
-  const ctl = () => ({ enabled: ctlL.enabled === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
+  const ctl = () => ({ enabled: ctlL.enabled === true, autoPause: ctlL.autoPause === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
   // ---------- signed requests ----------
   let KEY = null;
@@ -644,7 +644,7 @@ export function createKalshi(state, env, keep) {
   let apiV = null, labRowsMem = null, tradesMem = null;
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
-    return { on: c.enabled, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
+    return { on: c.enabled, autoPause: c.autoPause, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, ...(() => { const ps = todayL().filter(x => x.skipped && x.strat && !(x.fill > 0)), rs = ps.map(x => [x, rec.get(x.tk)?.result]).filter(z => z[1] === 'yes' || z[1] === 'no'); return { passed: ps.length, pWon: rs.filter(z => z[1] === z[0].side).length, pLost: rs.filter(z => z[1] !== z[0].side).length }; })() }, bench: [...coldSet(Date.now(), cfgL)], cfg: cfgL, where: 'cloud',
@@ -721,7 +721,8 @@ export function createKalshi(state, env, keep) {
     const ownOf = cfg => { const H = seen.filter(r => (!cfg.coins?.length || cfg.coins.includes(coin(r.series))) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9).sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9)); return { hits: H, gate: mkGate(cfg, H), cfg, bench: coldSet(now, cfg) }; };
     const c = ctl(), sends = [], missed = [];
     await warm;
-    if (c.enabled && hitsL.length) {
+    if (c.enabled && c.autoPause && hitsL.length) { for (const r of hitsL) skipLive(r, 'automatic buying is paused'); console.log(`entry: automatic buying is paused, ${hitsL.length} left alone`); }
+    if (c.enabled && !c.autoPause && hitsL.length) {
       const sid = stratAt(c.strat, now), lab = labDefs(cfgL).find(l => l.id === sid);
       let kS = null; if (sid === 'kelly' || (sid === 'mix' && cfgL.mixSize === 'kelly')) { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgL.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
       // MC 2026-11-09 schedule: hours (ET, by entry time) picked as off are skipped (MC 2026-11-14 live's own off hours now)
@@ -735,7 +736,7 @@ export function createKalshi(state, env, keep) {
         else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
     }
-    if (hitsL.length || (seen.length && books.ownCoins()?.length !== 0)) {
+    if (!c.autoPause && (hitsL.length || (seen.length && books.ownCoins()?.length !== 0))) {
       hitsL.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));
       const ts = Date.now();
       await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('order error: ' + e.message)))), books.onMark(hitsL, now, gate, cfgL, coldSet(now, cfgL), missed, ownOf).catch(e => say('books error: ' + e.message))]);
@@ -1657,6 +1658,10 @@ export function createKalshi(state, env, keep) {
       if (a.sizeUsd != null && isFinite(+a.sizeUsd)) { const v = Math.min(HARD.maxSize, Math.max(5, Math.round(+a.sizeUsd))); if (v !== next.sizeUsd) ch.push(`size $${next.sizeUsd} -> $${v}`); next.sizeUsd = v; }
       if (a.dailyLossUsd != null && isFinite(+a.dailyLossUsd)) { const v = Math.min(500, Math.max(10, Math.round(+a.dailyLossUsd))); if (v !== next.dailyLossUsd) ch.push(`daily loss cap $${next.dailyLossUsd} -> $${v}`); next.dailyLossUsd = v; }
       if (a.minBank != null && isFinite(+a.minBank)) { const v = Math.min(100000, Math.max(0, Math.round(+a.minBank))); if (v !== (next.minBank ?? HARD.minBank)) ch.push(`cash floor $${next.minBank ?? HARD.minBank} -> $${v}`); next.minBank = v; }
+      // MC 2026-11-15 asked for: pause the tracker's own buying but keep buying and selling by hand. autoPause leaves live on (hand
+      // buys need it) and stops the trade check from placing orders for the main account and every book. Positions already
+      // open ride as they would have; the cash out rule, if it is on, still acts on them.
+      if (a.autoPause === true || a.autoPause === false) { if ((next.autoPause === true) !== a.autoPause) ch.push(a.autoPause ? 'automatic buying PAUSED' : 'automatic buying RESUMED'); next.autoPause = a.autoPause; }
       if (a.sellAll === true) { next.sellAllAt = Date.now(); ch.push('sell all open live positions'); }
       if (!ch.length) return { ok: false, msg: 'Nothing changed.' };
       if (next.enabled && !hasKeys()) return { ok: false, msg: env.KEY_HELP || 'The Kalshi key is not set in Cloudflare yet. Run set-kalshi-secrets.bat on the PC once, then try again.' };

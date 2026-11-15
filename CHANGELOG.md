@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.45 (Nov 15, 2026): Pause automatic buying, keep trading by hand
+- [new] The Live account tab has a "Pause automatic buying" button. While paused the tracker places no buys at the trade check, for Main and every subaccount, and live stays on so you can still buy and sell by hand on the Live board.
+- [new] The header and the Live pill read "Live · by hand only" while it is paused, and each market the tracker left alone is tagged "automatic buying is paused" on the board.
+- [improved] Pausing takes one tap. Resuming asks for a hold, since the tracker starts buying with real money again at the next trade check. Positions already open settle as usual.
+
 ## 1.2.44 (Nov 15, 2026): Margin vs volatility (AI checked) rebuilt on what tested well
 - [improved] The AI checked playbook now takes Margin vs volatility under 95¢ only when the coin is at least 1.5 moves past its target and at least 3 coins are leading the same way. Tested on every market from Sep 6 to Nov 15: 95.4% won and $1.18 a trade against 94.1% and $0.81, with about a fifth of the losses and a worst day about half as deep, on roughly a quarter of the trades and 40% of the total profit.
 - [improved] The first version (the trend line and the likely line both agreeing) was dropped as a filter after the same test: the likely line never changed a decision, and the trades the trend line threw away did better than the ones it kept. Both lines stay on the charts and are still recorded on every trade.
