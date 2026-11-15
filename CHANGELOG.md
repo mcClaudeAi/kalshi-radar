@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.4 (Nov 14, 2026): Your call on spilling past the playbook's limit
+- [new] "Room past the playbook's limit" in Live settings, under Money. Hold under it (the default) keeps a live order under the playbook's own price limit, 94.9¢ for the under-95¢ playbooks. Let the room spill past it lets a coin picked under the limit fill up to your price room above it, as before 1.2.3. Your Maximum price always holds either way.
+
 ## 1.2.3 (Nov 14, 2026): Live orders never pay past your limits
 Steven asked how much slippage a live order allows. It was 1¢ over the price read at the trade check, with no ceiling, so a coin picked at 94.8¢ under an under-95¢ playbook filled at 95.6¢.
 - [fixed] A live order's top price now stops at your Maximum price and at the playbook's own price limit (94.9¢ for the under-95¢ playbooks, 95.9¢ for under 96¢, your mix's price cap). It can mean a few more no-fills, never a fill in the range the rule skips.

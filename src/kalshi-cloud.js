@@ -32,10 +32,10 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
-const LIVE_KEYS = ['slipC', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
+const LIVE_KEYS = ['slipC', 'capPb', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
-const PAPER_DEF = { slipC: 1, startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
+const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
 // MC 2026-11-08 coin list and starting bank are settable from the dashboard (plug-and-play edition); null coins = all nine
 // MC 2026-11-14 Steven asked how much slippage a live order allows: it was the ask read at the trade check plus 1 cent, with no
 // ceiling, so a coin picked at 94.8c under an under-95 playbook filled at 95.6c. The room is now a live setting (slipC, cents,
@@ -45,9 +45,11 @@ const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, all: 0.95, mv96:
 function orderLimit(r, labId, cfg) {
   const room = Math.max(0, Math.min(3, cfg.slipC ?? 1)) / 100, tick = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01;
   let top = Math.min(0.99, cfg.maxAsk ?? 0.99, +(r.ask + room).toFixed(4)), why = room ? `${(room * 100).toFixed(1).replace(/\.0$/, '')}c of room` : 'no room';
-  const ex = labId === 'mix' ? (cfg.mixMaxPx ?? 0.95) : PB_CAP[labId];
+  // MC 2026-11-14 Steven is fine with a fill spilling a little past the playbook's limit when the price it picked was under it, so
+  // holding to the playbook's limit is a live setting (capPb, on unless turned off). Your Maximum price always holds.
+  const ex = cfg.capPb === 0 ? null : labId === 'mix' ? (cfg.mixMaxPx ?? 0.95) : PB_CAP[labId];
   if (ex != null && top >= ex - 1e-9) { top = +(ex - tick(ex - 0.0005)).toFixed(4); why = `held under the playbook's ${Math.round(ex * 100)}c limit`; }
-  else if (labId === 'tr10' && top > 0.98) { top = 0.98; why = "held at the playbook's 98c limit"; }
+  else if (cfg.capPb !== 0 && labId === 'tr10' && top > 0.98) { top = 0.98; why = "held at the playbook's 98c limit"; }
   else if (top >= (cfg.maxAsk ?? 0.99) - 1e-9 && (cfg.maxAsk ?? 0.99) < 0.99) why = 'held at your maximum price';
   return { top, why };
 }
@@ -56,7 +58,7 @@ const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
 // MC 2026-11-13 a price as cents for copy: whole cents as before, and a tenth when the setting has one (94.5). Request 10 let
 // the minimum and maximum price take a tenth of a cent, because about half the leaders in the history sit between two cents.
 const cts = p => { const c = Math.round(p * 1000) / 10; return Number.isInteger(c) ? String(c) : c.toFixed(1); };
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -1328,7 +1330,7 @@ export function createKalshi(state, env, keep) {
       if (isL && who.locked) return { ok: false, msg: 'Live settings need an unlocked device.' };
       if (isL && a.copyFrom === 'paper') { const nx = pickL(cfgP); if (JSON.stringify(nx) === JSON.stringify(pickL(cfgL))) return { ok: false, msg: 'Live already matches paper.' }; cfgL = nx; await kv.put('kcfgL', cfgL); viewDirty = true; await publish(true); say('LIVE settings copied from paper'); return { ok: true, msg: 'Live settings now match paper. They apply from the next trade check.' }; }
       // MC 2026-11-13 the minimum and maximum price keep a tenth of a cent (request 10); the other prices stay whole cents
-      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (!isL && k === 'slipC') continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
+      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (!isL && (k === 'slipC' || k === 'capPb')) continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
       if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, was = cur.coins || null; if (JSON.stringify(v) !== JSON.stringify(was)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
       if (out.minAsk != null || out.maxAsk != null) { const lo = out.minAsk ?? cur.minAsk, hi = out.maxAsk ?? cur.maxAsk ?? 0.99; if (lo > hi) return { ok: false, msg: 'The maximum price can\'t be below the minimum price.' }; }
       if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cur.mixSame ?? 3, hi = out.mixSameMax ?? cur.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }
