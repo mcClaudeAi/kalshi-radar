@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.65 (Nov 16, 2026): Live home rebuilt
+The live account panel was rebuilt so it reads top to bottom: status, cash, today, all time, stats.
+- [improved] One big cash figure for every account, with each account's cash and today's result under it. The floating all-accounts box is gone.
+- [improved] Today has its own card with settled, won, lost and passed counts and the profit target inside it.
+- [new] A ledger row in place of the sentence: Put in, Worth now, All time, Trades logged, with Money in beside it.
+- [improved] Status reads as chips (live on or off, size, accounts trading) and errors get their own line.
+- [fixed] The cash figure and Worth no longer blank to a dash for a minute after a change or an update; the last known cash is kept.
+
 ## 1.2.64 (Nov 16, 2026): Done closes Money in
 - [fixed] Done in the Money in box did nothing; it closes the box now.
 
