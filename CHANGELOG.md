@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.64 (Nov 16, 2026): Done closes Money in
+- [fixed] Done in the Money in box did nothing; it closes the box now.
+
 ## 1.2.63 (Nov 16, 2026): Leave old deposits out
 - [new] Each deposit or withdrawal from Kalshi in Money in has a Leave out button, for money from before you started tracking. Left-out entries stay in the list, dimmed, with Count it to bring them back.
 

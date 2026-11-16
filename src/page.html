@@ -3785,7 +3785,7 @@ function kxMoney(){const lv=kxLv()||{},k=lv.moneySrc==='kalshi',M=[...(k?[...lv.
   const ago=lv.moneyAt?Math.max(1,Math.round((Date.now()-lv.moneyAt)/60000)):null,when=ago==null?'not checked yet':ago<90?`checked ${ago} min ago`:`checked ${Math.round(ago/60)} h ago`;
   const list=M.length?`<div class="kx-mlist">${M.map(x=>`<div class="${x.out?'out':''}"><span>${d(x.at)}</span><b class="${x.usd>0?'pos':'neg'}">${x.usd>0?'+':'-'}${kxAccM(Math.abs(x.usd))}</b><em>${esc(x.note||(x.usd>0?'deposit':'withdrawal'))}</em>${x.auto?`<button type="button" class="btn sm ghost" onclick="kxMoneyHide('${esc(x.id)}',${x.out?0:1})">${x.out?'Count it':'Leave out'}</button>`:`<button type="button" class="btn sm ghost" onclick="kxMoneyDel('${esc(x.id)}')">Remove</button>`}</div>`).join('')}</div>`:'';
   const sync=`<p class="note">From Kalshi: ${k?`${M.length} deposit${M.length===1?'':'s'} and withdrawals, ${when}${lv.moneyPend?`, ${lv.moneyPend} still pending`:''}.`:lv.moneyErr?`Kalshi didn't share the list (${esc(lv.moneyErr)}), so these are your own notes.`:`${when}.`} <button type="button" class="btn sm ghost" onclick="kxMoneySync()">Check Kalshi now</button></p>`;
-  if(k){modal(`<h2>Money in and out</h2>${sync}${list}<div class="acts"><button class="btn pri" data-mx="0">Done</button></div>`);return}
+  if(k){modal(`<h2>Money in and out</h2>${sync}${list}<div class="acts"><button class="btn pri" onclick="closeModal()">Done</button></div>`);return}
   kbForm('Money in and out',`${sync}<p class="note">Add deposits and withdrawals here so the dash can show your result against what you put in. Nothing moves; this is a note.</p>
   <div class="kb-seg" role="radiogroup"><label><input type="radio" name="dir" value="in" checked><span>Deposit</span></label><label><input type="radio" name="dir" value="out"><span>Withdrawal</span></label></div>
   <label>Amount<div class="ipx"><i>$</i><input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0" autofocus></div></label>
@@ -4790,7 +4790,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.63',KR_DATE='Nov 16, 2026';
+const KR_VERSION='1.2.64',KR_DATE='Nov 16, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
