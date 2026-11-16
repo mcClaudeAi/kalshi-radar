@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.59 (Nov 16, 2026): New playbook in Labs: Early pack
+A playbook built from your own winning hand buys, tracked in Labs from today.
+- [new] Early pack buys the leader at 60¢ to 90¢ at the trade check, only when at least 3 coins lead the same way, before 9 PM ET, and never HYPE. It runs in Labs only for now, next to the other playbooks.
+- [improved] The trade check now keeps every coin led at 60¢ or more, so Labs can score cheaper leaders. Paper and live still use their own price bands.
+
 ## 1.2.58 (Nov 16, 2026): Export your live trades
 Hand buys now save the chart readings from the moment you buy, and the Live board can export every live trade to a CSV file.
 - [new] Export CSV on the live accounts bar downloads every live trade with a fill, Main's and every sub account's, with its result and readings.
