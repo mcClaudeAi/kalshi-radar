@@ -685,7 +685,7 @@ export function createKalshi(state, env, keep) {
   let apiV = null, labRowsMem = null, tradesMem = null;
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
-    return { on: c.enabled, autoPause: c.autoPause, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
+    return { on: c.enabled, autoPause: c.autoPause, money: Array.isArray(ctlL.money) ? ctlL.money : [], size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, ...(() => { const ps = todayL().filter(x => x.skipped && x.strat && !(x.fill > 0)), rs = ps.map(x => [x, rec.get(x.tk)?.result]).filter(z => z[1] === 'yes' || z[1] === 'no'); return { passed: ps.length, pWon: rs.filter(z => z[1] === z[0].side).length, pLost: rs.filter(z => z[1] !== z[0].side).length }; })() }, bench: [...coldSet(Date.now(), cfgL)], cfg: cfgL, where: 'cloud',
@@ -1753,6 +1753,13 @@ export function createKalshi(state, env, keep) {
       // open ride as they would have; the cash out rule, if it is on, still acts on them.
       if (a.autoPause === true || a.autoPause === false) { if ((next.autoPause === true) !== a.autoPause) ch.push(a.autoPause ? 'automatic buying PAUSED' : 'automatic buying RESUMED'); next.autoPause = a.autoPause; }
       if (a.sellAll === true) { next.sellAllAt = Date.now(); ch.push('sell all open live positions'); }
+      // MC 2026-11-16 asked for: the money he put in (and took out) beside the trading result, so the dash can say where the
+      // account stands all time. Kalshi's API doesn't list deposits, so he enters them. + is money in, - is a withdrawal.
+      if (a.moneyAdd) { const v = Math.round(+a.moneyAdd.usd * 100) / 100, at = +a.moneyAdd.at > 0 ? +a.moneyAdd.at : Date.now();
+        if (!isFinite(v) || !v || Math.abs(v) > 1e7) return { ok: false, msg: 'Enter an amount.' };
+        next.money = [...(next.money || []), { id: Date.now().toString(36), at, usd: v, note: String(a.moneyAdd.note || '').slice(0, 60) }].sort((x, y) => x.at - y.at).slice(-300);
+        ch.push(`${v > 0 ? 'deposit' : 'withdrawal'} of $${Math.abs(v).toFixed(2)} noted`); }
+      if (a.moneyDel) { const was = (next.money || []).length; next.money = (next.money || []).filter(x => x.id !== a.moneyDel); if (next.money.length !== was) ch.push('money entry removed'); }
       if (!ch.length) return { ok: false, msg: 'Nothing changed.' };
       if (next.enabled && !hasKeys()) return { ok: false, msg: env.KEY_HELP || 'The Kalshi key is not set in Cloudflare yet. Run set-kalshi-secrets.bat on the PC once, then try again.' };
       next.at = Date.now(); next.by = 'dashboard'; ctlL = next; await kv.put('kctl', ctlL); say('LIVE ' + ch.join(', '));

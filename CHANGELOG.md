@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.61 (Nov 16, 2026): Your result against what you put in
+The live account can now show where you stand all time, counting your deposits and withdrawals.
+- [new] Add deposits on the Live home, under the all-time line. Enter each deposit or withdrawal once and the line reads "Put in $750, worth $802 now, +$52 all time".
+- [new] Worth counts the cash in every account plus open trades at what they cost, so a trade in play doesn't read as a loss.
+
 ## 1.2.60 (Nov 16, 2026): Early pack starts clean
 - [fixed] Early pack's Labs line now starts at 1.2.59. Older trade checks only kept coins at 85¢ or more, so its line was scoring a thin 85¢ to 90¢ slice, not the playbook.
 
