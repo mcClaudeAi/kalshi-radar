@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.50 (Nov 15, 2026): AI read in the coin box, and boxes no longer jump
+- [new] The coin box has an AI read above the buy button: "Would buy" or "Would pass", with the reason in one line. It needs a win chance of 90% or more and for that chance to beat Kalshi's price plus the fee. The win chance is the more cautious of two estimates: the board's win chance and the likely line's.
+- [new] "What it looked at" opens the checklist: win chance, whether it beats the price, how many usual moves the coin is clear of its target, how many coins lead the same way, and where the trend and likely lines land.
+- [fixed] Boxes could jump or flash on screen. A leftover trick for iPhone's keyboard put a transform on the whole page for one frame, which makes every fixed box lay out against the full page for that frame. It is gone.
+
 ## 1.2.49 (Nov 15, 2026): Scanner prices do refresh every 10 seconds now
 - [fixed] 1.2.48 was meant to refresh Kalshi's prices on the scanner about every 10 seconds while Home is open. A mistake in the check for "is Home open" meant it only happened with a coin box open, so the scanner kept showing prices up to a minute old: a row could say 61¢ while the buy box, reading fresh, said 74¢. Home now gets the fresh prices as intended.
 - [improved] When a scanner row's price is 20 seconds old or more, the buy line says so ("price read 40s ago"), so an old price cannot pass for a current one.

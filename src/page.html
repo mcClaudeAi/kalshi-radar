@@ -1093,7 +1093,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
    change in its height (a tile's small line going from one line to two, the buy row swapping for a note) moved the whole box.
    It now hangs from the top, so a change in height only moves its bottom edge, and the lines that vary keep room for two. */
 .modal:has(.kx-coinv){align-items:flex-start}.modal .box:has(.kx-coinv){width:min(700px,100%);margin-top:clamp(0px,5vh,56px);max-height:calc(100% - clamp(0px,5vh,56px))}
-.kx-cvs small{min-height:2.7em}.kx-cvph{min-height:2.9em}.kx-cva{min-height:74px}
+.kx-cvs small{min-height:2.7em}.kx-air{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:58px}.kx-air:empty{display:none}.kx-airh{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;align-items:baseline}.kx-airh b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);grid-row:1/3;align-self:center;padding:5px 8px;border-radius:8px;background:color-mix(in srgb,var(--ink) 7%,transparent)}.kx-airh strong{font-size:15px}.kx-airh.y strong{color:var(--good)}.kx-airh.n strong{color:var(--warn,#e0a93b)}.kx-airh span{font-size:12px;color:var(--mute);grid-column:2}.kx-aird{margin-top:8px}.kx-aird summary{font-size:12px;color:var(--mute);cursor:pointer}.kx-aird ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px}.kx-aird li{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:12.5px}.kx-aird li i{width:8px;height:8px;border-radius:50%;background:var(--faint)}.kx-aird li.y i{background:var(--good)}.kx-aird li.n i{background:var(--bad)}.kx-aird li em{font-style:normal;color:var(--mute);text-align:right}.kx-aird p{margin:8px 0 0;font-size:11.5px;color:var(--faint);line-height:1.45}.kx-cvph{min-height:2.9em}.kx-cva{min-height:74px}
 .kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
 .kx-old{font-style:normal;color:var(--warn,#e0a93b);font-size:.92em;white-space:nowrap}
 .kx-apick{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left}.kx-apick label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px}.kx-apick label.off{opacity:.55;cursor:default}.kx-apick input{width:18px;height:18px;accent-color:var(--kx);flex:none}.kx-apick b{font-weight:600}.kx-addrow{margin-top:6px}
@@ -3005,9 +3005,26 @@ function kxHandRow(s){if(!kxHandOn())return kxHandRowP(s);const lv=kxLv();if(!lv
 // MC 2026-11-14 coin view. Asked for: tap a scanner row and get the coin's live track with a trend line, plus Buy if live does
 // not hold it or Sell if it does. It reuses the board's chart (kxDraw) with the trend line switched on, and the same Buy and Sell
 // rows as the scanner, so the checks and hold-to-confirm are the same. It repaints four times a second while open.
+// MC 2026-11-15 asked for: a read next to the buy button, "would AI buy this at better than a 90% chance", from everything on the
+// chart. It is a checklist worked out from the same readings the box already shows, not a separate model:
+//   win chance  = the lower of the board's win chance (how far the coin is from its target against the moves it has been
+//                 making) and the likely line's chance, so the more cautious of the two decides
+//   the price   = that chance has to beat Kalshi's price plus the fee plus a cent, or the trade does not pay even when it wins often
+//   two checks that held up in the Sep 6 to Nov 15 test: 1.5 usual moves clear of the target, 3 or more coins leading the same way
+//   the trend and likely lines' landing sides are shown for the read; in the same test they did not separate winners from losers
+// "Would buy" needs the chance at 90% or more and the price beaten. The other rows colour the read but do not flip it.
+function kxAiRead(s,side,r,px){const S=side.toUpperCase(),tg=s.strike,t=r?.tr,e=t?.est,left=(s.close-Date.now())/1000;if(px==null||!tg||left<=0)return '';
+  const ask=side==='yes'?s.ya:(s.yb!=null?+(1-s.yb).toFixed(4):null),w1=kxWinP(s.coin,s,side),ps=[w1&&!w1.done?w1.p:null,e?.p??null].filter(v=>v!=null);if(!ps.length||ask==null||!(ask>0&&ask<1))return `<div class="kx-airh"><b>AI read</b><span>needs a little more data</span></div>`;
+  const p=Math.min(...ps),need=kxNeed(ask),half=e&&e.hi>e.lo?(e.hi-e.lo)/2:null,lead=side==='yes'?px-tg:tg-px,z=half?lead/half:null,same=(KX.live?.scan||[]).filter(q=>q.leader===side&&q.lask>=.9&&q.close===s.close).length;
+  const pc=v=>v>=.95?'95%+':Math.round(Math.max(.05,v)*100)+'%',c1=p>=.9,c2=p>=need,c3=z!=null&&z>=1.5,c4=same>=3,tl=t?(side==='yes'?t.proj>=tg:t.proj<tg):null,lk=e?(side==='yes'?e.proj>=tg:e.proj<tg):null,buy=c1&&c2;
+  const row=(ok,a,b)=>`<li class="${ok==null?'':ok?'y':'n'}"><i></i><span>${a}</span><em>${b}</em></li>`;
+  return `<div class="kx-airh ${buy?'y':'n'}"><b>AI read</b><strong>${buy?`Would buy ${S}`:`Would pass on ${S}`}</strong><span>${!c1?`win chance ${pc(p)}, under 90%`:!c2?`${pc(p)} does not beat the ${kxC(ask)} price`:`${pc(p)} against ${pc(need)} needed${c3&&c4?', and both tested checks pass':''}`}</span></div>
+   <details class="kx-aird" ${KX.airOpen?'open':''} ontoggle="KX.airOpen=this.open"><summary>What it looked at</summary><ul>
+    ${row(c1,'Win chance',`${pc(p)} · needs 90%`)}${row(c2,`Beats the price (${kxC(ask)})`,`needs ${pc(need)}`)}${row(c3,'Clear of the target',z==null?'no reading':`${z.toFixed(1)} usual moves · 1.5 tested best`)}${row(c4,'Coins leading the same way',`${same} at 90¢+ · 3 tested best`)}${row(null,'Trend line lands',tl==null?'no reading':tl?`on ${S}`:`against ${S}`)}${row(null,'Likely line lands',lk==null?'no reading':lk?`on ${S}`:`against ${S}`)}</ul>
+    <p>An estimate from the readings on this chart, taking the more cautious of two win chances. It is not a tested rule and not advice. The price in the buy box is the one that counts.</p></details>`}
 function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=row();if(!s0)return;clearInterval(KX.cvT);
   modal(`<div class="kx-coinv" data-tk="${esc(tk)}"><div class="kx-cvh"><h2>${esc(s0.coin)}</h2><span data-k="lead"></span><span class="sp"></span><em data-k="left"></em></div>
-   <canvas class="kx-coinc"></canvas><div class="kx-cvph"><span>Previous 15 minutes</span><em data-k="pv">loading</em></div><div class="kx-cvs" data-k="st"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
+   <canvas class="kx-coinc"></canvas><div class="kx-cvph"><span>Previous 15 minutes</span><em data-k="pv">loading</em></div><div class="kx-cvs" data-k="st"></div><div class="kx-air" data-k="ai"></div><div class="kx-cva" data-k="act"></div><div class="acts"><button class="btn ghost" data-mx="0">Close</button></div></div>`);
   const stop=()=>{clearInterval(KX.cvT);KX.cvT=null},shut=()=>{stop();closeModal()};$('#mbox [data-mx="0"]').onclick=shut;$('#modal .bk').onclick=shut;ST.modalEsc=shut;
   const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
     const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),ph=kxPp(tk),pp=kxOpen().find(o=>o.tk===tk)||(ph?{side:ph.side,px:ph.px}:null),side=(kxHandOn()?x?.side||pp?.side:ph?.side||pp?.side||x?.side)||s.leader||'yes',S=side.toUpperCase();
@@ -3019,6 +3036,7 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
      <div><span>${t?.long?'Trend since '+tm(s.open/1000-900):'Trend, last 3 min'}</span><b class="${toward==null?'':toward?'pos':'neg'}">${perMin!=null?`${perMin>=0?'+':''}${perMin.toFixed(3)}% a min`:'–'}</b><small>${t?(Math.abs(perMin)<.002?'flat':toward?`moving toward ${S}`:`moving against ${S}`):'needs a little more data'}</small></div>
      <div><span><i class="kx-lg" style="background:var(--kx)"></i>${t?.long?'On that trend by the close':'At this pace by the close'}</span><b>${t?kxFmt(t.proj,tg):'–'}</b><small class="${pw==null?'':pw?'pos':'neg'}">${t?(pw?`${S} would win`:`${S} would lose`):''}</small></div>
      <div><span><i class="kx-lg" style="background:#e0a23a"></i>Likely by the close</span><b>${t?.est?kxFmt(t.est.proj,tg):'–'}</b><small class="${t?.est?.p==null?'':t.est.p>=.5?'pos':'neg'}">${t?.est?(t.est.p!=null?`${S} about ${Math.round(Math.min(.95,Math.max(.05,t.est.p))*100)}% · `:'')+(t.est.hi>t.est.lo?`${kxFmt(t.est.lo,tg)} to ${kxFmt(t.est.hi,tg)}`:'pace fading out'):'needs a little more data'}</small></div>`;
+    kxSlot(box.querySelector('[data-k=ai]'),kxAiRead(s,side,r,px));
     const act=box.querySelector('[data-k=act]');
     kxSlot(act,!kxHandOn()?`${kxHandRowP(s,1)||'<p class="note tx">Too close to the close to trade.</p>'}<p class="note tx" style="margin-top:8px">Paper view: practice money only, nothing is sent to Kalshi.${lv?.on?' Switch Home to Live to trade by hand with real money.':''}</p>`
       :x?`<div class="kx-hl"><span class="kx-pbtag lv tx">Live · bought ${x.fill} at ${kxC(x.px)}${x.hand?' · by hand':''}${x.sold?` · sold ${x.sold.fill}`:''}</span></div>${kxSellRow({...s,side:x.side})||'<p class="note tx">Too close to the close to sell.</p>'}`
@@ -4572,7 +4590,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 // iOS has caught up, moves the menu and the toasts down by the gap so they sit at the true bottom either way. It checks after a
 // field loses focus, when the app comes back, on a viewport change, after a touch, and every 3 seconds.
 (()=>{const vv=window.visualViewport;if(!vv)return;let open=false,metaAt=0;const R=document.documentElement;
-  const nudge=()=>requestAnimationFrame(()=>{const y=window.scrollY,max=Math.max(0,R.scrollHeight-innerHeight),d=y<max?1:-1;if(max>0){window.scrollTo(window.scrollX,y+d);requestAnimationFrame(()=>window.scrollTo(window.scrollX,y))}R.style.transform='translateZ(0)';requestAnimationFrame(()=>{R.style.transform=''})});
+  const nudge=()=>requestAnimationFrame(()=>{const y=window.scrollY,max=Math.max(0,R.scrollHeight-innerHeight),d=y<max?1:-1;if(max>0){window.scrollTo(window.scrollX,y+d);requestAnimationFrame(()=>window.scrollTo(window.scrollX,y))}});   // MC 2026-11-15 the nudge also put a transform on the page for one frame. A transform on the page makes every fixed box (the coin box, the menu) lay out against the whole document for that frame, which is a jump on screen, and when frames were slow it stuck. Removed.
   window.kxNudge=nudge;
   const typing=()=>{const a=document.activeElement,t=a?.tagName;return !!a&&(t==='TEXTAREA'||a.isContentEditable||(t==='INPUT'&&!/^(checkbox|radio|button|submit|range|color|file)$/i.test(a.type||'text')))};
   const gapNow=()=>Math.abs((vv.scale||1)-1)>.01?0:Math.round(vv.offsetTop+vv.height-innerHeight);
@@ -4718,7 +4736,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.49',KR_DATE='Nov 15, 2026';
+const KR_VERSION='1.2.50',KR_DATE='Nov 15, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
