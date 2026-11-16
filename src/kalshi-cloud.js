@@ -800,10 +800,10 @@ export function createKalshi(state, env, keep) {
     // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
     const toClose = Q - (now % Q);
     if (now - mk > 150000 && nextMark(now) - now > 90000) { const cbOk = toClose > 420000 || toClose < 180000;
+      if (cbOk) try { await trendFill(now); } catch (e) { say('trend fill error: ' + e.message); }
       if (cbOk) try { await pathFill(now); } catch (e) { console.log('path fill error: ' + e.message); }
       try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); }
-      if (cbOk) try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); }
-      if (cbOk) try { await trendFill(now); } catch (e) { say('trend fill error: ' + e.message); } }
+      if (cbOk) try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
@@ -1285,14 +1285,19 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-15 the AI checked playbook needs the trend and likely readings on every trade to show a history in Labs. Trades
   // recorded before today do not have them, so they are worked out from Coinbase's minute history, newest first, on the same
   // request allowance as the repair pass (the candles of one coin are shared between its trades). Two tries a trade.
-  let tfAt = 0;
+  let tfAt = 0, tfN = 0, tfReset = false;
   async function trendFill(now, max = 60) {
     if (now - tfAt < 50000) return; tfAt = now;
+    if (!tfReset) { tfReset = true; if (!(await kv.get('tfReset1'))) { for (const r of rec.values()) if (r.vol && r.vol.dp === undefined && r.vol.tlTry) { delete r.vol.tlTry; saveRec(r); } await kv.put('tfReset1', 1); } }
     const todo = [...rec.values()].filter(r => r.vol && (r.vol.tl === undefined || r.vol.sw === undefined || r.vol.dp === undefined) && r.strike > 0 && (r.vol.tlTry || 0) < 2 && r.at < now - 120000 && r.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, max); if (!todo.length) return;
     let n = 0; CCB = 4;
     for (const r of todo) { try { const v = await volPast(coin(r.series), r.strike, r.side, r.at); if (v) { r.vol.tl = v.tl ?? null; r.vol.lk = v.lk ?? null; r.vol.sw = v.sw ?? null; r.vol.dp = v.dp ?? null; r.vol.r2 = v.r2 ?? null; n++; } else r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); }
-      catch (e) { if (e.status === 'budget') break; if (e.status === 429) { tfAt = now + 5 * 60000; break; } r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); break; } }
-    if (n) { labRowsMem = null; viewDirty = true; console.log(`trend fill: ${n} trades given their trend and likely readings`); }
+      // MC 2026-11-16 the fill stalled at Nov 15 for no late swing and chart checked. It runs last in a busy minute, and when the
+      // run had used up Cloudflare's calls the fetch threw "Too many subrequests", which counted as a failed try on that trade:
+      // two of those and the trade was dropped for good, one trade per pass, so the fill stopped moving. Running out of calls now
+      // just ends the pass. Trades dropped that way get their tries back once (tfReset).
+      catch (e) { if (e.status === 'budget' || /subrequest/i.test(e.message || '')) break; if (e.status === 429) { tfAt = now + 5 * 60000; break; } r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); break; } }
+    if (n) { labRowsMem = null; viewDirty = true; tfN += n; console.log(`trend fill: ${n} trades given their chart readings`); }
   }
   async function volRepair(now, max = 40) {
     if (now - fixAt < 50000) return; fixAt = now;
@@ -1523,7 +1528,8 @@ export function createKalshi(state, env, keep) {
       eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K),
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
       look2sum: l2sum ? { since: l2sum.since, size: +cfgP.sizeUsd || 50, h: Object.entries(l2sum.h).map(([k, v]) => [+k, ...v]).sort((a, b) => a[0] - b[0]), d: Object.entries(l2sum.d).map(([k, v]) => [k, ...v]).sort((a, b) => a[0] < b[0] ? -1 : 1) } : null,
-      look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
+      look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), chartfill: (() => { const now = Date.now(); let left = 0, oldest = null; for (const r of rec.values()) { if (!r.vol || !(r.strike > 0) || r.at < now - 21 * 86400000 || r.at > now - 120000) continue; if (r.vol.dp === undefined && (r.vol.tlTry || 0) < 2) left++; else if (r.vol.dp != null && (oldest == null || r.at < oldest)) oldest = r.at; } return { left, oldest }; })(),
+      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 

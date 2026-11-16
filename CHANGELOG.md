@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.57 (Nov 16, 2026): The chart-reading fill-in moves again
+- [fixed] Filling in past trades' chart readings (for no late swing and chart checked) stalled around Nov 15. It ran last in a busy minute, and when the tracker had already used up the calls Cloudflare allows one run, that counted as a failed try on a trade: two of those and the trade was dropped, one per pass. It now runs first in its quiet minutes, running out of calls simply ends the pass, and trades dropped that way get another chance.
+- [new] The Labs caption shows the progress: how far back the chart readings are filled and how many older trades are still to go.
+
 ## 1.2.56 (Nov 16, 2026): No late swing and chart checked now show in Labs
 - [fixed] The two new playbooks drew no line in Labs. The Labs comparison works from its own copy of each trade, and that copy did not carry the new chart readings, so both playbooks treated every trade as having no reading. The readings were being recorded all along, so both lines appear at once with every trade that has them, and keep growing as older trades are filled in.
 
