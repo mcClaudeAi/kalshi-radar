@@ -442,7 +442,7 @@ export function createKalshi(state, env, keep) {
         if (v0 + vx > st.bal + 0.01) { vx = Math.min(vx, st.bal); v0 = Math.max(0, +(st.bal - vx).toFixed(2)); }
         st.shard = { 0: +v0.toFixed(2), [XI]: +vx.toFixed(2) }; st.shAt = Date.now(); }
       } }
-    else if (/subrequest/i.test(errOf(r) || '')) say('LIVE out of calls this run, balance kept');
+    else if (/subrequest/i.test(errOf(r) || '') || r?.status === 429) say(`LIVE ${r?.status === 429 ? 'Kalshi asked to slow down' : 'out of calls this run'}, balance kept`);
     else { st.keyOk = r?.status === 401 ? false : st.keyOk; fail(`balance check failed: ${r?.status} ${errOf(r)}`); }
     return st.bal;
   }
@@ -571,10 +571,15 @@ export function createKalshi(state, env, keep) {
   }
   // MC 2026-11-14 manual sell. sellQuote reads the book for what is still held: best bid, the average a sale of all of it would get
   // walking down the book, a floor 3c under the best bid, and what selling would book against holding to a win
+  // MC 2026-11-15 the position cards now ask for a sell quote every few seconds from every open device. The order book behind
+  // it is kept for 4 seconds, so two phones and a laptop watching the same position cost one read, not three. The sell itself
+  // does not use this; it places its order against a price floor and Kalshi fills it at the live book.
+  const obC = new Map();
+  async function obGet(tk) { const c = obC.get(tk), now = Date.now(); if (c && now - c.at < 4000) return c.j; const j = await get(`/markets/${tk}/orderbook`); if (j) { obC.set(tk, { at: now, j }); if (obC.size > 40) for (const [k, v] of obC) if (now - v.at > 60000) obC.delete(k); } return j; }
   async function sellQuote(tk) {
     const x = L.get(tk); if (!x || !(x.fill > 0) || x.result) return { ok: false, msg: 'No open live position in that market.' };
     if (x.close <= Date.now()) return { ok: false, msg: 'That market has closed; it settles on its own.' };
-    const left = x.fill - (x.sold?.fill || 0); let b; try { b = bids(await get(`/markets/${tk}/orderbook`)); } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
+    const left = x.fill - (x.sold?.fill || 0); let b; try { b = bids(await obGet(tk)); } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
     const mine = x.side === 'yes' ? b.yes : b.no, best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is buying ${x.side.toUpperCase()} right now, so it cannot be sold.` };
     const avg = walk(mine, left) ?? null, depth = mine.reduce((a, l) => a + l[1], 0), est = Math.min(left, depth), px = avg ?? (mine.reduce((a, l) => a + l[0] * l[1], 0) / depth), fe = fee(px, est);
     const prior = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0, proceeds = +(est * px - fe).toFixed(2);
@@ -902,11 +907,17 @@ export function createKalshi(state, env, keep) {
   // someone has the board open the page asks for a fresh read, and the nine markets' prices are fetched again, at most once
   // every 9 seconds however many devices ask. Nothing is recorded from it; the minute read still does the bookkeeping.
   let sqAt = 0, sqBusy = null;
+  // MC 2026-11-15 later: the first version read the nine markets one by one, nine requests at once every 9 seconds while anyone
+  // watched, and with the sell quotes below it Steven's tracker was turned away by Kalshi (429). Now one request for all nine
+  // (the market list takes a list of tickers) every 15 seconds at most.
   async function scanQuick() {
-    await load(); const now = Date.now(); if (!scan.length) return null; if (now - Math.max(scanAt, sqAt) < 9000) return false; if (sqBusy) return sqBusy; sqAt = now;
-    sqBusy = (async () => { try { await Promise.all(scan.map(async x => { try { if (x.close <= Date.now()) return; const j = await get(`/markets/${x.tk}`), m = j?.market || j; if (!m) return;
-        const yb = d4(num(m.yes_bid_dollars ?? m.yes_bid)), ya = d4(num(m.yes_ask_dollars ?? m.yes_ask)), last = d4(num(m.last_price_dollars ?? m.last_price)); if (yb == null && ya == null) return;
-        const na = yb == null ? null : +(1 - yb).toFixed(4); x.yb = yb; x.ya = ya; x.last = last; x.leader = ya == null || na == null ? null : ya >= na ? 'yes' : 'no'; x.lask = x.leader === 'yes' ? ya : x.leader === 'no' ? na : null; x.q = Date.now(); } catch { } })); return true; } finally { sqBusy = null; } })();
+    await load(); const now = Date.now(); if (!scan.length) return null; if (now - Math.max(scanAt, sqAt) < 15000) return false; if (sqBusy) return sqBusy; sqAt = now;
+    sqBusy = (async () => { try { const live = scan.filter(x => x.close > Date.now()); if (!live.length) return true;
+        const j = await get(`/markets?tickers=${live.map(x => x.tk).join(',')}&limit=${live.length + 5}`), M = new Map((j?.markets || []).map(m => [m.ticker, m]));
+        for (const x of live) { const m = M.get(x.tk); if (!m) continue;
+          const yb = d4(num(m.yes_bid_dollars ?? m.yes_bid)), ya = d4(num(m.yes_ask_dollars ?? m.yes_ask)), last = d4(num(m.last_price_dollars ?? m.last_price)); if (yb == null && ya == null) continue;
+          const na = yb == null ? null : +(1 - yb).toFixed(4); x.yb = yb; x.ya = ya; x.last = last; x.leader = ya == null || na == null ? null : ya >= na ? 'yes' : 'no'; x.lask = x.leader === 'yes' ? ya : x.leader === 'no' ? na : null; x.q = Date.now(); }
+        return true; } catch { return true; } finally { sqBusy = null; } })();
     return sqBusy;
   }
   const liveJson = () => JSON.stringify(kliveBody());

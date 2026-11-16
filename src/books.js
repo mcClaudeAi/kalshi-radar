@@ -106,7 +106,9 @@ export function createBooks(D) {
         const val = q => q?.ok ? (q.j?.balance_dollars != null ? +q.j.balance_dollars : q.j?.balance != null ? q.j.balance / 100 : null) : null;
         const [a0, ax] = await Promise.all([breq(b, 'GET', '/portfolio/balance?exchange_index=0'), breq(b, 'GET', `/portfolio/balance?exchange_index=${D.XI}`)]), v0 = val(a0), vx = val(ax);
         if (v0 != null && vx != null) { s.shard = { 0: v0, [D.XI]: vx }; s.shAt = Date.now(); } else if (keep && Object.keys(keep).length) s.shard = keep; } } }
-    else if (/subrequest/i.test(errOf(r) || '')) D.say(`BOOK ${b.name}: out of calls this run, balance kept`);
+    // MC 2026-11-15 Steven's book showed "balance check failed: 429 too many requests". Kalshi turning a read away for a moment
+    // is not a fault with the book, so it is handled like running out of calls: last figures kept, tried again next minute.
+    else if (/subrequest/i.test(errOf(r) || '') || r?.status === 429) D.say(`BOOK ${b.name}: ${r?.status === 429 ? 'Kalshi asked to slow down' : 'out of calls this run'}, balance kept`);
     else { s.keyOk = r?.status === 401 || r?.status === 403 ? false : s.keyOk; fail(b, `balance check failed: ${r?.status} ${errOf(r)}`); }
     if (r?.ok && s.bal != null && (b.lastBal !== s.bal || b.lastCx !== (s.shard[D.XI] ?? null))) { b.lastBal = s.bal; b.lastCx = s.shard[D.XI] ?? null; try { await saveList(); } catch { } }
     return s.bal;
