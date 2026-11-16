@@ -32,6 +32,9 @@ const MIN_LEFT = 10, BOOK_N = 100, KEEP_ASK = 0.85, Q = 15 * 60000;
 // that runs on the kept coins afterwards (price paths, minute-10 checks, chart fill-ins, the learning model) stays at 85c (KEEP_ASK)
 // so it costs no more than before; the 60c to 85c rows only need their result.
 const KEEP_LO = 0.6, EP_LO = 0.6, EP_HI = 0.9;
+// MC 2026-11-16 Early pack counts only from 1.2.59's release. Before it the trade check kept only coins at 85c or more, so the older
+// rows held just the 85c to 90c slice and undercounted the pack; its Labs line showed -$395 for 7 days on a rule it wasn't running.
+const EP_FROM = Date.parse('2026-11-16T17:50:00Z');
 const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
@@ -1497,7 +1500,7 @@ export function createKalshi(state, env, keep) {
     const m10T = [...rec3.values()].filter(r => r.result !== 'void').map(r => ({ m10: 1, tk: r.ticker + ':10', t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +(r.avgN || r.ask).toFixed(3), done: !!r.result, won: !!r.won, dir: r.dir, pct: r.pct, z: null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }));
     // MC 2026-11-16 Early pack's own rows: every leader at 60c to 90c at the trade check, with how many coins led the same way
     const epN = {}; for (const r of rows) if (r.ask >= KEEP_LO && r.result !== 'void') epN[r.close + r.side] = (epN[r.close + r.side] || 0) + 1;
-    const epT = rows.filter(r => r.ask >= EP_LO && r.ask < EP_HI && r.result !== 'void').map(r => ({ ep: 1, tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +(r.avgN || r.ask).toFixed(3), done: !!r.result, won: !!r.won, z: r.vol?.z ?? null, win: 1, same: epN[r.close + r.side] || 1, hr: etHour(r.at), off: (K.skipHours || []).includes(etHour(r.at)) }));
+    const epT = rows.filter(r => r.at >= EP_FROM && r.ask >= EP_LO && r.ask < EP_HI && r.result !== 'void').map(r => ({ ep: 1, tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +(r.avgN || r.ask).toFixed(3), done: !!r.result, won: !!r.won, z: r.vol?.z ?? null, win: 1, same: epN[r.close + r.side] || 1, hr: etHour(r.at), off: (K.skipHours || []).includes(etHour(r.at)) }));
     const labs = runLabs(trades, K, lateT, m10T, epT);
     pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));

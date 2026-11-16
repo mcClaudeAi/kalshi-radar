@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.60 (Nov 16, 2026): Early pack starts clean
+- [fixed] Early pack's Labs line now starts at 1.2.59. Older trade checks only kept coins at 85¢ or more, so its line was scoring a thin 85¢ to 90¢ slice, not the playbook.
+
 ## 1.2.59 (Nov 16, 2026): New playbook in Labs: Early pack
 A playbook built from your own winning hand buys, tracked in Labs from today.
 - [new] Early pack buys the leader at 60¢ to 90¢ at the trade check, only when at least 3 coins lead the same way, before 9 PM ET, and never HYPE. It runs in Labs only for now, next to the other playbooks.
