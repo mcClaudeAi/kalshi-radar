@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.66 (Nov 16, 2026): Paper home rebuilt to match
+- [improved] The paper panel now uses the same layout as the live one: status chips with your playbook, the paper bank as the one big figure, a Today card with the profit target inside it, and a ledger row (Started with, Bank now, This run, Trades) in place of the sentence.
+
 ## 1.2.65 (Nov 16, 2026): Live home rebuilt
 The live account panel was rebuilt so it reads top to bottom: status, cash, today, all time, stats.
 - [improved] One big cash figure for every account, with each account's cash and today's result under it. The floating all-accounts box is gone.

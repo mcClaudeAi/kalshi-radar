@@ -1265,22 +1265,23 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  .kx-l2 .l2c{grid-area:c;font-size:14px}.kx-l2 .l2s{grid-area:s}.kx-l2 .l2p{grid-area:p;font-weight:600}.kx-l2 .l2t{grid-area:t;text-align:right!important;font-size:11.5px}.kx-l2 .l2w{grid-area:w;color:var(--ink2)}.kx-l2 .l2r{grid-area:r}.kx-l2 .l2d{grid-area:d}
  .kx-l2 .l2r:empty,.kx-l2 .l2d:empty{display:none}.kx-l2 .l2r::before,.kx-l2 .l2d::before{content:attr(data-l) ": ";color:var(--faint);font-size:11.5px}}
 /* MC 2026-11-16 live hero rebuilt in bands (lh-): status, cash and today, ledger, stats */
-.kx-hlive.lh{padding:20px 24px 20px;display:grid;gap:18px}
-.kx-hlive.lh>*{position:relative;z-index:1;min-width:0}.kx-hlive.lh>.kx-grid,.kx-hlive.lh>.kx-heq{position:absolute;z-index:0}
-.kx-hlive.lh .kx-heq{top:auto;bottom:0;height:62%;opacity:.22;mask-image:linear-gradient(90deg,transparent 30%,#000 80%),linear-gradient(180deg,transparent,#000 40%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent 30%,#000 80%);mask-composite:intersect}
+.kx-hero2.lh{padding:20px 24px 20px;display:grid;gap:18px}
+.kx-hero2.lh>*{position:relative;z-index:1;min-width:0}.kx-hero2.lh>.kx-grid,.kx-hero2.lh>.kx-heq{position:absolute;z-index:0}
+.kx-hero2.lh .kx-heq{top:auto;bottom:0;height:62%;opacity:.22;mask-image:linear-gradient(90deg,transparent 30%,#000 80%),linear-gradient(180deg,transparent,#000 40%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent 30%,#000 80%);mask-composite:intersect}
 .lh-top{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap}
 .lh-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .lh-live{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px 0 10px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 70%,transparent)}
 .lh-live i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
 .lh-live.on{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 10%,transparent)}.lh-live.on i{background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 22%,transparent)}
+.lh-live.paper{color:var(--kx);border-color:color-mix(in srgb,var(--kx) 45%,transparent);background:color-mix(in srgb,var(--kx) 10%,transparent)}.lh-live.paper i{background:var(--kx)}.lh-acc.st{cursor:default}.lh-acc.st:hover{transform:none;border-color:var(--line)}.lh-acc.st span{padding-left:0}.lh-acc b.pos{color:var(--good)}.lh-acc b.neg{color:var(--bad)}.lh-pb{max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;line-height:26px}
 .lh-live.hand{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent)}.lh-live.hand i{background:var(--warn)}
 @media(prefers-reduced-motion:no-preference){.lh-live.on i{animation:lhPulse 2.4s ease-out infinite}}@keyframes lhPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 50%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
 .lh-chip{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:99px;font-size:12px;color:var(--mute);border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);white-space:nowrap}.lh-chip b{color:var(--ink);font-family:var(--mono);font-weight:600;margin-right:4px}
-.kx-hlive.lh .kx-next{padding:8px 16px 8px 8px;border-radius:99px;gap:11px}.kx-hlive.lh .kx-ring,.kx-hlive.lh .kx-ring svg{width:46px;height:46px}.kx-hlive.lh .kx-ring b{font-size:11.5px}.kx-hlive.lh .kx-next span{margin-top:1px}
+.kx-hero2.lh .kx-next{padding:8px 16px 8px 8px;border-radius:99px;gap:11px}.kx-hero2.lh .kx-ring,.kx-hero2.lh .kx-ring svg{width:46px;height:46px}.kx-hero2.lh .kx-ring b{font-size:11.5px}.kx-hero2.lh .kx-next span{margin-top:1px}
 .lh-warn{display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:12px;font-size:13px;color:var(--ink);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);background:color-mix(in srgb,var(--bad) 9%,transparent)}.lh-warn i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bad)}
 .lh-main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:22px;align-items:stretch}
 .lh-cash{display:flex;flex-direction:column;justify-content:center;min-width:0}
-.kx-hlive.lh .kx-bal{font-size:clamp(44px,5.4vw,68px);font-weight:600;letter-spacing:-.04em;line-height:1;margin-top:8px;white-space:nowrap}
+.kx-hero2.lh .kx-bal{font-size:clamp(44px,5.4vw,68px);font-weight:600;letter-spacing:-.04em;line-height:1;margin-top:8px;white-space:nowrap}
 .lh-accs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.lh-accs:empty{display:none}
 .lh-acc{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:auto auto;column-gap:14px;row-gap:1px;align-items:baseline;padding:9px 13px 9px 12px;border-radius:14px;border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 62%,transparent);position:relative;transition:border-color .15s,transform .15s}
 .lh-acc:hover{border-color:color-mix(in srgb,var(--kx) 55%,transparent);transform:translateY(-1px)}.lh-acc:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
@@ -1302,14 +1303,14 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .lh-lc.cta{border-left:1px solid var(--line);align-items:flex-start}.lh-lc.cta .btn{margin:2px 0}
 .lh-op{flex:none;align-self:center;font-style:normal;font-family:var(--mono);font-size:15px;color:var(--faint);width:14px;text-align:center}
 .lh-mbtn{flex:none;align-self:center;margin:0 14px 0 0}
-.kx-hlive.lh .kx-st{margin-top:0;border-top:0;padding-top:0}
+.kx-hero2.lh .kx-st{margin-top:0;border-top:0;padding-top:0}
 @media(max-width:1100px){.lh-main{grid-template-columns:minmax(0,1fr) minmax(280px,.9fr)}.lh-ledger{flex-wrap:wrap}.lh-lc.lh-log{flex-basis:100%;border-left:0;border-top:1px solid var(--line)}.lh-mbtn{position:absolute;right:0;bottom:14px}.lh-ledger{position:relative}}
-@media(max-width:760px){.kx-hlive.lh{padding:16px 14px 16px;gap:14px}.lh-main{grid-template-columns:minmax(0,1fr);gap:14px}
- .lh-top{flex-direction:column;align-items:stretch} .kx-hlive.lh .kx-next{width:100%;box-sizing:border-box;border-radius:16px}.lh-chip{height:26px;font-size:11.5px;padding:0 10px}.lh-live{height:26px}
- .kx-hlive.lh .kx-bal{font-size:clamp(40px,13vw,54px)}.lh-accs{margin-top:12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-right:-14px;padding-right:14px}.lh-accs::-webkit-scrollbar{display:none}.lh-acc{flex:none}
+@media(max-width:760px){.kx-hero2.lh{padding:16px 14px 16px;gap:14px}.lh-main{grid-template-columns:minmax(0,1fr);gap:14px}
+ .lh-top{flex-direction:column;align-items:stretch} .kx-hero2.lh .kx-next{width:100%;box-sizing:border-box;border-radius:16px}.lh-chip{height:26px;font-size:11.5px;padding:0 10px}.lh-live{height:26px}
+ .kx-hero2.lh .kx-bal{font-size:clamp(40px,13vw,54px)}.lh-accs{margin-top:12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-right:-14px;padding-right:14px}.lh-accs::-webkit-scrollbar{display:none}.lh-acc{flex:none}
  .lh-today{padding:14px 14px}.lh-ledger{display:grid;grid-template-columns:1fr 1fr;border-radius:16px}.lh-op{display:none}.lh-lc{padding:11px 13px 10px;border-top:1px solid var(--line)}.lh-lc:nth-child(1),.lh-lc:nth-child(3){border-top:0}.lh-lc:nth-child(3){border-left:1px solid var(--line)}
  .lh-lc.lh-res,.lh-lc.lh-log{grid-column:1/-1;border-left:0}.lh-lc.lh-log:first-child{border-top:0}.lh-lc.cta{grid-column:1/-1;border-left:0}.lh-lc b{font-size:18px}.lh-mbtn{position:static;grid-column:1/-1;justify-self:stretch;margin:0 13px 12px;text-align:center}
- .kx-hlive.lh .kx-heq{display:none}.lh-rm{display:none}.kx-hlive.lh .kx-st>div:last-child:nth-child(odd){grid-column:1/-1;border-right:0;padding-right:0}}
+ .kx-hero2.lh .kx-heq{display:none}.lh-rm{display:none}.kx-hero2.lh .kx-st>div:last-child:nth-child(odd){grid-column:1/-1;border-right:0;padding-right:0}}
 .kx-mlist{display:grid;gap:6px;margin-top:10px}.kx-mlist>div{display:grid;grid-template-columns:auto auto 1fr auto;gap:10px;align-items:center;font-size:13px}.kx-mlist>div.out{opacity:.45}.kx-mlist>div.out b{text-decoration:line-through}.kx-mlist em{color:var(--faint);font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kx-lcsv{margin-left:8px;vertical-align:middle}
 .kb-more{margin:10px 0 0;font-size:12.5px;color:var(--mute)}.kb-more a{color:var(--kx);white-space:nowrap}
@@ -3989,11 +3990,15 @@ function kalshiV(D,view='kalshi'){const K=D.kalshi,isL=view==='kslive';
   const sec=(t,p)=>`<div class="kx-sh"><h2>${t}</h2>${p?`<p>${p}</p>`:''}</div>`;
   const liveTxt=lv?.on?`Live on, $${lv.size} a trade`:K.keys?'Live off':'Live not connected';
   const roll=(K.roll||[]).slice(-60);
-  const P={hero:`<section class="kx-hero2" style="--hero:${K.net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
-   <div class="kx-hd"><div><div class="kx-eyebrow">Kalshi 15-minute crypto, running in the cloud</div>
-     <div class="kx-big"><div><div class="kx-ml">Paper bank</div><div class="kx-bal">${'$'+Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kx-big2"><div class="kx-ml">Today</div><b class="${cls(todayNet)}">${usd(todayNet)}</b><small>${K.today?.n||0} trades, ${K.today?.won||0} won${K.today?.passed?`, ${K.today.passed} passed${K.today.pWon+K.today.pLost?` (${K.today.pWon}-${K.today.pLost})`:''}`:''}${stopPct>=1?' · stop hit':''}</small>${kxGoal(todayNet)}</div></div>
-     <div class="kx-sub"><b class="${cls(K.net)}">${usd(K.net)}</b> on $${Number(start).toLocaleString('en-US')} since ${K.since?dd(K.since):'the start'}. ${n0(K.n)} trades, ${K.n?Math.round(wr*1000)/10+'% won':'none settled yet'}${K.inPlay?`, $${Number(K.inPlay).toFixed(0)} in play right now`:''}.</div></div>
+  // MC 2026-11-16 the paper panel in the same bands as the live one (status, bank and today, ledger, stats), asked for after live
+  const tdL=(K.today?.n||0)-(K.today?.won||0),pct=start>0?K.net/start*100:0;
+  const P={hero:`<section class="kx-hero2 lh" style="--hero:${K.net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
+   <div class="lh-top"><div class="lh-status"><span class="lh-live paper"><i></i>Paper · running</span><span class="lh-chip lh-rm">No real money</span><span class="lh-chip"><b>$${n0(c.sizeUsd??50)}</b> a trade</span><span class="lh-chip lh-pb">${esc(kxLabOf(K,K.playbook?.id).name)}</span></div>
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
+   <div class="lh-main"><div class="lh-cash"><div class="kx-ml">Paper bank</div><div class="kx-bal">${'$'+Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+    <div class="lh-today"><div class="lh-th"><span class="kx-ml">Today</span>${stopPct>=1?'<em class="neg">stop hit</em>':''}</div><b class="${cls(todayNet)}">${usd(todayNet)}</b>
+     <div class="lh-tl"><span><b>${K.today?.n||0}</b> trades</span><span><b>${K.today?.won||0}</b> won</span>${tdL>0?`<span><b class="neg">${tdL}</b> lost</span>`:''}${K.today?.passed?`<span><b>${K.today.passed}</b> passed${K.today.pWon+K.today.pLost?` (${K.today.pWon}-${K.today.pLost})`:''}</span>`:''}</div>${kxGoal(todayNet)}</div></div>
+   <div class="lh-ledger"><div class="lh-lc"><span class="kx-ml">Started with</span><b>$${Number(start).toLocaleString('en-US')}</b><small>paper money${K.since?`, ${dd(K.since)}`:''}</small></div><i class="lh-op">→</i><div class="lh-lc"><span class="kx-ml">Bank now</span><b>$${Number(K.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</b><small>${K.inPlay?`$${Number(K.inPlay).toFixed(0)} of it in play`:'nothing in play'}</small></div><i class="lh-op">=</i><div class="lh-lc lh-res ${cls(K.net)}"><span class="kx-ml">This run</span><b><span class="${cls(K.net)}">${usd(K.net)}</span></b><small>${K.net>=0?'+':''}${pct.toFixed(1)}% on the starting bank</small></div><div class="lh-lc lh-log"><span class="kx-ml">Trades</span><b>${n0(K.n)}</b><small>${K.n?`${Math.round(wr*1000)/10}% won · ${lost} loss${lost===1?'':'es'}`:'none settled yet'}</small></div></div>
    <div class="kx-st">
     <div><div class="kx-ml">Win rate</div><b class="${K.n?(wr>=be?'pos':'neg'):''}">${K.n?(wr*100).toFixed(1)+'%':'–'} <em>need ${(be*100).toFixed(1)}</em></b><div class="kx-sp">${roll.length>2?kxSpark(roll.map((p,i)=>[i,p[1]]),120,20,wr>=be?'var(--good)':'var(--bad)'):''}</div><small>last 300 at ${K.wr300??'–'}%</small></div>
     <div><div class="kx-ml">Average trade</div><b class="${cls(K.avg)}">${usd(K.avg)}</b><small>${lost} loss${lost===1?'':'es'}, streak of ${n0(K.streak)}</small></div>
@@ -4851,7 +4856,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.65',KR_DATE='Nov 16, 2026';
+const KR_VERSION='1.2.66',KR_DATE='Nov 16, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
