@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.63 (Nov 16, 2026): Leave old deposits out
+- [new] Each deposit or withdrawal from Kalshi in Money in has a Leave out button, for money from before you started tracking. Left-out entries stay in the list, dimmed, with Count it to bring them back.
+
 ## 1.2.62 (Nov 16, 2026): Deposits read from Kalshi
 - [new] The tracker reads your deposits and withdrawals from Kalshi every 6 hours, so "Put in" fills itself. Money in has a Check Kalshi now button.
 - [improved] When Kalshi shares the list it replaces any you typed in; your own entries stay as a fallback if it can't be read.
