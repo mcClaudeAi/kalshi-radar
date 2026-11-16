@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.56 (Nov 16, 2026): No late swing and chart checked now show in Labs
+- [fixed] The two new playbooks drew no line in Labs. The Labs comparison works from its own copy of each trade, and that copy did not carry the new chart readings, so both playbooks treated every trade as having no reading. The readings were being recorded all along, so both lines appear at once with every trade that has them, and keep growing as older trades are filled in.
+
 ## 1.2.55 (Nov 16, 2026): New playbook, Margin vs volatility, chart checked
 - [new] A Labs playbook that takes Margin vs volatility under 95¢ but skips two chart shapes that tended to snap back in testing: a coin that was 1.7 or more usual moves on the wrong side of its target in the last 30 minutes, and a coin whose last 15 minutes were a near-straight run. Over Sep 8 to Nov 16 it made $0.95 a trade against $0.59 for Margin vs volatility under 95¢, more in total on 30% fewer trades, with the worst day about half as deep.
 - [new] Every trade now records both shapes. Trades from the last three weeks are filled in from Coinbase's history over the next hours, so the Labs card builds a history without waiting. "No late swing" stays as it was.
