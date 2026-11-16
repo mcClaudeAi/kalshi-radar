@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.58 (Nov 16, 2026): Export your live trades
+Hand buys now save the chart readings from the moment you buy, and the Live board can export every live trade to a CSV file.
+- [new] Export CSV on the live accounts bar downloads every live trade with a fill, Main's and every sub account's, with its result and readings.
+- [improved] A hand buy on Main saves the move readings (moves clear, trend line, likely line, wrong side depth, straightness) when the order goes out.
+- [improved] Older hand buys get their readings filled in from price history, a few at a time in the quiet minute.
+
 ## 1.2.57 (Nov 16, 2026): The chart-reading fill-in moves again
 - [fixed] Filling in past trades' chart readings (for no late swing and chart checked) stalled around Nov 15. It ran last in a busy minute, and when the tracker had already used up the calls Cloudflare allows one run, that counted as a failed try on a trade: two of those and the trade was dropped, one per pass. It now runs first in its quiet minutes, running out of calls simply ends the pass, and trades dropped that way get another chance.
 - [new] The Labs caption shows the progress: how far back the chart readings are filled and how many older trades are still to go.

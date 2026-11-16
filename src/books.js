@@ -440,7 +440,8 @@ export function createBooks(D) {
   // rows for one market across the books, every row (for the engine's target backfill), and saving a row the engine changed
   const rowsOf = tk => (list || []).map(b => L[b.id]?.get(tk)).filter(Boolean);
   const allRows = () => (list || []).flatMap(b => [...(L[b.id]?.values() || [])]);
+  const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
 }

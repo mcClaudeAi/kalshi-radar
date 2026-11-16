@@ -1285,10 +1285,20 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-15 the AI checked playbook needs the trend and likely readings on every trade to show a history in Labs. Trades
   // recorded before today do not have them, so they are worked out from Coinbase's minute history, newest first, on the same
   // request allowance as the repair pass (the candles of one coin are shared between its trades). Two tries a trade.
+  // the readings kept on a live row: distance from the target in usual moves and as a share of the price, the 10-minute move,
+  // and the chart readings
+  const volPick = v => ({ z: v.z ?? null, margin: v.margin ?? null, sigma: v.sigma ?? null, z10: v.z10 ?? null, tl: v.tl ?? null, lk: v.lk ?? null, sw: v.sw ?? null, dp: v.dp ?? null, r2: v.r2 ?? null, src: v.src || null });
+  // every live trade with a fill, Main's and the books', for the export under Trades
+  async function liveAll() { await load(); await books.load(); const one = (x, acct) => ({ acct, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, px: x.px ?? null, fill: x.fill ?? 0, cost: x.cost ?? null, hand: x.hand ? 1 : 0, strat: x.strat || null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, strike: x.strike ?? rec.get(x.tk)?.strike ?? null, final: x.final ?? rec.get(x.tk)?.final ?? null, sold: x.sold ? { px: x.sold.px, fill: x.sold.fill } : null, v: x.vol || (x.hand ? null : (rec.get(x.tk)?.vol ? volPick(rec.get(x.tk).vol) : null)) });
+    return [...[...L.values()].filter(x => x.fill > 0).map(x => one(x, 'Main')), ...books.allRows().filter(x => x.fill > 0).map(x => one(x, books.nameOf(x)))].sort((a, b) => b.at - a.at); }
   let tfAt = 0, tfN = 0, tfReset = false;
   async function trendFill(now, max = 60) {
     if (now - tfAt < 50000) return; tfAt = now;
     if (!tfReset) { tfReset = true; if (!(await kv.get('tfReset1'))) { for (const r of rec.values()) if (r.vol && r.vol.dp === undefined && r.vol.tlTry) { delete r.vol.tlTry; saveRec(r); } await kv.put('tfReset1', 1); } }
+    // hand buys from before their readings were kept: worked out from Coinbase's history at the moment of the buy, a few a pass
+    { const hs = [...L.values(), ...books.allRows()].filter(x => x.hand && x.fill > 0 && x.strike > 0 && !x.vol && (x.volTry || 0) < 2 && x.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, 20);
+      CCB = 4; for (const x of hs) { try { const v = await volPast(x.coin, x.strike, x.side, x.at); if (v) x.vol = volPick(v); else x.volTry = (x.volTry || 0) + 1; if (L.get(x.tk) === x) saveL(x); else books.saveAny(x); viewDirty = true; }
+        catch (e) { if (e.status === 'budget' || /subrequest/i.test(e.message || '')) break; if (e.status === 429) { tfAt = now + 5 * 60000; return; } x.volTry = (x.volTry || 0) + 1; break; } } }
     const todo = [...rec.values()].filter(r => r.vol && (r.vol.tl === undefined || r.vol.sw === undefined || r.vol.dp === undefined) && r.strike > 0 && (r.vol.tlTry || 0) < 2 && r.at < now - 120000 && r.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, max); if (!todo.length) return;
     let n = 0; CCB = 4;
     for (const r of todo) { try { const v = await volPast(coin(r.series), r.strike, r.side, r.at); if (v) { r.vol.tl = v.tl ?? null; r.vol.lk = v.lk ?? null; r.vol.sw = v.sw ?? null; r.vol.dp = v.dp ?? null; r.vol.r2 = v.r2 ?? null; n++; } else r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); }
@@ -1683,6 +1693,9 @@ export function createKalshi(state, env, keep) {
       // a buy that does not happen leaves the market as it was (the rule's skip, say), so the record of why the rule passed stays
       const undo = () => { if (prev) { L.set(tk, prev); saveL(prev); } else { L.delete(tk); sql.exec('DELETE FROM ko WHERE tk = ?', tk); } viewDirty = true; };
       L.set(tk, row); saveL(row); resv += size;
+      // MC 2026-11-16 asked to find a pattern in the hand buys that won: keep the chart readings at the moment of the buy, read
+      // after the order is sent so the order is not held up
+      if (row.strike > 0) volAt(cn, row.strike, side).then(v => { if (v) { row.vol = volPick(v); saveL(row); } }).catch(() => { });
       const t0 = Date.now(); let res; try { res = await kreq('POST', '/portfolio/events/orders', body); } finally { delete row.pend; resv = Math.max(0, resv - size); }
       row.rtt = Date.now() - t0;
       if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 200); undo(); fail(`hand buy ${tk} refused: ${e}`); await publish(true); return { ok: false, msg: `Kalshi refused the order: ${e}` }; }
@@ -1810,5 +1823,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, scanQuick, liveJson, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
