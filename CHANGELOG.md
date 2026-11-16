@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.52 (Nov 15, 2026): Buy either side from the coin box, all on one screen
+- [new] The coin box offers Buy YES and Buy NO side by side, each with its price and what it pays if it wins. The leader is on the left.
+- [improved] The AI read looks at whichever side has the better chance, so it can say "Would buy NO" when the leader is YES and fading.
+- [improved] On phones the box fits the screen: Close is an x in the header, the chart and tiles are shorter, the earlier 15 minutes sit in one line, and the buy and sell area is pinned to the bottom of the box so it stays in view.
+
 ## 1.2.51 (Nov 15, 2026): Fewer calls to Kalshi, and no error when it asks to slow down
 - [fixed] A book could show "balance check failed: 429 too many requests". Kalshi turns requests away for a moment when too many arrive at once, and two of tonight's additions asked more often: the scanner refresh read the nine markets one by one, and every held card asked for a sell quote every 6 seconds from every open device.
 - [improved] The scanner refresh is now one request for all nine markets, at most every 15 seconds. Sell quotes on the cards come every 10 seconds, and the order book behind them is shared for 4 seconds, so several devices watching the same position cost one read.
