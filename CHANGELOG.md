@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.49 (Nov 15, 2026): Scanner prices do refresh every 10 seconds now
+- [fixed] 1.2.48 was meant to refresh Kalshi's prices on the scanner about every 10 seconds while Home is open. A mistake in the check for "is Home open" meant it only happened with a coin box open, so the scanner kept showing prices up to a minute old: a row could say 61¢ while the buy box, reading fresh, said 74¢. Home now gets the fresh prices as intended.
+- [improved] When a scanner row's price is 20 seconds old or more, the buy line says so ("price read 40s ago"), so an old price cannot pass for a current one.
+
 ## 1.2.48 (Nov 15, 2026): Every coin stays quick to read on phones
 - [improved] On phones the coins you do not hold are back on Coinbase's every-trade feed, read three times a second, where 1.2.46 had slowed them to once every 5 seconds. Coins you hold, or whose box is open, still get every trade.
 - [new] Kalshi's own prices on the scanner (the YES and NO cents on each coin) were read once a minute. While Home or a coin box is open they are now refreshed about every 10 seconds, and position cards use the same fresher prices.
