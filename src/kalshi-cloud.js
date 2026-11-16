@@ -347,6 +347,7 @@ export function createKalshi(state, env, keep) {
     { const l = await kv.get('kcfgL'); if (l) cfgL = { ...pickL(PAPER_DEF), ...l }; else { cfgL = pickL(cfgP); await kv.put('kcfgL', cfgL); } }
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     apiV = (await kv.get('kapi')) || null;
+    kmoney = (await kv.get('kmoney')) || null;
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
     await books.load(); await vault.load();
   }
@@ -685,7 +686,7 @@ export function createKalshi(state, env, keep) {
   let apiV = null, labRowsMem = null, tradesMem = null;
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
-    return { on: c.enabled, autoPause: c.autoPause, money: Array.isArray(ctlL.money) ? ctlL.money : [], size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
+    return { on: c.enabled, autoPause: c.autoPause, money: kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped,
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, ...(() => { const ps = todayL().filter(x => x.skipped && x.strat && !(x.fill > 0)), rs = ps.map(x => [x, rec.get(x.tk)?.result]).filter(z => z[1] === 'yes' || z[1] === 'no'); return { passed: ps.length, pWon: rs.filter(z => z[1] === z[0].side).length, pLost: rs.filter(z => z[1] !== z[0].side).length }; })() }, bench: [...coldSet(Date.now(), cfgL)], cfg: cfgL, where: 'cloud',
@@ -816,6 +817,7 @@ export function createKalshi(state, env, keep) {
       if (cbOk) try { await trendFill(now); } catch (e) { say('trend fill error: ' + e.message); }
       if (cbOk) try { await pathFill(now); } catch (e) { console.log('path fill error: ' + e.message); }
       try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); }
+      try { await moneySync(now); } catch (e) { console.log('money sync error: ' + e.message); }
       if (cbOk) try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
@@ -1305,6 +1307,23 @@ export function createKalshi(state, env, keep) {
   async function liveAll() { await load(); await books.load(); const one = (x, acct) => ({ acct, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, px: x.px ?? null, fill: x.fill ?? 0, cost: x.cost ?? null, hand: x.hand ? 1 : 0, strat: x.strat || null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, strike: x.strike ?? rec.get(x.tk)?.strike ?? null, final: x.final ?? rec.get(x.tk)?.final ?? null, sold: x.sold ? { px: x.sold.px, fill: x.sold.fill } : null, v: x.vol || (x.hand ? null : (rec.get(x.tk)?.vol ? volPick(rec.get(x.tk).vol) : null)) });
     return [...[...L.values()].filter(x => x.fill > 0).map(x => one(x, 'Main')), ...books.allRows().filter(x => x.fill > 0).map(x => one(x, books.nameOf(x)))].sort((a, b) => b.at - a.at); }
   let tfAt = 0, tfN = 0, tfReset = false;
+  // MC 2026-11-16 asked for: find deposits and withdrawals on their own, for Steven's copy and his. Kalshi lists both
+  // (/portfolio/deposits, /portfolio/withdrawals, amounts in cents). Read every 6 hours, or soon after the Money box asks; only
+  // applied ones count. When Kalshi answers, its list is the one used and hand-entered notes stay as a fallback for when it doesn't.
+  let kmoney = null, moneyAt = 0;
+  async function moneySync(now, force = false) {
+    if (!hasKeys() || (!force && (now - moneyAt < 600000 || (kmoney?.at && now - kmoney.at < 6 * 3600000 && !kmoney.want)))) return; moneyAt = now;
+    const ms = t => +t > 0 ? (+t < 1e12 ? +t * 1000 : +t) : null, pull = async (path, key) => { const out = []; let cur = '';
+      for (let i = 0; i < 4; i++) { const r = await kreq('GET', `/portfolio/${path}?limit=500${cur ? '&cursor=' + encodeURIComponent(cur) : ''}`);
+        if (!r?.ok) return { err: r?.status || 'no answer' }; out.push(...(r.j?.[key] || [])); cur = r.j?.cursor; if (!cur || !(r.j?.[key] || []).length) break; }
+      return { list: out }; };
+    const [d, w] = [await pull('deposits', 'deposits'), await pull('withdrawals', 'withdrawals')];
+    if (d.err || w.err) { kmoney = { ...(kmoney || {}), at: now, want: 0, err: `Kalshi answered ${d.err || w.err}` }; await kv.put('kmoney', kmoney); viewDirty = true; return; }
+    const one = (x, sign) => ({ id: 'k' + x.id, at: ms(x.finalized_ts) || ms(x.created_ts) || now, usd: sign * Math.round(+x.amount_cents || 0) / 100, fee: Math.round(+x.fee_cents || 0) / 100, note: `${x.type || ''} ${sign > 0 ? 'deposit' : 'withdrawal'}`.trim(), auto: 1 });
+    const list = [...d.list.filter(x => x.status === 'applied').map(x => one(x, 1)), ...w.list.filter(x => x.status === 'applied').map(x => one(x, -1))].sort((a, b) => a.at - b.at);
+    kmoney = { at: now, want: 0, err: null, list, pend: [...d.list, ...w.list].filter(x => x.status === 'pending').length };
+    await kv.put('kmoney', kmoney); viewDirty = true; say(`money: ${list.length} deposit${list.length === 1 ? '' : 's'} and withdrawals from Kalshi`);
+  }
   async function trendFill(now, max = 60) {
     if (now - tfAt < 50000) return; tfAt = now;
     if (!tfReset) { tfReset = true; if (!(await kv.get('tfReset1'))) { for (const r of rec.values()) if (r.vol && r.vol.dp === undefined && r.vol.tlTry) { delete r.vol.tlTry; saveRec(r); } await kv.put('tfReset1', 1); } }
@@ -1753,6 +1772,7 @@ export function createKalshi(state, env, keep) {
       // open ride as they would have; the cash out rule, if it is on, still acts on them.
       if (a.autoPause === true || a.autoPause === false) { if ((next.autoPause === true) !== a.autoPause) ch.push(a.autoPause ? 'automatic buying PAUSED' : 'automatic buying RESUMED'); next.autoPause = a.autoPause; }
       if (a.sellAll === true) { next.sellAllAt = Date.now(); ch.push('sell all open live positions'); }
+      if (a.moneySync === true) { try { await moneySync(Date.now(), true); } catch (e) { return { ok: false, msg: 'Could not reach Kalshi: ' + e.message }; } publish(true); return { ok: !kmoney?.err, msg: kmoney?.err ? `Kalshi didn't share the list (${kmoney.err}).` : `Kalshi lists ${kmoney?.list?.length || 0} deposits and withdrawals.` }; }
       // MC 2026-11-16 asked for: the money he put in (and took out) beside the trading result, so the dash can say where the
       // account stands all time. Kalshi's API doesn't list deposits, so he enters them. + is money in, - is a withdrawal.
       if (a.moneyAdd) { const v = Math.round(+a.moneyAdd.usd * 100) / 100, at = +a.moneyAdd.at > 0 ? +a.moneyAdd.at : Date.now();

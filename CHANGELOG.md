@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.62 (Nov 16, 2026): Deposits read from Kalshi
+- [new] The tracker reads your deposits and withdrawals from Kalshi every 6 hours, so "Put in" fills itself. Money in has a Check Kalshi now button.
+- [improved] When Kalshi shares the list it replaces any you typed in; your own entries stay as a fallback if it can't be read.
+- [fixed] A missing space before "Put in".
+
 ## 1.2.61 (Nov 16, 2026): Your result against what you put in
 The live account can now show where you stand all time, counting your deposits and withdrawals.
 - [new] Add deposits on the Live home, under the all-time line. Enter each deposit or withdrawal once and the line reads "Put in $750, worth $802 now, +$52 all time".
