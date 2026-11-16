@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.53 (Nov 16, 2026): Hand buys get their replay under Trades
+- [fixed] A trade bought by hand in a market the tracker had not recorded (under 85¢ at the trade check) showed no target and no "How it played out" replay under Trades, because both came from the tracker's own record of that market. Hand buys now keep the market's target, title and settled value themselves, for Main and the subaccounts.
+- [improved] Hand buys from the last week that are missing them are filled in from Kalshi over the next few minutes, a few at a time, so their replays appear too.
+
 ## 1.2.52 (Nov 15, 2026): Buy either side from the coin box, all on one screen
 - [new] The coin box offers Buy YES and Buy NO side by side, each with its price and what it pays if it wins. The leader is on the left.
 - [improved] The AI read looks at whichever side has the better chance, so it can say "Would buy NO" when the leader is YES and fading.

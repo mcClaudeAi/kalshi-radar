@@ -167,6 +167,8 @@ const stratAt = (log, ms) => { let id = 'rule'; for (const e of log || []) { if 
 const stratSince = (log, ms) => { let at = null; for (const e of log || []) { if (e.at <= ms) at = e.at; else break; } return at; };
 const coin = s => String(s || '').replace(/^KX|15M$/g, '');
 const fee = (p, n) => Math.ceil(0.07 * n * p * (1 - p) * 100 - 1e-9) / 100;
+// a market's target and settled value are coin prices, not cents: read them as plain numbers
+const kNum = x => { if (x == null || x === '') return null; const v = Number(x); return isFinite(v) ? v : null; }, kStrike = m => m ? kNum(m.custom_strike?.floor_strike ?? m.floor_strike ?? m.cap_strike ?? m.functional_strike) : null;
 const num = x => { if (x == null) return null; const v = Number(x); if (!isFinite(v)) return null; return typeof x === 'string' && x.includes('.') ? v : Number.isInteger(v) && v > 1 ? v / 100 : v; };
 const d4 = x => x == null ? null : +Number(x).toFixed(4);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -660,7 +662,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 limWhy: what set the order's top price (the room, or a cap that held it lower)
       // MC 2026-11-14 with the order's limit, the ask it was based on, how fast it went out, what a miss saw after, the fees, and
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
-      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, was: x.was || null,
+      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
         ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
       playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view() };
   }
@@ -874,10 +876,16 @@ export function createKalshi(state, env, keep) {
     // is now asked for directly, six a pass.
     { const due = new Set(); for (const x of L.values()) if (x.fill > 0 && !x.result && x.close <= now - 15000 && x.close > now - 86400000 && !(x.sold && !x.sold.cash && !x.sold.manual)) due.add(x.tk); try { for (const tk of books.dueTks(now - 15000)) due.add(tk); } catch { }
       let n = 0; for (const tk of due) { const r0 = rec.get(tk); if (r0 && !r0.result && now < r0.close + 6 * 3600000) continue; if (++n > 6) break;
-        let res = r0?.result; if (res !== 'yes' && res !== 'no') { try { const j = await get(`/markets/${tk}`); res = j?.market?.result; } catch { continue; } }
+        let res = r0?.result, mk = null; if (res !== 'yes' && res !== 'no') { try { const j = await get(`/markets/${tk}`); mk = j?.market || null; res = mk?.result; } catch { continue; } }
+        if (mk) { const fin = kNum(mk.expiration_value); for (const x of [L.get(tk), ...books.rowsOf(tk)]) if (x) { if (x.strike == null) x.strike = kStrike(mk); x.title = x.title || mk.title || null; if (fin != null && x.final == null) x.final = fin; } }
         if (res !== 'yes' && res !== 'no') continue;
         const r = { ticker: tk, result: res }; say(`settled ${tk} (live position, no tracker record): ${res}`);
         try { onSettle(r); } catch (e) { fail('settle error: ' + e.message); } try { books.onSettle(r); } catch (e) { say('books settle error: ' + e.message); } any = true; viewDirty = true; } }
+    // MC 2026-11-16 hand buys made before their rows kept the market's target have no replay under Trades; fill the target,
+    // title and settled value in from the market, a few a pass, for the last week
+    { const need = [...L.values(), ...books.allRows()].filter(x => x.hand && x.strike == null && !x.metaTry && x.close > now - 7 * 86400000 && x.close < now - 60000 && !rec.get(x.tk)?.strike).slice(0, 4);
+      for (const x of need) { x.metaTry = 1; try { const j = await get(`/markets/${x.tk}`), mk = j?.market; if (!mk) continue; const fin = kNum(mk.expiration_value);
+          for (const y of [L.get(x.tk), ...books.rowsOf(x.tk)]) if (y && y.strike == null) { y.strike = kStrike(mk) ?? null; y.title = y.title || mk.title || null; if (fin != null) y.final = fin; if (L.get(x.tk) === y) saveL(y); else books.saveAny(y); } viewDirty = true; } catch { } } }
     if (any) { st.balAt = 0; }
     return any;
   }
@@ -1625,7 +1633,7 @@ export function createKalshi(state, env, keep) {
         if (!wantMain && !held) return { ok: false, msg: 'A hand buy for a subaccount goes with Main, unless Main already holds that market.' };
         const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); if (!(Number(a.maxPx) > 0)) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
         let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { } const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
-        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1 }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, ask: Number(a.ask) || null }) : []]);
+        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1 }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null }) : []]);
         viewDirty = true; await publish(true);
         return { ok: !!mr?.ok || br.some(x => x.ok), msg: [mr ? `Main: ${mr.msg}` : '', ...br.map(x => `${x.name}: ${x.msg}.`)].filter(Boolean).join(' ') }; }
       const tk = String(a.tk || ''), side = a.side, s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
@@ -1641,7 +1649,7 @@ export function createKalshi(state, env, keep) {
       const body = side === 'yes'
         ? { ticker: tk, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
         : { ticker: tk, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
-      const prev = L.get(tk), cn = coin(s), row = { tk, coin: cn, side, at: Date.now(), close, ask: Number(a.ask) || null, want: n, limit: maxPx, limWhy: 'the price you confirmed', size, fill: 0, strat: 'hand', hand: 1, pend: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
+      const prev = L.get(tk), cn = coin(s), row = { tk, coin: cn, side, at: Date.now(), close, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null, want: n, limit: maxPx, limWhy: 'the price you confirmed', size, fill: 0, strat: 'hand', hand: 1, pend: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
       // a buy that does not happen leaves the market as it was (the rule's skip, say), so the record of why the rule passed stays
       const undo = () => { if (prev) { L.set(tk, prev); saveL(prev); } else { L.delete(tk); sql.exec('DELETE FROM ko WHERE tk = ?', tk); } viewDirty = true; };
       L.set(tk, row); saveL(row); resv += size;

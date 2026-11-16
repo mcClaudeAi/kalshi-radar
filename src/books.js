@@ -260,7 +260,7 @@ export function createBooks(D) {
         const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
         if (!(fill > 0) || avgYes == null) return { name: nm, ok: false, msg: 'nothing filled, the price moved' };
         const prev = Lb.get(o.tk), px = +(o.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees = +(fill * avgFee).toFixed(4);
-        const row = { tk: o.tk, coin: o.coin, side: o.side, at: Date.now(), close: o.close, ask: o.ask ?? null, want: n, limit: o.maxPx, limWhy: 'the price you confirmed', size, fill, avgYes, px, fees, cost: +(fill * px + fees).toFixed(2), id: j.order_id || null, strat: 'hand', hand: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
+        const row = { tk: o.tk, coin: o.coin, side: o.side, at: Date.now(), close: o.close, strike: o.strike ?? null, title: o.title || null, ask: o.ask ?? null, want: n, limit: o.maxPx, limWhy: 'the price you confirmed', size, fill, avgYes, px, fees, cost: +(fill * px + fees).toFixed(2), id: j.order_id || null, strat: 'hand', hand: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
         Lb.set(o.tk, row); saveRow(b, row); if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); s.balAt = 0;
         D.say(`BOOK ${nm} bought ${o.tk} ${o.side.toUpperCase()} by hand: ${fill}/${n} at ${(px * 100).toFixed(1)}c`);
         return { name: nm, ok: true, msg: `bought ${fill}${fill < n ? ` of ${n}` : ''} at ${(px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}` };
@@ -311,7 +311,7 @@ export function createBooks(D) {
         total: { n: all.filter(x => x.result && x.fill > 0).length, won: all.filter(x => x.won && x.fill > 0).length, net: +realized(all.filter(x => x.fill > 0)).toFixed(2) },
         open: all.filter(x => x.fill > 0 && !x.result).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, fill: x.fill, px: x.px, cost: x.cost, close: x.close })),
         hist: all.filter(x => x.fill > 0 && x.result).slice(0, 1500).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0, 1, x.hand ? 1 : 0]),
-        recent: all.slice(0, 80).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null })) }; });
+        recent: all.slice(0, 80).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, hand: x.hand || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null })) }; });
   }
 
   // ---------- commands from the dashboard (signed-in, unlocked device only; the engine checks that) ----------
@@ -437,6 +437,10 @@ export function createBooks(D) {
   // coins the books with their own rules trade (null = every coin), so the trade check reads them
   const ownCoins = () => { const o = (list || []).filter(b => b.on && b.cfg); if (!o.length) return []; if (o.some(b => !b.cfg.coins?.length)) return null; return [...new Set(o.flatMap(b => b.cfg.coins))]; };
   // positions past their close that still have no result, for the engine's settle pass
+  // rows for one market across the books, every row (for the engine's target backfill), and saving a row the engine changed
+  const rowsOf = tk => (list || []).map(b => L[b.id]?.get(tk)).filter(Boolean);
+  const allRows = () => (list || []).flatMap(b => [...(L[b.id]?.values() || [])]);
+  const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks };
+  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny };
 }
