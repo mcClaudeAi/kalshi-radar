@@ -898,19 +898,31 @@ export function createKalshi(state, env, keep) {
   }
 
   // ---------- what the page reads ----------
+  // MC 2026-11-15 Kalshi's prices on the scanner were read once a minute, too slow to trade the other coins by hand. While
+  // someone has the board open the page asks for a fresh read, and the nine markets' prices are fetched again, at most once
+  // every 9 seconds however many devices ask. Nothing is recorded from it; the minute read still does the bookkeeping.
+  let sqAt = 0, sqBusy = null;
+  async function scanQuick() {
+    await load(); const now = Date.now(); if (!scan.length) return null; if (now - Math.max(scanAt, sqAt) < 9000) return false; if (sqBusy) return sqBusy; sqAt = now;
+    sqBusy = (async () => { try { await Promise.all(scan.map(async x => { try { if (x.close <= Date.now()) return; const j = await get(`/markets/${x.tk}`), m = j?.market || j; if (!m) return;
+        const yb = d4(num(m.yes_bid_dollars ?? m.yes_bid)), ya = d4(num(m.yes_ask_dollars ?? m.yes_ask)), last = d4(num(m.last_price_dollars ?? m.last_price)); if (yb == null && ya == null) return;
+        const na = yb == null ? null : +(1 - yb).toFixed(4); x.yb = yb; x.ya = ya; x.last = last; x.leader = ya == null || na == null ? null : ya >= na ? 'yes' : 'no'; x.lask = x.leader === 'yes' ? ya : x.leader === 'no' ? na : null; x.q = Date.now(); } catch { } })); return true; } finally { sqBusy = null; } })();
+    return sqBusy;
+  }
+  const liveJson = () => JSON.stringify(kliveBody());
   function kliveBody() {
-    const now = Date.now(), K = cfgP, open = [];
+    const now = Date.now(), K = cfgP, open = [], fresh = tk => { const z = scan.find(q => q.tk === tk); return z?.q && now - z.q < 60000 ? z : null; };
     for (const r of rec.values()) {
       if (r.result || !(r.ask >= K.minAsk) || now > r.close + 300000) continue;   // MC 2026-11-08 keep a closed trade on the board until it settles (was dropped after 90s)
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
-      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
+      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: fresh(r.ticker)?.yb ?? lp?.[1] ?? null, ya: fresh(r.ticker)?.ya ?? lp?.[2] ?? null, last: fresh(r.ticker)?.last ?? lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
     }
     if (stratAt(K.strat, now) === 'look2') for (const r of rec2.values()) {
       if (r.result || now > r.close + 300000 || baseTaken(r.ticker)) continue;
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = rec.get(r.ticker)?.path?.at(-1), i = open.findIndex(o => o.tk === r.ticker), o = { late: 1, left: r.left, tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: rec.get(r.ticker)?.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: null };
       if (i >= 0) open[i] = o; else open.push(o);
     }
-    return { at: scanAt || now, open, scan, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
+    return { at: Math.max(scanAt, ...scan.map(z => z.q || 0)) || now, open, scan, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
   }
   async function publish(save) {
     const kl = JSON.stringify(kliveBody());
@@ -1749,5 +1761,5 @@ export function createKalshi(state, env, keep) {
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, scanQuick, liveJson, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

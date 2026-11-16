@@ -186,7 +186,8 @@ export class Store {
     if (p === '/api/kpath') return new Response(JSON.stringify(await this.K.pathOf(u.searchParams.get('tk') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=86400' } });
     if (p === '/api/ktrade') return new Response(JSON.stringify(await this.K.tradeAt(+u.searchParams.get('close'), u.searchParams.get('coin') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
     if (p === '/api/klab') return etagged(req, JSON.stringify(await this.K.labRows(u.searchParams.get('id') || '')), { 'content-type': 'application/json' });
-    if (p === '/api/klive') { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return new Response(h || 'null', { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
+    if (p === '/api/klive') { if (u.searchParams.get('fresh')) { try { if (await this.K.scanQuick() !== null) return new Response(this.K.liveJson(), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); } catch { } }
+      let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return new Response(h || 'null', { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
     if (p === '/api/cmd' && post) {
       const ok = ['kalshiSet', 'kalshiLive', 'kalshiSellOne', 'kalshiBuyOne', 'kalshiShard', 'kalshiPaperBuy', 'kalshiPaperSell', 'kalshiStrat', 'kalshiBook', 'kalshiApi', 'kalshiVault'].includes(body.type);
       let res; try { res = ok ? await this.K.command(body.type, body.args || {}) : { ok: false, msg: 'Not available in this edition.' }; } catch (e) { res = { ok: false, msg: e.message }; }

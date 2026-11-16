@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.48 (Nov 15, 2026): Every coin stays quick to read on phones
+- [improved] On phones the coins you do not hold are back on Coinbase's every-trade feed, read three times a second, where 1.2.46 had slowed them to once every 5 seconds. Coins you hold, or whose box is open, still get every trade.
+- [new] Kalshi's own prices on the scanner (the YES and NO cents on each coin) were read once a minute. While Home or a coin box is open they are now refreshed about every 10 seconds, and position cards use the same fresher prices.
+- [improved] The battery savings that mattered most stay: no drifting background or blur behind cards on phones, charts off screen are not drawn, and nothing runs in the background.
+
 ## 1.2.47 (Nov 15, 2026): The card's sell price matches the sell box
 - [fixed] A position's card could read "Sells now for about 78¢" while the sell box, opened a second later, said 50¢. The card used the tracker's last reading of the market, up to a minute old; the box reads Kalshi's order book fresh. When a coin crosses its target those can be far apart. The card now gets the same fresh quote as the box every few seconds while it is on screen, so the two agree.
 - [improved] Until the first fresh quote arrives, the card says its figure is the tracker's last reading and may be up to a minute old. It also says when only part of the position has buyers, or when nobody is buying.
