@@ -1,12 +1,12 @@
 // Kalshi 15-minute crypto: every market's leader at the trade check (10 minutes before the close) with three readings worked out
 // from Coinbase's 1-minute prices at that moment, for testing playbooks that read the coin's chart. Public market data only, no keys.
-// Usage: node mvai.mjs COIN DAYS   (prints one ROW line per market, so a stopped run keeps what it has)
+// Usage: node mvai.mjs COIN DAYS [FLOOR, the lowest leader price kept, default 0.85]   (prints one ROW line per market, so a stopped run keeps what it has)
 // ROW: [close minute, 1 if the leader is YES, leader ask in tenths of a cent, 1 if it won, z x100, trend x1e6, likely x1e6, strike,
 //       lead now x1e6, lead 20 minutes ago x1e6, lead 3 minutes ago x1e6, the lead at each of the last 31 minute closes x1e6]
 //   z      = the lead over the target divided by one usual 10-minute move (the last hour's 1-minute spread x sqrt 10)
 //   trend  = where a straight line through the last 20 minutes lands at the close, as the lead past the target on the leader's side
 //   likely = the same for the last 3 minutes' pace fading with a 90-second half-life
-const B = 'https://api.elections.kalshi.com/trade-api/v2', CB = 'https://api.exchange.coinbase.com', [COIN, DAYS = '123'] = process.argv.slice(2), S = `KX${COIN}15M`, PID = `${COIN}-USD`;
+const B = 'https://api.elections.kalshi.com/trade-api/v2', CB = 'https://api.exchange.coinbase.com', [COIN, DAYS = '123', FLOOR = '0.85'] = process.argv.slice(2), S = `KX${COIN}15M`, PID = `${COIN}-USD`;
 const END = Math.floor(Date.now() / 1000), START = END - +DAYS * 86400, sleep = ms => new Promise(r => setTimeout(r, ms));
 async function j(u, base = B) { for (let i = 0; i < 6; i++) { try { const r = await fetch(base + u, { headers: { accept: 'application/json', 'user-agent': 'kalshi-radar-research' } }); if (r.status === 429 || r.status >= 500) { await sleep(800 * (i + 1)); continue; } if (!r.ok) return { _err: r.status }; return await r.json(); } catch { await sleep(800 * (i + 1)); } } return { _err: 'gave up' }; }
 const px = (o, k) => { if (!o) return null; const d = o[k + '_dollars']; if (d != null) return +d; return o[k] != null ? o[k] / 100 : null; };
@@ -22,7 +22,7 @@ const fit = A => { const n = A.length, mx = A.reduce((a, q) => a + q[0], 0) / n,
 let i = 0, n = 0, noCb = 0; await Promise.all(Array.from({ length: 6 }, async () => { while (i < ms.length) { const m = ms[i++], c = ts(m), mark = c - 600, k = m.floor_strike ?? m.cap_strike ?? null; if (!(k > 0)) continue;
   let r = await j(`/series/${S}/markets/${m.ticker}/candlesticks?start_ts=${mark - 240}&end_ts=${mark}&period_interval=1`); if (r._err) r = await j(`/historical/markets/${m.ticker}/candlesticks?start_ts=${mark - 240}&end_ts=${mark}&period_interval=1`);
   const kc = (r.candlesticks || []).filter(x => x.end_period_ts <= mark).pop(); if (!kc) continue; const ya = px(kc.yes_ask, 'close'), yb = px(kc.yes_bid, 'close'); if (ya == null || yb == null) continue;
-  const na = +(1 - yb).toFixed(4), yes = ya >= na, ask = yes ? ya : na; if (!(ask >= 0.85 && ask < 1)) continue;
+  const na = +(1 - yb).toFixed(4), yes = ya >= na, ask = yes ? ya : na; if (!(ask >= +FLOOR && ask < 1)) continue;
   // minute closes up to the mark: the candle that starts at t closes at t + 60
   const rows = []; for (let t = mark - 61 * 60; t <= mark - 60; t += 60) { const v = C.get(t); if (v != null) rows.push([t + 60, v]); } if (rows.length < 40 || mark - rows.at(-1)[0] > 180) { noCb++; continue; }
   const rets = []; for (let q = 1; q < rows.length; q++) rets.push(Math.log(rows[q][1] / rows[q - 1][1])); const mu = rets.reduce((a, b) => a + b, 0) / rets.length, sg = Math.sqrt(rets.reduce((a, b) => a + (b - mu) ** 2, 0) / rets.length);
