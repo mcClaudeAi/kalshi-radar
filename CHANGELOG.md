@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.54 (Nov 16, 2026): New playbook, Margin vs volatility, no late swing
+- [new] A Labs playbook that takes Margin vs volatility under 95¢ but skips coins whose lead is mostly new: 20 minutes before the trade check they were on the other side of the target by at least half of what they now lead by. Over Sep 6 to Nov 15 those coins made $0.41 a trade against $0.94 for the rest, and leaving them out helped in both halves of that stretch. Over Nov 12 to 16 they won 83% and lost $4.95 a trade.
+- [new] Every trade now records how much of its lead is new. Trades from the last three weeks are filled in from Coinbase's history over the next hours, so the Labs card builds a history without waiting.
+
 ## 1.2.53 (Nov 16, 2026): Hand buys get their replay under Trades
 - [fixed] A trade bought by hand in a market the tracker had not recorded (under 85¢ at the trade check) showed no target and no "How it played out" replay under Trades, because both came from the tracker's own record of that market. Hand buys now keep the market's target, title and settled value themselves, for Main and the subaccounts.
 - [improved] Hand buys from the last week that are missing them are filled in from Kalshi over the next few minutes, a few at a time, so their replays appear too.

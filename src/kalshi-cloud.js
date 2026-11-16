@@ -41,7 +41,7 @@ const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindo
 // ceiling, so a coin picked at 94.8c under an under-95 playbook filled at 95.6c. The room is now a live setting (slipC, cents,
 // default 1) and the order's top price never goes past live's Maximum price or the playbook's own price limit. pbCap is that
 // limit: the price the playbook would no longer take (exclusive), or tr10's 98c (inclusive).
-const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, all: 0.95, mv96: 0.96 };
+const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, all: 0.95, mv96: 0.96 };
 function orderLimit(r, labId, cfg) {
   const room = Math.max(0, Math.min(3, cfg.slipC ?? 1)) / 100, tick = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01;
   let top = Math.min(0.99, cfg.maxAsk ?? 0.99, +(r.ask + room).toFixed(4)), why = room ? `${(room * 100).toFixed(1).replace(/\.0$/, '')}c of room` : 'no room';
@@ -130,6 +130,12 @@ function labDefs(K) {
     // the deepest drop about half as deep, on about a quarter of the trades and 40% of the profit. Rebuilt on those two checks
     // at his say-so. The two lines stay on the charts and are still recorded on every trade (tl, lk) for later tests.
     { id: 'mvai', name: 'Margin vs volatility (AI checked)', desc: 'Margin vs volatility under 95¢ with two extra checks that held up in testing: the coin must be at least 1.5 normal 10-minute moves past its target, and at least 3 coins must be leading the same way in that window. Far fewer trades (about 18 a day in the test), fewer losses and shallower bad days, and less profit in total.', color: '#4CC9F0', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 && t.same >= 3 },
+    // MC 2026-11-16 from Mitchell's ask to find a pattern in the last 4 days of automatic trades. Rebuilt from Kalshi's public data:
+    // Nov 12 to 16 the live playbook won 89.7% and lost $396 at $50 a trade. Coins whose lead was mostly new (20 minutes before the
+    // trade check they were on the other side of the target by at least half of what they now lead by, sw >= 1.5) won 83% and lost
+    // $4.95 a trade; over Sep 6 to Nov 15 the same group made $0.41 a trade against $0.94 for the rest, and leaving it out helped
+    // in both halves of that stretch ($0.95 and $0.94 a trade). It cut the 4-day loss to $129; it does not make that stretch pay.
+    { id: 'mvsw', name: 'Margin vs volatility, no late swing', desc: 'Margin vs volatility under 95¢, skipping coins whose lead is mostly new: 20 minutes before the trade check they were on the other side of the target by at least half of what they now lead by. In testing those swung back more often than the rest.', color: '#8AC926', filter: t => t.z == null || t.sw == null ? null : t.z >= 1 && t.px < 0.95 && t.sw < 1.5 },
     { id: 'mv15', name: 'Margin vs volatility, 1.5 moves', desc: 'Margin vs volatility under 95¢ with a higher bar: the coin must be at least 1.5 normal 10-minute moves past its target, not 1. About 40% of the trades and half the profit in the history, but the worst day and the worst drop were both about half as deep, and the win rate went from 94.2% to 95.2%.', color: '#80FFDB', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
     // none had a second half without a red day, because one loss costs about 15 wins. This is the steadiest that held up when
@@ -257,11 +263,13 @@ function volCalc(all, rows, px, strike, side, age, src) {
     // MC 2026-11-15 the two chart lines at this moment, for the AI checked playbook. Trend: least squares through the last 20
     // one-minute closes and the current price, read 10 minutes on. Likely: the slope of the last 3 minutes times 130 seconds (a
     // pace that halves every 90 seconds adds that much in all). Each is kept as its margin past the target on our side.
-    let tl = null, lk = null; { const T = rows.slice(-20).map(k => [k[0] + 60, k[4]]), tN = T[T.length - 1][0] + (age > 0 ? Math.min(age, 90) : 0); if (src !== 'candle' && src !== 'history') T.push([tN, px]); else T[T.length - 1][1] = px;
+    // MC 2026-11-16 sw: how much of the lead is new. 0 means the coin led by as much 20 minutes ago; 1.5 or more means 20 minutes ago
+    // it was on the other side of the target by at least half of what it leads by now (a late swing across).
+    let tl = null, lk = null, sw = null; { const T = rows.slice(-20).map(k => [k[0] + 60, k[4]]), tN = T[T.length - 1][0] + (age > 0 ? Math.min(age, 90) : 0); if (src !== 'candle' && src !== 'history') T.push([tN, px]); else T[T.length - 1][1] = px;
       const fit = A => { const n = A.length, mx = A.reduce((a, q) => a + q[0], 0) / n, my = A.reduce((a, q) => a + q[1], 0) / n; let sxy = 0, sxx = 0; for (const q of A) { sxy += (q[0] - mx) * (q[1] - my); sxx += (q[0] - mx) ** 2; } return sxx > 0 ? { b: sxy / sxx, at: t => my + sxy / sxx * (t - mx) } : null; };
       const sg = v => +((side === 'yes' ? v - strike : strike - v) / strike).toFixed(6), end = T[T.length - 1][0] + 600;
-      if (T.length >= 12 && src !== 'stale') { const L = fit(T), S3 = fit(T.slice(-4)); if (L) tl = sg(L.at(end)); if (S3) lk = sg(px + S3.b * 130 * (1 - Math.exp(-600 / 130))); } }
-    return { tl, lk, px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2), sigma10: sigma10 == null ? null : +sigma10.toExponential(3), z10, age, src };
+      if (T.length >= 12 && src !== 'stale') { const L = fit(T), S3 = fit(T.slice(-4)); if (L) tl = sg(L.at(end)); if (S3) lk = sg(px + S3.b * 130 * (1 - Math.exp(-600 / 130))); const ld = sg(px); if (ld > 0) sw = +((ld - sg(T[0][1])) / ld).toFixed(3); } }
+    return { tl, lk, sw, px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2), sigma10: sigma10 == null ? null : +sigma10.toExponential(3), z10, age, src };
 }
 
 
@@ -722,7 +730,7 @@ export function createKalshi(state, env, keep) {
     const mkGate = (cfg, H) => { let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfg.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
       return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only) return { ok: false, why: 'playbook not available live' };
         if (sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = H.length; }
-        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
+        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         return f === true ? { ok: true, lab } : { ok: false, why: `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}` }; }; };
     const gate = mkGate(cfgL, hitsL);
     const ownOf = cfg => { const H = seen.filter(r => (!cfg.coins?.length || cfg.coins.includes(coin(r.series))) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9).sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9)); return { hits: H, gate: mkGate(cfg, H), cfg, bench: coldSet(now, cfg) }; };
@@ -738,7 +746,7 @@ export function createKalshi(state, env, keep) {
       for (const r of hitsL) {
         if (offNow) { skipLive(r, `off schedule (${etHour(now)}:00 ET hour)`); continue; }
         if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hitsL.length; }
-        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
+        const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) { try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); } }
         else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
       }
@@ -1267,9 +1275,9 @@ export function createKalshi(state, env, keep) {
   let tfAt = 0;
   async function trendFill(now, max = 60) {
     if (now - tfAt < 50000) return; tfAt = now;
-    const todo = [...rec.values()].filter(r => r.vol && r.vol.tl === undefined && r.strike > 0 && (r.vol.tlTry || 0) < 2 && r.at < now - 120000 && r.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, max); if (!todo.length) return;
+    const todo = [...rec.values()].filter(r => r.vol && (r.vol.tl === undefined || r.vol.sw === undefined) && r.strike > 0 && (r.vol.tlTry || 0) < 2 && r.at < now - 120000 && r.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, max); if (!todo.length) return;
     let n = 0; CCB = 4;
-    for (const r of todo) { try { const v = await volPast(coin(r.series), r.strike, r.side, r.at); if (v) { r.vol.tl = v.tl ?? null; r.vol.lk = v.lk ?? null; n++; } else r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); }
+    for (const r of todo) { try { const v = await volPast(coin(r.series), r.strike, r.side, r.at); if (v) { r.vol.tl = v.tl ?? null; r.vol.lk = v.lk ?? null; r.vol.sw = v.sw ?? null; n++; } else r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); }
       catch (e) { if (e.status === 'budget') break; if (e.status === 429) { tfAt = now + 5 * 60000; break; } r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); break; } }
     if (n) { labRowsMem = null; viewDirty = true; console.log(`trend fill: ${n} trades given their trend and likely readings`); }
   }
@@ -1291,7 +1299,7 @@ export function createKalshi(state, env, keep) {
         if (!n) { v.rt = (v.rt || 0) + 1; if (v.rt >= 3) v.chk = 1; saveRec(r); continue; }
         const typ = n.sigma10 || n.sigma * Math.sqrt(10), moved = Math.abs(n.margin - v.margin) > typ / 3;
         if (moved) { r.vol = { ...n, fixed: 1, was: { px: v.px, margin: v.margin, z: v.z, z10: v.z10 ?? null } }; delete r.lp; fixed++; }
-        else r.vol = { ...v, sigma15: v.sigma15 ?? n.sigma15, drift: v.drift ?? n.drift, z2: v.z2 ?? n.z2, sigma10: v.sigma10 ?? n.sigma10, z10: v.z10 ?? (n.sigma10 > 0 ? +(v.margin / n.sigma10).toFixed(2) : null), tl: v.tl ?? n.tl ?? null, lk: v.lk ?? n.lk ?? null, chk: 1 };
+        else r.vol = { ...v, sigma15: v.sigma15 ?? n.sigma15, drift: v.drift ?? n.drift, z2: v.z2 ?? n.z2, sigma10: v.sigma10 ?? n.sigma10, z10: v.z10 ?? (n.sigma10 > 0 ? +(v.margin / n.sigma10).toFixed(2) : null), tl: v.tl ?? n.tl ?? null, lk: v.lk ?? n.lk ?? null, sw: v.sw ?? n.sw ?? null, chk: 1 };
         saveRec(r); viewDirty = true;
       } catch (e) { if (e.status === 'budget') break; console.log(`repair ${r.ticker}: ${e.message}`); if (e.status === 429) fixAt = now + 5 * 60000; else { if (v) v.rt = (v.rt || 0) + 1; else r.vrt = (r.vrt || 0) + 1; saveRec(r); } break; }
     }
@@ -1398,7 +1406,7 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, sid = stratAt(K.strat, r.at), lab = sid === 'rule' ? null : labs0.find(l => l.id === sid);
       while (kI < kQ.length && kQ[kI].close <= r.at) { kAdd(kS, kQ[kI].px, kQ[kI].won); kI++; }
       const ko = kOf(kS, px);
-      const f = late ? true : lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
+      const f = late ? true : lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
       const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }, { peak, start: K.startUsd }) : K.sizeUsd;
       const off = (K.skipHours || []).includes(etHour(r.at)), capped0 = !hand && ((!late && perWin[w] > K.maxPerWindow) || halted || (cold && !late) || off || !!strat);
       // MC 2026-11-10 protect today's profit (Steven's request). Once the day's high reaches lockAt, a window may stake no more than
