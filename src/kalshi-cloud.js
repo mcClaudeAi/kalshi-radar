@@ -48,6 +48,35 @@ const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindo
 // ceiling, so a coin picked at 94.8c under an under-95 playbook filled at 95.6c. The room is now a live setting (slipC, cents,
 // default 1) and the order's top price never goes past live's Maximum price or the playbook's own price limit. pbCap is that
 // limit: the price the playbook would no longer take (exclusive), or tr10's 98c (inclusive).
+// MC 2026-11-17 asked for every skip to say why in plain words (Steven has questioned several). A skip read "filtered out", or
+// only the moves figure whichever check had said no. labWhy names the check that turned the trade down, in the playbook's own
+// numbers, with a few words on what the check is for. Order matters: price first (the reading that passed should not be the one
+// shown), then how clear of the target, then each playbook's extra checks. t is the same reading the playbook's filter was given.
+function labWhy(id, t, K = {}) {
+  const c = v => `${(v * 100).toFixed(1).replace(/\.0$/, '')}¢`, m = (v, need) => (v < need && +v.toFixed(2) >= need ? v.toFixed(3) : v.toFixed(2)), pc = v => `${(v * 100).toFixed(0)}%`;
+  const need = px => px + 0.07 * px * (1 - px) + 0.01, far = (z, bar, what = '') => `it was only ${m(z, bar)} usual moves from its target${what} and this playbook wants at least ${bar}, so a normal swing could still flip it`;
+  const cap = id === 'mv96' ? 0.96 : ['no95', 'mv95', 'mvl', 'mv15', 'mvai', 'mvsw', 'mvcc', 'cpk', 'all'].includes(id) ? 0.95 : id === 'mix' ? (K.mixMaxPx ?? 0.95) : null;
+  if (cap != null && t.px >= cap) return `it cost ${c(t.px)} and this playbook only buys under ${c(cap)}, because the priciest contracts pay too little for the risk`;
+  if (id === 'six' || id === 'all') { if (t.win != null && t.win < 6) return `only ${t.win} coin${t.win === 1 ? '' : 's'} qualified in this window and this playbook wants at least 6`; if (id === 'six') return null; }
+  if (id === 'kelly') return t.kf == null ? 'there is not enough history at this price to size the bet yet' : 'trades at this price have not shown an edge yet, so it bets nothing';
+  if (id === 'learn') return t.pl == null ? 'the learning model had no reading for this coin yet' : `the learning model gave it a ${pc(t.pl)} chance and the price needs ${pc(need(t.px))} to be worth it`;
+  if (id === 'vol2') return t.z10 == null ? 'there was no price history reading for this coin yet, so it could not be checked' : far(t.z10, 1, ' (10-minute measure)');
+  if (id === 'edge2') return t.z2 == null ? 'there was no price history reading for this coin yet, so it could not be checked' : `our win chance was ${pc(winP(t.z2))} and the price needs ${pc(need(t.px))} to be worth it`;
+  if (id === 'two') { if (t.z == null || t.z10 == null) return 'there was no price history reading for this coin yet, so it could not be checked'; return far(Math.min(t.z, t.z10), 2); }
+  if (t.z == null) return 'there was no price history reading for this coin yet, so it could not be checked';
+  if (id === 'edge') return `our win chance was ${pc(winP(t.z))} and the price needs ${pc(need(t.px))} to be worth it`;
+  const bar = id === 'mv15' || id === 'mvai' ? 1.5 : id === 'mix' ? null : 1;
+  if (bar != null && t.z < bar) return far(t.z, bar);
+  if (id === 'mvl') return t.pl == null ? 'the learning model had no reading for this coin yet' : `the learning model gave it a ${pc(t.pl)} chance and the price needs ${pc(need(t.px))} to be worth it`;
+  if (id === 'mvai' && t.same != null && t.same < 3) return `only ${t.same} coin${t.same === 1 ? ' was' : 's were'} leading this way at 90¢ or more and this playbook wants at least 3 moving together`;
+  if (id === 'mvsw') return t.sw == null ? 'there was no chart reading for this coin yet, so it could not be checked' : 'its lead was mostly new: 20 minutes earlier it was on the other side of its target, and leads like that swung back more often in testing';
+  const ch = id === 'cpk' ? { r2: 0.7, dp: -2 } : id === 'mvcc' ? { r2: 0.81, dp: -1.7 } : null;
+  if (ch) { if (t.r2 == null || t.dp == null) return 'there was no chart reading for this coin yet, so it could not be checked';
+    if (t.dp <= ch.dp) return `it was ${Math.abs(t.dp).toFixed(1)} usual moves on the wrong side of its target in the last 30 minutes (the limit is ${Math.abs(ch.dp)}), and a coin that swung that far can swing back`;
+    if (t.r2 >= ch.r2) return `its last 15 minutes ran in a near-straight line (${t.r2.toFixed(2)}, needs under ${ch.r2.toFixed(2)}), and runs like that reversed more often in testing`; }
+  if (id === 'mix') return 'it did not pass the checks you set in Your mix';
+  return null;
+}
 const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, all: 0.95, mv96: 0.96 };
 function orderLimit(r, labId, cfg) {
   const room = Math.max(0, Math.min(3, cfg.slipC ?? 1)) / 100, tick = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01;
@@ -796,7 +825,8 @@ export function createKalshi(state, env, keep) {
       return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep) return { ok: false, why: 'playbook not available live' };
         if (sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = H.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
-        return f === true ? { ok: true, lab } : { ok: false, why: `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}` }; }; };
+        if (f === true) return { ok: true, lab }; const tt = { px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null };
+        return { ok: false, why: `${lab.name}: ${labWhy(sid, tt, cfg) || 'it did not pass this playbook\'s checks'}` }; }; };
     const gate = mkGate(cfgL, hitsL);
     const ownOf = cfg => { const H = seen.filter(r => (!cfg.coins?.length || cfg.coins.includes(coin(r.series))) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9).sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9)); return { hits: H, gate: mkGate(cfg, H), cfg, bench: coldSet(now, cfg) }; };
     const c = ctl(), sends = [], missed = [];
@@ -813,7 +843,7 @@ export function createKalshi(state, env, keep) {
         if (kS) { r.kf = kOf(kS, r.avgN || r.ask).kf; r.win = hitsL.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) { try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); } }
-        else skipLive(r, `${lab.name}: ${f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'no edge at this price yet' : 'filtered out'}`);
+        else skipLive(r, `${lab.name}: ${labWhy(sid, { px: r.avgN || r.ask, win: hitsL.length, same: hitsL.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null }, cfgL) || 'it did not pass this playbook\'s checks'}`);
       }
     }
     if (!c.autoPause && (hitsL.length || (seen.length && books.ownCoins()?.length !== 0))) {
@@ -1005,10 +1035,18 @@ export function createKalshi(state, env, keep) {
   const liveJson = () => JSON.stringify(kliveBody());
   function kliveBody() {
     const now = Date.now(), K = cfgP, open = [], fresh = tk => { const z = scan.find(q => q.tk === tk); return z?.q && now - z.q < 60000 ? z : null; };
+    // MC 2026-11-17 a card sat with no tag for a minute or two after the trade check: the tag came from the paper book's own
+    // list, which is rebuilt up to two minutes later. The playbook's answer for each open market is worked out here as well (pb 1
+    // took it, 0 passed with the reason), so the card can say so at once. The window cap and the day's stops still come from the
+    // paper book when it catches up.
+    const sidP = stratAt(K.strat, now), labP = labDefs(K).find(l => l.id === sidP), wN = {}, sN = {};
+    for (const r of rec.values()) if (!r.result && r.ask >= K.minAsk && r.ask <= (K.maxAsk ?? 0.99) + 1e-9) { wN[r.close] = (wN[r.close] || 0) + 1; sN[r.close + r.side] = (sN[r.close + r.side] || 0) + 1; }
+    const pbOf = (r, px) => { if (!labP || labP.late || labP.m10Only || labP.size || sidP === 'kelly') return {}; const tt = { px, win: wN[r.close] || 1, same: sN[r.close + r.side] || 1, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: null, pl: r.lp ?? null };
+      let f; try { f = sidP === 'rule' ? true : labP.filter(tt); } catch { return {}; } return f === true ? { pb: 1 } : { pb: 0, why: labWhy(sidP, tt, K) }; };
     for (const r of rec.values()) {
       if (r.result || !(r.ask >= K.minAsk) || now > r.close + 300000) continue;   // MC 2026-11-08 keep a closed trade on the board until it settles (was dropped after 90s)
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
-      open.push({ tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: fresh(r.ticker)?.yb ?? lp?.[1] ?? null, ya: fresh(r.ticker)?.ya ?? lp?.[2] ?? null, last: fresh(r.ticker)?.last ?? lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
+      open.push({ ...pbOf(r, px), tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: fresh(r.ticker)?.yb ?? lp?.[1] ?? null, ya: fresh(r.ticker)?.ya ?? lp?.[2] ?? null, last: fresh(r.ticker)?.last ?? lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
     }
     if (stratAt(K.strat, now) === 'look2') for (const r of rec2.values()) {
       if (r.result || now > r.close + 300000 || baseTaken(r.ticker)) continue;
@@ -1523,7 +1561,7 @@ export function createKalshi(state, env, keep) {
       const stopSk = !late && (halted || lockCut) && !strat && !off && !cold && !(perWin[w] > K.maxPerWindow) && (tookW[w] || 0) + (ifW[w] || 0) < wCap; if (stopSk) ifW[w] = (ifW[w] || 0) + 1;
       const capped = capped0 || lockCut || wcap, n = hand && r.n ? r.n : Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
-      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, book: sid,
+      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, why: strat ? labWhy(sid, { px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: ko.kf, pl: r.lp ?? null }, K) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null,
         // MC 2026-11-16 the chart readings went on the trade record but not on this copy, so the Labs lines for the playbooks that

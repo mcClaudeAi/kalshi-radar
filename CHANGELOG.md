@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.77 (Nov 17, 2026): Every skip says why, in plain words
+- [fixed] A card on the Live board could sit with no tag for a minute or two after the trade check, showing "winning" on a trade nobody took. The tag is now worked out at the trade check and shows straight away.
+- [improved] A playbook skip names the check that said no and what that check is for: the price was over the playbook's limit, the coin was too close to its target, it had been too far on the wrong side, its last 15 minutes ran too straight, too few coins were moving together, and so on, each with the numbers.
+- [improved] Live's own skips are spelled out too: a full window, a daily stop or target, a benched coin, an off hour, not enough cash, a price that moved past the order's limit. "Filtered out" is gone.
+- [improved] "Not taken" now says which it was: over live's maximum price, under its minimum, or not one of live's coins. A no fill says the top price it would pay and the price right after.
+- [improved] The same wording shows in a trade's detail on the Trades page and on the account cards.
+
 ## 1.2.76 (Nov 17, 2026): Second try after a sliver fill
 - [fixed] When an order fills only a fraction of one contract (0.02 of 54), "Try again for a missed fill" now asks for the whole contracts still wanted. It would have asked for 53.98.
 - [fixed] A fill built from two tries shows as 52.02 contracts, not 52.019999999999996.
