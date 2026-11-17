@@ -178,7 +178,7 @@ export function createBooks(D) {
       if (row.cost) { if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); }
       // MC 2026-11-17 the second try for a missed fill, as on Main (see missCheck): same top price, the contracts still wanted
       if (fill < n && missed) missed.push({ row, save: () => saveRow(b, row), retry: !!cfgP.retryFill, floor: Math.max(cfgP.minAsk ?? 0.9, r.ask - 0.01), again: async k => {
-        const res2 = await breq(b, 'POST', '/portfolio/events/orders', { ...body, count: String(row.want - row.fill), client_order_id: `${cid}-r${k}` });
+        const res2 = await breq(b, 'POST', '/portfolio/events/orders', { ...body, count: String(Math.floor(row.want - row.fill + 1e-9)), client_order_id: `${cid}-r${k}` });
         if (!res2?.ok) { D.say(`BOOK ${b.name} ${r.ticker} second try refused: ${res2?.status} ${errOf(res2)}`.slice(0, 200)); return 0; }
         const got = D.fillMerge(row, r.side, res2.j?.order || res2.j || {}); saveRow(b, row);
         if (got.cost) { if (s.bal != null) s.bal = +(s.bal - got.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - got.cost).toFixed(2); }

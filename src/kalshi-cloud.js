@@ -578,7 +578,7 @@ export function createKalshi(state, env, keep) {
       saveL(row); say(`LIVE ${r.ticker} ${r.side.toUpperCase()} ${fill}/${n} filled${row.px != null ? ` at ${(row.px * 100).toFixed(1)}c` : ''} (sent ${row.sent}ms after the price was read, answered in ${row.rtt}ms)`);
       if (row.cost) { if (st.bal != null) st.bal = +(st.bal - row.cost).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - row.cost).toFixed(2); }
       if (fill < n && missed) missed.push({ row, save: () => saveL(row), retry: !!cfgL.retryFill, floor: Math.max(cfgL.minAsk ?? 0.9, r.ask - 0.01), again: async k => {
-        const res2 = await kreq('POST', '/portfolio/events/orders', { ...body, count: String(row.want - row.fill), client_order_id: `cr-${r.ticker}-r${k}` });
+        const res2 = await kreq('POST', '/portfolio/events/orders', { ...body, count: String(Math.floor(row.want - row.fill + 1e-9)), client_order_id: `cr-${r.ticker}-r${k}` });
         if (!res2?.ok) { say(`LIVE ${r.ticker} second try refused: ${res2?.status} ${errOf(res2)}`.slice(0, 200)); return 0; }
         const got = fillMerge(row, r.side, res2.j?.order || res2.j || {}); saveL(row);
         if (got.cost) { if (st.bal != null) st.bal = +(st.bal - got.cost).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - got.cost).toFixed(2); }
@@ -607,7 +607,8 @@ export function createKalshi(state, env, keep) {
     const read = async list => { const tks = [...new Set(list.map(m => m.row.tk))], bk = {}; await Promise.all(tks.map(async tk => { try { bk[tk] = book(await get(`/markets/${tk}/orderbook`)); } catch { } }));
       for (const m of list) { const b = bk[m.row.tk]; if (!b) continue; const a = (m.row.side === 'yes' ? b.yesAsks : b.noAsks)[0]; m.row.missAsk = a ? a[0] : null; m.row.missQty = a ? a[1] : null; m.row.missAt = Date.now(); } };
     await read(missed);
-    const short = () => missed.filter(m => m.retry && m.again && m.row.fill < m.row.want && m.row.close - Date.now() > 240000);
+    // a part fill can be a sliver of one contract (Steven got 0.02 of 54); the second try asks for whole contracts, so under 1 left is done
+    const short = () => missed.filter(m => m.retry && m.again && m.row.want - m.row.fill >= 1 && m.row.close - Date.now() > 240000);
     for (let k = 1; k <= 2 && short().length; k++) {
       if (k > 1) { await new Promise(r => setTimeout(r, 4000)); try { await read(short()); } catch { } }
       for (const m of short()) { const a = m.row.missAsk; if (a == null || a > m.row.limit + 1e-9 || a < m.floor - 1e-9) continue;
