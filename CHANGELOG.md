@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.69 (Nov 16, 2026): "Not trading right now" no longer sticks
+- [fixed] A reason for passing on one coin (a full window, a benched coin, a price over your limit) stayed up as "Not trading right now" until the next order, so the dash looked frozen. It now clears when that window closes.
+- [improved] While it shows, a one-window reason reads as a quiet note ("This window: passed on a coin...") instead of a red warning. Day-long stops still show in red.
+
 ## 1.2.68 (Nov 16, 2026): Final minute view
 When a trade has under a minute left, its chart zooms in to the 60 seconds that decide it.
 - [new] The chart eases in to the final minute: the price second by second, the settle average as it builds, and the target.
