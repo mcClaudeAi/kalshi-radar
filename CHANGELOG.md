@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.78 (Nov 17, 2026): W or L on skipped live orders
+- [new] On the Trades page, a skipped live order and a no fill show how that market ended: W if the side you would have bought won, L if it lost. It appears once the market settles, for Main and every sub account.
+- [improved] A skipped trade's detail says whether it would have won or lost.
+
 ## 1.2.77 (Nov 17, 2026): Every skip says why, in plain words
 - [fixed] A card on the Live board could sit with no tag for a minute or two after the trade check, showing "winning" on a trade nobody took. The tag is now worked out at the trade check and shows straight away.
 - [improved] A playbook skip names the check that said no and what that check is for: the price was over the playbook's limit, the coin was too close to its target, it had been too far on the wrong side, its last 15 minutes ran too straight, too few coins were moving together, and so on, each with the numbers.
