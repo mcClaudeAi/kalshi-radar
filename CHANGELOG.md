@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.71 (Nov 16, 2026): An account only says Paused when it is
+- [fixed] An account showed PAUSED whenever its playbook had passed on one coin, even with trades open. Only a day-long stop (loss cap, target, give-back, drawdown, low cash) pauses an account now.
+- [improved] A pass on one coin shows as a grey note for that window and clears when the window closes.
+
 ## 1.2.70 (Nov 16, 2026): Skip tags name the real reason
 - [fixed] A skipped trade always read "1.00 moves clear, needs 1", even when a chart check had turned it down. The tag now says which check failed: too straight a last 15 minutes, too far on the wrong side, a late swing, or too few coins leading the same way.
 - [fixed] A moves figure just under its bar (0.996) no longer rounds up to the bar; it keeps a third decimal.
