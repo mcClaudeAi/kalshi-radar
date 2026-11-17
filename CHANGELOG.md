@@ -4,6 +4,7 @@
 
 ## 1.2.76 (Nov 17, 2026): Second try after a sliver fill
 - [fixed] When an order fills only a fraction of one contract (0.02 of 54), "Try again for a missed fill" now asks for the whole contracts still wanted. It would have asked for 53.98.
+- [fixed] A fill built from two tries shows as 52.02 contracts, not 52.019999999999996.
 
 ## 1.2.75 (Nov 17, 2026): Header win count matches the trades
 - [fixed] The Mode tile could show a loss on a day with none. It counted a trade as won only if it made money, so a small part fill that settled a winner but made $0.00 after the fee read as lost. It now counts what settled your way, the same as the Trades page.

@@ -598,7 +598,7 @@ export function createKalshi(state, env, keep) {
   function fillMerge(row, side, j) {
     const f = +(j.fill_count ?? 0); if (!(f > 0)) return { fill: 0, cost: 0 };
     const ay = j.average_fill_price != null ? +j.average_fill_price : null, px = ay == null ? null : +(side === 'yes' ? ay : 1 - ay).toFixed(4), fe = +(f * (j.average_fee_paid != null ? +j.average_fee_paid : 0)).toFixed(4);
-    const f0 = row.fill || 0, tot = f0 + f; if (px != null) { row.px = +(((row.px || 0) * f0 + px * f) / tot).toFixed(4); row.avgYes = +(((row.avgYes || 0) * f0 + ay * f) / tot).toFixed(4); }
+    const f0 = row.fill || 0, tot = +(f0 + f).toFixed(2); if (px != null) { row.px = +(((row.px || 0) * f0 + px * f) / tot).toFixed(4); row.avgYes = +(((row.avgYes || 0) * f0 + ay * f) / tot).toFixed(4); }
     row.fill = tot; row.fees = +((row.fees || 0) + fe).toFixed(4); const before = row.cost || 0; row.cost = row.px == null ? null : +(tot * row.px + row.fees).toFixed(2); row.again = (row.again || 0) + 1;
     return { fill: f, cost: row.cost == null ? 0 : +(row.cost - before).toFixed(2) };
   }
