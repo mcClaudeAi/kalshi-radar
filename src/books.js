@@ -176,7 +176,13 @@ export function createBooks(D) {
       row.cost = row.px == null ? null : +(fill * row.px + row.fees).toFixed(2); saveRow(b, row);
       D.say(`BOOK ${b.name} ${r.ticker} ${r.side.toUpperCase()} ${fill}/${n} filled${row.px != null ? ` at ${(row.px * 100).toFixed(1)}c` : ''} (sent ${row.sent}ms after the price was read)`);
       if (row.cost) { if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); }
-      if (fill < n && missed) missed.push({ row, save: () => saveRow(b, row) });
+      // MC 2026-11-17 the second try for a missed fill, as on Main (see missCheck): same top price, the contracts still wanted
+      if (fill < n && missed) missed.push({ row, save: () => saveRow(b, row), retry: !!cfgP.retryFill, floor: Math.max(cfgP.minAsk ?? 0.9, r.ask - 0.01), again: async k => {
+        const res2 = await breq(b, 'POST', '/portfolio/events/orders', { ...body, count: String(row.want - row.fill), client_order_id: `${cid}-r${k}` });
+        if (!res2?.ok) { D.say(`BOOK ${b.name} ${r.ticker} second try refused: ${res2?.status} ${errOf(res2)}`.slice(0, 200)); return 0; }
+        const got = D.fillMerge(row, r.side, res2.j?.order || res2.j || {}); saveRow(b, row);
+        if (got.cost) { if (s.bal != null) s.bal = +(s.bal - got.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - got.cost).toFixed(2); }
+        return got.fill; } });
     };
     if (later) later.push(send); else await send();
   }
@@ -311,7 +317,7 @@ export function createBooks(D) {
         total: { n: all.filter(x => x.result && x.fill > 0).length, won: all.filter(x => x.won && x.fill > 0).length, net: +realized(all.filter(x => x.fill > 0)).toFixed(2) },
         open: all.filter(x => x.fill > 0 && !x.result).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, fill: x.fill, px: x.px, cost: x.cost, close: x.close })),
         hist: all.filter(x => x.fill > 0 && x.result).slice(0, 1500).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0, 1, x.hand ? 1 : 0]),
-        recent: all.slice(0, 80).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, hand: x.hand || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null })) }; });
+        recent: all.slice(0, 80).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, hand: x.hand || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null })) }; });
   }
 
   // ---------- commands from the dashboard (signed-in, unlocked device only; the engine checks that) ----------

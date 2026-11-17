@@ -39,7 +39,7 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
-const LIVE_KEYS = ['slipC', 'capPb', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
+const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
@@ -65,7 +65,7 @@ const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
 // MC 2026-11-13 a price as cents for copy: whole cents as before, and a tenth when the setting has one (94.5). Request 10 let
 // the minimum and maximum price take a tenth of a cent, because about half the leaders in the history sit between two cents.
 const cts = p => { const c = Math.round(p * 1000) / 10; return Number.isInteger(c) ? String(c) : c.toFixed(1); };
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1], retryFill: [0, 1] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -440,7 +440,7 @@ export function createKalshi(state, env, keep) {
   async function kreq(method, p, body) { for (let a = 0; a < 4; a++) { const r = await kreq1(method, p, body); if (r?.status !== 429 || a === 3) return r; await sleep(700 * (a + 1)); } }
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
   // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
-  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
+  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
   const vq = [];   // vault notices waiting for the next push
   const vault = createVault({ kv, say, XI, etDay, etHour, fail, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(),
@@ -577,17 +577,43 @@ export function createKalshi(state, env, keep) {
       row.cost = row.px == null ? null : +(fill * row.px + row.fees).toFixed(2);
       saveL(row); say(`LIVE ${r.ticker} ${r.side.toUpperCase()} ${fill}/${n} filled${row.px != null ? ` at ${(row.px * 100).toFixed(1)}c` : ''} (sent ${row.sent}ms after the price was read, answered in ${row.rtt}ms)`);
       if (row.cost) { if (st.bal != null) st.bal = +(st.bal - row.cost).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - row.cost).toFixed(2); }
-      if (fill < n && missed) missed.push({ row, save: () => saveL(row) });
+      if (fill < n && missed) missed.push({ row, save: () => saveL(row), retry: !!cfgL.retryFill, floor: Math.max(cfgL.minAsk ?? 0.9, r.ask - 0.01), again: async k => {
+        const res2 = await kreq('POST', '/portfolio/events/orders', { ...body, count: String(row.want - row.fill), client_order_id: `cr-${r.ticker}-r${k}` });
+        if (!res2?.ok) { say(`LIVE ${r.ticker} second try refused: ${res2?.status} ${errOf(res2)}`.slice(0, 200)); return 0; }
+        const got = fillMerge(row, r.side, res2.j?.order || res2.j || {}); saveL(row);
+        if (got.cost) { if (st.bal != null) st.bal = +(st.bal - got.cost).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - got.cost).toFixed(2); }
+        return got.fill; } });
     };
     if (later) later.push(send); else await send();
   }
   // MC 2026-11-14 Steven: when an order does not fill, show the price it missed. Right after the orders, each market that came up
   // short is read once more and the best ask on our side is kept with the order (missAsk, and how many contracts sat there).
+  // MC 2026-11-17 Steven kept missing trades Mitchell's copy took: both copies send the same order in the same second, the first
+  // to land takes the contracts at that price, and the other's one-shot order finds the ask a tick over its limit and gets nothing.
+  // His misses showed it (limit 91.0c, ask right after 90.8c). With "Try again for a missed fill" on (retryFill, off unless turned
+  // on), a short order is sent again for the contracts still wanted: same top price, so it never pays more than the first order
+  // was allowed to, once straight after the miss and once about 4 seconds later. It only goes again when the ask is back at or
+  // under that top price and has not dropped more than 1c under the price first read (a leader falling away is not chased).
+  // fillMerge folds a second fill into the order's row: contracts, average price, fees, cost.
+  function fillMerge(row, side, j) {
+    const f = +(j.fill_count ?? 0); if (!(f > 0)) return { fill: 0, cost: 0 };
+    const ay = j.average_fill_price != null ? +j.average_fill_price : null, px = ay == null ? null : +(side === 'yes' ? ay : 1 - ay).toFixed(4), fe = +(f * (j.average_fee_paid != null ? +j.average_fee_paid : 0)).toFixed(4);
+    const f0 = row.fill || 0, tot = f0 + f; if (px != null) { row.px = +(((row.px || 0) * f0 + px * f) / tot).toFixed(4); row.avgYes = +(((row.avgYes || 0) * f0 + ay * f) / tot).toFixed(4); }
+    row.fill = tot; row.fees = +((row.fees || 0) + fe).toFixed(4); const before = row.cost || 0; row.cost = row.px == null ? null : +(tot * row.px + row.fees).toFixed(2); row.again = (row.again || 0) + 1;
+    return { fill: f, cost: row.cost == null ? 0 : +(row.cost - before).toFixed(2) };
+  }
   async function missCheck(missed) {
     if (!missed.length) return;
-    const tks = [...new Set(missed.map(m => m.row.tk))], bk = {};
-    await Promise.all(tks.map(async tk => { try { bk[tk] = book(await get(`/markets/${tk}/orderbook`)); } catch { } }));
-    for (const m of missed) { const b = bk[m.row.tk]; if (!b) continue; const a = (m.row.side === 'yes' ? b.yesAsks : b.noAsks)[0]; m.row.missAsk = a ? a[0] : null; m.row.missQty = a ? a[1] : null; m.row.missAt = Date.now(); try { m.save(); } catch { } }
+    const read = async list => { const tks = [...new Set(list.map(m => m.row.tk))], bk = {}; await Promise.all(tks.map(async tk => { try { bk[tk] = book(await get(`/markets/${tk}/orderbook`)); } catch { } }));
+      for (const m of list) { const b = bk[m.row.tk]; if (!b) continue; const a = (m.row.side === 'yes' ? b.yesAsks : b.noAsks)[0]; m.row.missAsk = a ? a[0] : null; m.row.missQty = a ? a[1] : null; m.row.missAt = Date.now(); } };
+    await read(missed);
+    const short = () => missed.filter(m => m.retry && m.again && m.row.fill < m.row.want && m.row.close - Date.now() > 240000);
+    for (let k = 1; k <= 2 && short().length; k++) {
+      if (k > 1) { await new Promise(r => setTimeout(r, 4000)); try { await read(short()); } catch { } }
+      for (const m of short()) { const a = m.row.missAsk; if (a == null || a > m.row.limit + 1e-9 || a < m.floor - 1e-9) continue;
+        try { const got = await m.again(k); m.row.tries = k; if (got) say(`LIVE second try ${m.row.coin}: ${got} more, now ${m.row.fill}/${m.row.want} at ${(m.row.px * 100).toFixed(1)}c`); } catch (e) { say('second try error: ' + e.message); } }
+    }
+    for (const m of missed) { try { m.save(); } catch { } }
     say(`LIVE short fills: ${missed.map(m => `${m.row.coin} ${m.row.fill}/${m.row.want}, limit ${(m.row.limit * 100).toFixed(1)}c, ask after ${m.row.missAsk != null ? (m.row.missAsk * 100).toFixed(1) + 'c' : 'none'}`).join('; ')}`);
   }
   // MC 2026-11-14 live cash out at minute 10: sell the position at the bid seen at the check, giving up to 3 cents more for the
@@ -709,7 +735,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 with the order's limit, the ask it was based on, how fast it went out, what a miss saw after, the fees, and
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
       recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
-        ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
+        ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
       playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view() };
   }
 

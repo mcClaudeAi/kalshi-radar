@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.74 (Nov 17, 2026): Try again for a missed fill
+A new live setting for orders that miss because the price ticked over your top price just as they arrived.
+- [new] "Try again for a missed fill" in Live settings, off unless you turn it on. A short order is sent again for the contracts still wanted, once straight away and once about 4 seconds later.
+- [new] The top price never changes on a second try, so it cannot pay more than the first order was allowed to. It does not go again if the price has fallen more than 1¢ under the price first read.
+- [improved] Works on Main and on sub accounts, and a trade's detail says when some of it filled on a second try.
+
 ## 1.2.73 (Nov 17, 2026): iPad layout fixed
 - [fixed] On an iPad held upright, the Accounts rows stacked their cash, today and all-time figures on top of each other. Two layouts were both applying at that width; the rows now follow the panel's own width.
 - [fixed] The header tiles on an iPad are two across like on a phone, so Cash no longer sits on top of "Live today".
