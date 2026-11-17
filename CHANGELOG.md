@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.73 (Nov 17, 2026): iPad layout fixed
+- [fixed] On an iPad held upright, the Accounts rows stacked their cash, today and all-time figures on top of each other. Two layouts were both applying at that width; the rows now follow the panel's own width.
+- [fixed] The header tiles on an iPad are two across like on a phone, so Cash no longer sits on top of "Live today".
+- [improved] The five live stats sit in one row on an iPad instead of wrapping unevenly.
+
 ## 1.2.72 (Nov 16, 2026): Smooth scrolling on phones
 The dash stuttered while scrolling on a phone. Found and fixed the causes.
 - [fixed] The whole page was rebuilt every 10 seconds, changed or not, which froze it for a moment and broke a swipe in progress. It now skips a rebuild when nothing changed, and never rebuilds while your finger is down or the page is still gliding.
