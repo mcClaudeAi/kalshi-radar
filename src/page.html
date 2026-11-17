@@ -1311,6 +1311,8 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  .lh-today{padding:14px 14px}.lh-ledger{display:grid;grid-template-columns:1fr 1fr;border-radius:16px}.lh-op{display:none}.lh-lc{padding:11px 13px 10px;border-top:1px solid var(--line)}.lh-lc:nth-child(1),.lh-lc:nth-child(3){border-top:0}.lh-lc:nth-child(3){border-left:1px solid var(--line)}
  .lh-lc.lh-res,.lh-lc.lh-log{grid-column:1/-1;border-left:0}.lh-lc.lh-log:first-child{border-top:0}.lh-lc.cta{grid-column:1/-1;border-left:0}.lh-lc b{font-size:18px}.lh-mbtn{position:static;grid-column:1/-1;justify-self:stretch;margin:0 13px 12px;text-align:center}
  .kx-hero2.lh .kx-heq{display:none}.lh-rm{display:none}.kx-hero2.lh .kx-st>div:last-child:nth-child(odd){grid-column:1/-1;border-right:0;padding-right:0}}
+.kx-pos.fin{border-color:color-mix(in srgb,var(--kx) 55%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--kx) 22%,transparent),0 0 34px -10px color-mix(in srgb,var(--kx) 55%,transparent)}.kx-pos.fin .kx-cd b{color:var(--kx)}
+@media(prefers-reduced-motion:no-preference){.kx-pos.fin{animation:kxFin 1.6s ease-in-out infinite}}@keyframes kxFin{50%{box-shadow:0 0 0 1px color-mix(in srgb,var(--kx) 40%,transparent),0 0 44px -8px color-mix(in srgb,var(--kx) 75%,transparent)}}
 .kx-mlist{display:grid;gap:6px;margin-top:10px}.kx-mlist>div{display:grid;grid-template-columns:auto auto 1fr auto;gap:10px;align-items:center;font-size:13px}.kx-mlist>div.out{opacity:.45}.kx-mlist>div.out b{text-decoration:line-through}.kx-mlist em{color:var(--faint);font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kx-lcsv{margin-left:8px;vertical-align:middle}
 .kb-more{margin:10px 0 0;font-size:12.5px;color:var(--mute)}.kb-more a{color:var(--kx);white-space:nowrap}
@@ -2902,7 +2904,78 @@ const kxNice=r=>{const p=Math.pow(10,Math.floor(Math.log10(r))),m=r/p;return (m<
 // Returns the points once they are in, null until then.
 function kxPrev(c,openMs){if(!c||!openMs||!KXPID[c])return null;const C=KX.prevC||(KX.prevC={}),key=c+':'+Math.floor(openMs/60000),v=C[key];if(Array.isArray(v))return v;if(v&&v>Date.now())return null;
   C[key]=Date.now()+20000;KX.prevQ=(KX.prevQ||Promise.resolve()).then(async()=>{const pts=await kxCandleRange(c,openMs-900000,openMs),P=(pts||[]).filter(p=>p[0]*1000<=openMs+1000);if(P.length>=6){C[key]=P;for(const k of Object.keys(C))if(+k.split(':')[1]*60000<Date.now()-3600000)delete C[k]}await new Promise(r=>setTimeout(r,250))});return null}
-function kxDraw(cv,o){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||200,dpr=window.devicePixelRatio||1;if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
+// MC 2026-11-16 asked for a zoomed view once a trade is under a minute from settling. Kalshi settles on the average price over
+// the last 60 seconds, so from close minus 60s the chart becomes that minute only: the price second by second, the settle average
+// as it builds (the mean of every second so far in the minute, a missing second carrying the last price), the target, and the
+// level the rest of the minute has to average to change the result: (60 x target - sum so far) / seconds left. That level is exact
+// arithmetic on our prices; our prices are Coinbase's and Kalshi settles on its own index, which the footnote says. The view
+// eases in over about a second (x and y ranges slide from the whole window) and stays up after the close while Kalshi settles.
+function kxFinData(c,closeMs,tgt){const o=KX.px[c],T=o?.ticks||[],x1=Math.floor(closeMs/1000),a=x1-60,now=Date.now()/1000,end=Math.min(Math.floor(now),x1);if(!T.length||end<=a)return null;
+  let i=0,last=null;while(i<T.length&&T[i][0]<=a){last=T[i][1];i++}const sec=[];let sum=0;
+  for(let t=a+1;t<=end;t++){while(i<T.length&&T[i][0]<=t){last=T[i][1];i++}if(last==null)continue;sum+=last;sec.push([t,last,sum/(sec.length+1)])}
+  if(sec.length<2)return null;const e=sec.length,rem=Math.max(0,x1-end),avg=sum/e;
+  // seconds with no price before the first tick are left out of e, so the needed level is worked on the 60 - e that are really left
+  const left=60-e,nd=left>0&&tgt!=null?(60*tgt-sum)/left:null;return {a,x1,sec,e,rem,left,avg,sum,need:nd,done:rem<=0}}
+function kxDrawFin(cv,o,F0){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||200,dpr=window.devicePixelRatio||1;if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim()||'#888',good=col('--good'),bad=col('--bad'),line=col('--line'),faint=col('--faint'),mute=col('--mute'),ink=col('--ink'),kx=col('--kx'),bg=col('--s1')||'#0b1120',amb='#e0a23a';
+  const F='-apple-system,BlinkMacSystemFont,"Segoe UI",Sora,Inter,Roboto,sans-serif',M='"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace';
+  const tgt=o.strike,up=o.side==='yes',now=Date.now()/1000,x1=F0.x1,x0=o.open/1000,px=KX.px[c]?.last??F0.sec.at(-1)[1],S=kxSeries(c,o.open).filter(p=>p[0]<=x1);
+  const k0=Math.max(0,Math.min(1,(now-F0.a)/1.1)),k=1-Math.pow(1-k0,3),xL=x0+(F0.a-x0)*k;   // ease-out zoom from the whole window
+  g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(tgt??px,tgt).replace('$','')).width)+18,P={l:10,r:Math.max(64,axW),t:30,b:22},iw=W-P.l-P.r,ih=H-P.t-P.b;
+  // y range: the minute's prices, the average, the target, and the needed level when it is near enough to matter
+  let lo=tgt,hi=tgt;for(const p of F0.sec){lo=Math.min(lo,p[1],p[2]);hi=Math.max(hi,p[1],p[2])}lo=Math.min(lo,px);hi=Math.max(hi,px);const sp0=Math.max(hi-lo,tgt*.0004);
+  const nd=F0.need,ndIn=nd!=null&&nd>lo-sp0*1.2&&nd<hi+sp0*1.2;if(ndIn){lo=Math.min(lo,nd);hi=Math.max(hi,nd)}
+  {const pad=Math.max((hi-lo)*.22,tgt*.00015);lo-=pad;hi+=pad}
+  if(k<1){let l2=tgt,h2=tgt;for(const p of S){l2=Math.min(l2,p[1]);h2=Math.max(h2,p[1])}const m=(h2-l2)*.3;l2-=m;h2+=m;lo=l2+(lo-l2)*k;hi=h2+(hi-h2)*k}
+  const X=t=>P.l+(t-xL)/(x1-xL)*iw,Y=v=>P.t+(1-(v-lo)/(hi-lo))*ih,xNow=X(Math.min(now,x1)),xA=X(F0.a),ty=Y(tgt);
+  const rr=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()};
+  const pill=(txt,x,y,colr,font,align='left',fill)=>{g.font=font;const w=g.measureText(txt).width+12,h=16,xx=Math.max(P.l,Math.min(W-w-2,align==='left'?x:align==='right'?x-w:x-w/2));rr(xx,y-h/2,w,h,5);g.fillStyle=fill||bg;g.fill();g.strokeStyle=colr+'66';g.lineWidth=1;g.stroke();g.fillStyle=fill?bg:colr;g.textAlign='left';g.textBaseline='middle';g.fillText(txt,xx+6,y+.5);g.textBaseline='alphabetic'};
+  g.save();g.beginPath();g.rect(P.l,P.t,iw,ih);g.clip();
+  // win and lose sides of the target
+  const zone=(y0,y1,colr,a)=>{const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,colr+a);gr.addColorStop(1,colr+'00');g.fillStyle=gr;g.fillRect(P.l,Math.min(y0,y1),iw,Math.abs(y1-y0))};
+  if(up){zone(ty,P.t,good,'2a');zone(ty,P.t+ih,bad,'2e')}else{zone(ty,P.t+ih,good,'2a');zone(ty,P.t,bad,'2e')}
+  // the minute, in 15-second steps; seconds still to come sit under a veil
+  g.strokeStyle=line;g.lineWidth=1;for(let q=0;q<=60;q+=15){const x=X(F0.a+q);g.globalAlpha=q%60?0.7:1;g.beginPath();g.moveTo(x,P.t);g.lineTo(x,P.t+ih);g.stroke()}g.globalAlpha=1;
+  for(let q=5;q<60;q+=5){if(q%15===0)continue;const x=X(F0.a+q);g.globalAlpha=.3;g.beginPath();g.moveTo(x,P.t+ih-5);g.lineTo(x,P.t+ih);g.stroke()}g.globalAlpha=1;
+  if(xNow<P.l+iw-1){g.globalAlpha=.4;g.fillStyle=col('--bg');g.fillRect(xNow,P.t,P.l+iw-xNow,ih);g.globalAlpha=1}
+  // price, second by second, as steps (one price per second is what gets averaged)
+  const win=up?px>=tgt:px<tgt,dc=win?good:bad,PT=S.filter(p=>p[0]>=xL-2);
+  if(PT.length>1){g.lineJoin='round';g.lineCap='round';g.strokeStyle=ink;g.globalAlpha=.9;g.lineWidth=1.6;g.beginPath();PT.forEach((p,i)=>{const x=X(p[0]),y=Y(p[1]);if(!i)g.moveTo(x,y);else{g.lineTo(x,Y(PT[i-1][1]));g.lineTo(x,y)}});g.lineTo(xNow,Y(px));g.stroke();g.globalAlpha=1;
+    const tl=PT.filter(p=>p[0]>=now-12);if(tl.length>1){g.save();g.shadowColor=dc;g.shadowBlur=12;g.strokeStyle=dc;g.lineWidth=2.2;g.beginPath();tl.forEach((p,i)=>{const x=X(p[0]),y=Y(p[1]);if(!i)g.moveTo(x,y);else{g.lineTo(x,Y(tl[i-1][1]));g.lineTo(x,y)}});g.lineTo(xNow,Y(px));g.stroke();g.restore()}}
+  // the settle average as it builds
+  const aw=up?F0.avg>=tgt:F0.avg<tgt,ac=aw?good:bad;
+  {g.save();g.shadowColor=kx;g.shadowBlur=8;g.strokeStyle=kx;g.lineWidth=2.4;g.lineJoin='round';g.beginPath();F0.sec.forEach((p,i)=>{const x=X(p[0]),y=Y(p[2]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.restore();
+   const ya=Y(F0.avg);g.strokeStyle=kx;g.globalAlpha=.55;g.setLineDash([2,4]);g.lineWidth=1;g.beginPath();g.moveTo(X(F0.sec.at(-1)[0]),ya);g.lineTo(P.l+iw,ya);g.stroke();g.setLineDash([]);g.globalAlpha=1}
+  // target
+  g.setLineDash([5,4]);g.strokeStyle=ink;g.globalAlpha=.7;g.lineWidth=1.2;g.beginPath();g.moveTo(P.l,ty);g.lineTo(P.l+iw,ty);g.stroke();g.setLineDash([]);g.globalAlpha=1;
+  // the level the rest of the minute has to average for the result to change
+  let ndY=null;if(nd!=null&&!F0.done&&k>.6){const y=Y(nd),inside=y>P.t+2&&y<P.t+ih-2;ndY=inside?y:null;
+    if(inside){g.strokeStyle=amb;g.lineWidth=1.6;g.setLineDash([7,4]);g.beginPath();g.moveTo(xNow,y);g.lineTo(P.l+iw,y);g.stroke();g.setLineDash([]);
+      const gr=g.createLinearGradient(0,y,0,Y(px));gr.addColorStop(0,amb+'22');gr.addColorStop(1,amb+'00');g.fillStyle=gr;g.fillRect(xNow,Math.min(y,Y(px)),P.l+iw-xNow,Math.abs(Y(px)-y))}
+    else{const top=y<=P.t+2,ax=(xNow+P.l+iw)/2,ay=top?P.t+7:P.t+ih-7;g.fillStyle=amb;g.beginPath();g.moveTo(ax-5,ay+(top?4:-4));g.lineTo(ax+5,ay+(top?4:-4));g.lineTo(ax,ay+(top?-4:4));g.closePath();g.fill()}}
+  // live price
+  {const x=xNow,y=Y(px),pulse=(Math.sin(Date.now()/300)+1)/2;g.fillStyle=dc+'22';g.beginPath();g.arc(x,y,7+7*pulse,0,7);g.fill();g.fillStyle=dc+'55';g.beginPath();g.arc(x,y,5,0,7);g.fill();g.fillStyle=dc;g.beginPath();g.arc(x,y,3.2,0,7);g.fill();g.fillStyle='#fff';g.beginPath();g.arc(x,y,1.3,0,7);g.fill()}
+  g.restore();
+  // right axis: target, average so far, price; kept apart so they never sit on each other
+  const labs=[{y:ty,t:kxFmt(tgt,tgt).replace('$',''),c:mute,f:'600 10px '+M},{y:Y(F0.avg),t:kxFmt(F0.avg,tgt).replace('$',''),c:kx,f:'700 10px '+M},{y:Y(px),t:kxFmt(px,tgt).replace('$',''),c:dc,f:'700 10.5px '+M}].sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labs.length;i++)if(labs[i].y-labs[i-1].y<17)labs[i].y=labs[i-1].y+17;for(let i=labs.length-1;i>=0;i--){labs[i].y=Math.min(labs[i].y,P.t+ih-8-(labs.length-1-i)*17);labs[i].y=Math.max(labs[i].y,P.t+8)}
+  for(const L of labs)pill(L.t,P.l+iw+4,L.y,L.c,L.f);
+  // words on the chart
+  g.font='600 9.5px '+F;g.fillStyle=mute;g.textAlign='left';g.fillText('target',P.l+5,ty+(up?13:-5));
+  {const ya=Y(F0.avg),lx=Math.max(P.l+4,Math.min(P.l+iw-150,X(F0.sec[Math.floor(F0.sec.length/2)][0])-40));pill(F0.done?'settle average':'settle average so far',lx,Math.max(P.t+9,Math.min(P.t+ih-9,ya+(Math.abs(ya-ty)<22?(ya<ty?-12:12):(ya<ty?12:-12)))),kx,'600 10px '+F)}
+  const cush=nd==null?null:(up?px-nd:nd-px),m$=v=>kxFmt(Math.abs(v),tgt).replace('$','');
+  if(nd!=null&&!F0.done&&k>.6){const txt=aw?`flips only if the last ${F0.left}s average ${up?'under':'over'} ${kxFmt(nd,tgt).replace('$','')}`:`needs the last ${F0.left}s to average ${up?'over':'under'} ${kxFmt(nd,tgt).replace('$','')}`;
+    const y=ndY!=null?Math.max(P.t+9,Math.min(P.t+ih-9,ndY+(ndY>Y(px)?12:-12))):(Y(nd)<=P.t+2?P.t+9:P.t+ih-9);pill(txt,P.l+iw-4,y,amb,'600 10px '+F,'right')}
+  // header: what this is, and the cushion
+  {const hy=13,lbl=F0.done?'FINAL MINUTE · CLOSED':'FINAL MINUTE';pill(lbl,P.l,hy,dc,'700 9.5px '+F,'left',F0.done?null:dc);g.font='700 9.5px '+F;const room=iw-(g.measureText(lbl).width+12)-10;
+   const d=F0.avg-tgt,side=aw?'ahead':'behind',pc=v=>`${(Math.abs(v)/tgt*100).toFixed(3)}%`,opts=F0.done?[`settled ${side} by ${m$(d)} (${pc(d)})`,`${side} by ${m$(d)}`,side]:cush==null?['']:[`${aw?'cushion':'short by'} ${m$(cush)} (${pc(cush)}) · ${F0.left}s left`,`${aw?'cushion':'short'} ${m$(cush)} · ${F0.left}s`,`${aw?'cushion':'short'} ${pc(cush)}`,`${F0.left}s`];
+   g.font='600 10.5px '+F;const tail=opts.find(t=>g.measureText(t).width<=room)??'';g.textAlign='right';g.fillStyle=aw?good:bad;g.fillText(tail,P.l+iw,hy+3.5)}
+  // seconds along the bottom
+  g.font='500 10px '+F;g.fillStyle=faint;if(k>=1){for(let q=0;q<=60;q+=15){g.textAlign=q===0?'left':q===60?'right':'center';g.fillText(q===60?'close':`${60-q}s`,X(F0.a+q),H-6)}const yb=P.t+ih-5,clear=y=>y==null||y<yb-26;if(iw>330&&clear(ndY)&&clear(Y(F0.avg))&&clear(Y(px))&&clear(ty)){g.textAlign='center';g.font='500 9px '+F;g.globalAlpha=.75;g.fillText('Coinbase prices · Kalshi settles on its own index, which can differ slightly',P.l+iw/2,yb);g.globalAlpha=1}}
+  else{g.textAlign='left';g.fillText(tm(xL),P.l,H-6);g.textAlign='right';g.fillText('close',P.l+iw,H-6)}
+  return {px,tgt,a60:F0.avg,tr:null,pv:null,fin:{left:F0.left,need:nd,cushion:cush,ahead:aw,done:F0.done}}}
+function kxDraw(cv,o){if(!o.noFin&&o.strike!=null&&o.close&&Date.now()>=o.close-60000){const F0=kxFinData(o.coin,o.close,o.strike);if(F0)return kxDrawFin(cv,o,F0)}const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||200,dpr=window.devicePixelRatio||1;if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim()||'#888';const good=col('--good'),bad=col('--bad'),line=col('--line'),faint=col('--faint'),mute=col('--mute'),ink=col('--ink'),kx=col('--kx'),bg=col('--s1')||'#0b1120';
   const F='-apple-system,BlinkMacSystemFont,"Segoe UI",Sora,Inter,Roboto,sans-serif',M='"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace';
@@ -3195,7 +3268,7 @@ function kxTimeline(now){const el=$('#kxtl');if(!el)return;const sc=KX.live?.sca
 function kxFrame(force){if(!KX.on)return;if($('#kxck'))ckPaint(force);const el=$('#kxboard');const now=Date.now(),K=ST.D?.kalshi||{};KX.frame++;
   if(el){for(const o of kxOpen()){const card=el.querySelector(`[data-tk="${CSS.escape(o.tk)}"]`);if(!card)continue;const cv=card.querySelector('canvas');{const cr=card.getBoundingClientRect();if(!force&&card.dataset.drawn&&(cr.bottom<-80||cr.top>innerHeight+80))continue;card.dataset.drawn='1'}const r=kxDraw(cv,{...o,trend:1,prev:kxPrev(o.coin,o.open)});
     const win=r.tgt==null||r.px==null?null:(o.side==='yes'?r.px>=r.tgt:r.px<r.tgt),mg=r.tgt&&r.px!=null?(r.px-r.tgt)/r.tgt*(o.side==='yes'?1:-1):null,edge=mg!=null&&Math.abs(mg)<.0003;
-    const st=card.querySelector('[data-k=st]'),done=now>=o.close;
+    const st=card.querySelector('[data-k=st]'),done=now>=o.close;card.classList.toggle('fin',!!r.fin&&!r.fin.done);{const al=card.querySelector('[data-k=avg]')?.previousSibling;if(al&&al.nodeType===3){const t=r.fin?'Settle avg':'60s avg';if(al.textContent!==t)al.textContent=t}}
     // MC 2026-11-08 past the close the coin price no longer matters; say we are waiting on Kalshi's result instead of a frozen 0:00
     if(done){st.className='kx-stat '+(r.a60==null||r.tgt==null?'':(o.side==='yes'?r.a60>=r.tgt:r.a60<r.tgt)?'win':'lose');st.textContent=r.a60==null||r.tgt==null?'SETTLING':(o.side==='yes'?r.a60>=r.tgt:r.a60<r.tgt)?'SETTLING · LOOKS WON':'SETTLING · LOOKS LOST'}
     else{st.className='kx-stat '+(win==null?'':edge?'edge':win?'win':'lose');st.textContent=win==null?'waiting for price':edge?'ON THE LINE':win?'WINNING':'LOSING'}
@@ -4856,7 +4929,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.67',KR_DATE='Nov 16, 2026';
+const KR_VERSION='1.2.68',KR_DATE='Nov 16, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

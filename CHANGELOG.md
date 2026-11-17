@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.68 (Nov 16, 2026): Final minute view
+When a trade has under a minute left, its chart zooms in to the 60 seconds that decide it.
+- [new] The chart eases in to the final minute: the price second by second, the settle average as it builds, and the target.
+- [new] An amber line shows the level the rest of the minute would have to average for the result to change, with your cushion (or how far short you are) and the seconds left.
+- [new] The card glows while it is in its final minute, the "60s avg" figure becomes the settle average so far, and the view stays up after the close with how far ahead or behind it settled.
+- [improved] The same view shows in the coin box.
+
 ## 1.2.67 (Nov 16, 2026): New playbook: Claude's pick
 The best setup found in testing, as one playbook you can pick for paper or live.
 - [new] Claude's pick buys leaders under 95¢ that are at least one usual move clear of their target, and skips a last 15 minutes that ran in a near-straight line (a stricter bar than chart checked) or a coin that was 2 or more usual moves on the wrong side in the last 30 minutes.
