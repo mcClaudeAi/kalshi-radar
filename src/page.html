@@ -1704,6 +1704,10 @@ function barChart(el,rows,{h=200,fmt=usd,lines=[]}={}){ // rows: [{label, v, col
 }
 
 // ---------- data ----------
+// MC 2026-11-17 archived playbooks (the tracker marks them arch) are taken out of the list every page reads, so they leave the Labs
+// page, the chart and the pickers in one place. One that an account is still running stays, so that account can still be read and
+// changed. The whole list is kept as labsAll for naming old trades.
+function kxArch(K){if(!K?.labs)return K;const lv=K.live?.live,keep=new Set([K.playbook?.id,lv?.playbook?.id,...(lv?.books||[]).map(b=>b.playbook?.id)]);K.labsAll=K.labs;K.labs=K.labs.filter(l=>!l.arch||keep.has(l.id));return K}
 async function load(auto){
   // MC 2026-11-11 looking at a friend's dashboard: the same snapshot shape, fetched through this worker from theirs
   const fv=ST.fv;try{const r=await fetch(fv?'/api/friends/view?id='+encodeURIComponent(fv.id):'/data',{cache:fv?'no-store':'no-cache',credentials:'same-origin'});if(r.status===401){kxAuthLost();return}
@@ -1712,7 +1716,7 @@ async function load(auto){
     // MC 2026-11-14 the banner kept the live-sharing state from when the dashboard was opened; it now follows what the friend's
     // dashboard actually sends on every refresh
     const lvS=!!(j.kx?.live?.live&&!j.kx.live.live.hidden);if(fv&&j.kx&&lvS!==!!fv.live){fv.live=lvS;try{sessionStorage.setItem('fr-fv',JSON.stringify(fv))}catch{}}
-    const D={...(j.heavy||{}),...(j.lite||{})};if(j.kx)D.kalshi=j.kx;if(D.edition==='kalshi')D.at=Date.now();   // the edition stamps the reply time, and a 304 hands back the earlier stamp
+    const D={...(j.heavy||{}),...(j.lite||{})};if(j.kx)D.kalshi=kxArch(j.kx);if(D.edition==='kalshi')D.at=Date.now();   // the edition stamps the reply time, and a 304 hands back the earlier stamp
     ST.D=D;ST.last=D.at;ST.err=0;carWatch(D);sndPump();if(ST.pane?.kind==='coin'&&$('#drawer').classList.contains('on')){paintChrome();coinPane(ST.pane.id,ST.pane.tid)}else if(!kxSetHold())renderNew(raw,auto===1);else paintChrome();carPump();}
   catch(e){ST.err++;}
   beat();
@@ -1824,6 +1828,7 @@ function kxRelV(){after.krel=krlLoad;const L=KRL.list||[],head=kxSecHead('Releas
 // cloud tracker's labDefs; if one changes there, change it here. Second look is absent on purpose: the history has one
 // snapshot per trade, at the 10-minute mark, so there is nothing to recheck against.
 const KR_BT='https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/backtest.json',BT={at:0,d:null,err:false,rg:'all',per:'month',met:'net',hit:200,lockAt:null,lockKeep:null,off:new Set(),size:null,loss:null,win:null};
+const BT_ARCH=new Set(['kelly','no95','six','six95','tr10','edge','edge2','two']);   // MC 2026-11-17 archived with the Labs ones: still defined, not run or shown
 const BTP=[['rule','The rule','#4CC9F0','Every 90¢+ leader at 10 minutes left.',t=>true],['no95','Skip 95¢ and up','#F8961E','Leaves out the dearest contracts.',t=>t.px<0.95],['six','6 or more coins','#43AA8B','Only when 6+ coins lead the same way.',t=>t.same>=6],
  ['vol','Margin vs volatility','#F72585','At least 1 typical move past the target.',t=>t.z==null?null:t.z>=1],['vol2','Margin vs volatility v2','#9D4EDD','Same, with the 10-minute move measured directly.',t=>t.z10==null?null:t.z10>=1],
  ['edge','Beats the market','#06D6A0','Our win chance must beat price + fee + 1¢.',t=>t.z==null?null:kxWinZ(t.z)>=kxNeed(t.px)],['edge2','Beats the market v2','#90BE6D','Same, stricter volatility and drift.',t=>t.z2==null?null:kxWinZ(t.z2)>=kxNeed(t.px)],
@@ -1833,9 +1838,13 @@ const BTP=[['rule','The rule','#4CC9F0','Every 90¢+ leader at 10 minutes left.'
  // MC 2026-11-14 the two safer versions of Margin vs volatility under 95c that held up on both halves of the history
  ['mvl','Margin vs volatility + Learned','#B5179E','Margin vs volatility under 95¢, only when the self-learning model agrees too. Learned starts a month in.',t=>t.z==null||t.pl==null?null:t.z>=1&&t.px<0.95&&t.pl>=kxNeed(t.px)],['mv15','Margin vs volatility, 1.5 moves','#80FFDB','Under 95¢ and at least 1.5 typical moves past the target instead of 1.',t=>t.z==null?null:t.z>=1.5&&t.px<0.95],
  // MC 2026-11-11 runs on its own rows (every coin's leader at minute 10, not the rule's trades at the mark) and only over the days pulled for it
- ['tr10','Wait for the trend','#E9C46A','Skips the buy at the mark. At 5 minutes left it buys the leader at 90¢ to 98¢ when the 5-to-10 minute trend runs with the bet or is flat. Higher prices than the mark, so smaller wins.',t=>t.px>=0.9&&t.px<=0.98&&t.pct>-0.02,{m10:1}]];
+ ['tr10','Wait for the trend','#E9C46A','Skips the buy at the mark. At 5 minutes left it buys the leader at 90¢ to 98¢ when the 5-to-10 minute trend runs with the bet or is flat. Higher prices than the mark, so smaller wins.',t=>t.px>=0.9&&t.px<=0.98&&t.pct>-0.02,{m10:1}],
+ // MC 2026-11-17 the two playbooks that read the chart. The history had no chart readings; they were worked out for every trade
+ // from Coinbase's minute prices (research/ccfill.mjs on the public repo) and added to the file as two more numbers a row.
+ ['mvcc','Margin vs volatility, chart checked','#FF7F50','Under 95¢, at least 1 typical move clear, and skips a coin that was 1.7 or more moves on the wrong side in the last 30 minutes or whose last 15 minutes ran near-straight.',t=>t.z==null||t.dp==null||t.r2==null?null:t.z>=1&&t.px<0.95&&t.dp>-1.7&&t.r2<0.81],
+ ['cpk','Claude\'s pick','#C792EA','Under 95¢, at least 1 typical move clear, and skips a last 15 minutes that ran near-straight (a stricter bar) or a coin that was 2 or more moves on the wrong side in the last 30 minutes.',t=>t.z==null||t.dp==null||t.r2==null?null:t.z>=1&&t.px<0.95&&t.dp>-2&&t.r2<0.7]].filter(x=>!BT_ARCH.has(x[0]));
 function btLoad(){if(BT.d||Date.now()-BT.at<60000)return;BT.at=Date.now();fetch(KR_BT+'?t='+Math.floor(Date.now()/3600000),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.rows){const f=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}),n=v=>v==null?null:v/100;
-    BT.d={from:j.from,to:j.to,built:j.built,m10From:j.m10From||null,m10:(j.m10||[]).map((r,i)=>{const at=r[0]*60000;return {i:1e7+i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],pct:r[4]/1000,m10:1}}),rows:j.rows.map((r,i)=>{const at=r[0]*60000;return {i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],same:r[4],win:r[5],z:n(r[6]),z2:n(r[7]),z10:n(r[8]),pl:r[9]==null?null:r[9]/1000,xp:r[10]==null?null:r[10]/1000,xb:r[11]==null?null:r[11]/1000,xk:r[12]==null?null:r[12]/10}}).sort((a,b)=>a.at-b.at||(b.z??-9)-(a.z??-9))};BT.err=false}else BT.err=true;if(ST.tab==='kbt')render()}).catch(()=>{BT.err=true;if(ST.tab==='kbt')render()})}
+    BT.d={from:j.from,to:j.to,built:j.built,m10From:j.m10From||null,m10:(j.m10||[]).map((r,i)=>{const at=r[0]*60000;return {i:1e7+i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],pct:r[4]/1000,m10:1}}),rows:j.rows.map((r,i)=>{const at=r[0]*60000;return {i,at,d:f.format(at+600000),coin:j.coins[r[1]],px:r[2]/1000,won:!!r[3],same:r[4],win:r[5],z:n(r[6]),z2:n(r[7]),z10:n(r[8]),pl:r[9]==null?null:r[9]/1000,xp:r[10]==null?null:r[10]/1000,xb:r[11]==null?null:r[11]/1000,xk:r[12]==null?null:r[12]/10,dp:r[13]==null?null:r[13]/100,r2:r[14]==null?null:r[14]/100}}).sort((a,b)=>a.at-b.at||(b.z??-9)-(a.z??-9))};BT.err=false}else BT.err=true;if(ST.tab==='kbt')render()}).catch(()=>{BT.err=true;if(ST.tab==='kbt')render()})}
 // MC 2026-11-11 the stops read the day as it stood when the window opened (all of a window's coins are bought together, before
 // any settles); it used to update coin by coin, which made tight daily stops look far better than they could be
 // MC 2026-11-11 cash: 0 holds every trade; a number sells a trade at minute 10 when its trend ran against it and it kept less than
@@ -3589,7 +3598,7 @@ function kxTradesTbl(K){const LVT=new Set((K.live?.live?.recent||[]).filter(x=>x
   return bar.top+sw+(page.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Closed</th><th>Coin</th><th>Side</th><th class="n">Price</th><th class="n kx-hm">Contracts</th><th class="n kx-hm" title="What the contracts sold for at the 10-minute mark, 5 minutes before the close">Min 10</th><th class="n">Result</th></tr></thead><tbody>${page.map(t=>`<tr class="kx-click${t.capped?' kx-skip':''}" onclick="${t.lite?`kxTLite(${t.close},'${esc(t.coin)}')`:`kxT('${esc(t.tk||t.t)}')`}"><td style="color:var(--mute)">${when(t)}</td><td><b>${esc(t.coin)}</b>${t.late?' <span class="kx-2nd" title="Bought on a second look, after the 10-minute mark">2nd look</span>':''}${t.cashed?' <span class="kx-2nd kx-cash" title="Sold at the 10-minute mark because the trend turned against the bet">cashed out</span>':''}${LVT.has(t.tk)?' <span class="kx-2nd kx-lvtag" title="The live account bought this one too. This row is paper\'s own simulated fill; the real fill is under Live.">also live</span>':''}</td><td><span class="kx-side ${t.side}">${t.side.toUpperCase()}</span></td><td class="n">${kxC(t.px)}</td><td class="n kx-hm">${t.n}</td><td class="n kx-hm">${t.m10!=null?kxC(t.m10):'–'}</td><td class="n">${t.capped?`<span style="color:var(--faint)" title="${t.strat?'Skipped by the '+esc(t.stratWhy||t.strat)+' playbook':t.cold?esc(t.coin)+' was benched (down over its last '+(c.coldDays||30)+' days)':t.lock?'Protecting today\'s profit':t.halted?'Daily stop hit':'Over the '+c.maxPerWindow+'-coin cap for that window'}${t.done?'; it '+(t.won?'would have won':'would have lost'):''}">${t.strat?'passed':t.cold?'benched':'skipped'}${t.done?(t.won?', W':', L'):''}</span>`:`<b class="${cls(t.pnl)}">${usd(t.pnl)}</b>`}</td></tr>${t.lite?'':`<tr class="kx-det${KXO.has(String(t.tk||t.t))?' on':''}" data-kx="${esc(t.tk||t.t)}"><td colspan="7">${kxWhy(t,c)}</td></tr>`}`).join('')}</tbody></table></div>`:`<div class="empty">${bar.all?'No settled trades yet.':'No trades on this day.'}</div>`)+bar.bot}
 // MC 2026-11-08 playbook switching. kxPbPick opens a chooser for the paper book or the live gate; applying goes through the
 // cloud's kalshiStrat command with a confirm (hold-to-confirm for live, it is real money). The switch applies from now on.
-const kxLabOf=(K,id)=>(K?.labs||[]).find(l=>l.id===id)||{id:'rule',name:'The rule',color:'#4FD1FF'};
+const kxLabOf=(K,id)=>(K?.labsAll||K?.labs||[]).find(l=>l.id===id)||{id:'rule',name:'The rule',color:'#4FD1FF'};
 function kxPbTile(book,K){const pb=book==='live'?K.live?.live?.playbook:K.playbook,id=pb?.id||'rule',l=kxLabOf(K,id),lv=K.live?.live;
   const since=pb?.since?new Date(pb.since).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):null;
   const sub=book==='live'?(lv?.on?`live is on, $${lv.size} a trade`:'live is off; this applies when it is turned on')+(since?` · since ${since}`:''):(since?`since ${since}`:'the original rule, since the start')+(K.playbook?.stratSkips?` · ${K.playbook.stratSkips} skipped by it`:'');
@@ -4996,7 +5005,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.78',KR_DATE='Nov 17, 2026';
+const KR_VERSION='1.2.79',KR_DATE='Nov 17, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

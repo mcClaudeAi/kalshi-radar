@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.79 (Nov 17, 2026): Claude's pick in the Backtest, and seven playbooks archived
+- [new] The Backtest page runs Claude's pick and Margin vs volatility, chart checked over the full four months. The history had no chart readings, so they were worked out for every trade from Coinbase's minute prices (9,334 of the 9,743 trades; the rest had gaps in the price history and are left out of these two).
+- [improved] Archived, so they no longer show on the Labs page, the Backtest page or the playbook pickers: Kelly sizing, Skip 95¢ and up, 6 or more coins (and its under 95¢ version in the Backtest), Wait for the trend, Beats the market, Beats the market v2, Two moves clear. They are not deleted and keep their history; an account still set to one keeps running it and still shows it.
+
 ## 1.2.78 (Nov 17, 2026): W or L on skipped live orders
 - [new] On the Trades page, a skipped live order and a no fill show how that market ended: W if the side you would have bought won, L if it lost. It appears once the market settles, for Main and every sub account.
 - [improved] A skipped trade's detail says whether it would have won or lost.

@@ -52,6 +52,10 @@ const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindo
 // only the moves figure whichever check had said no. labWhy names the check that turned the trade down, in the playbook's own
 // numbers, with a few words on what the check is for. Order matters: price first (the reading that passed should not be the one
 // shown), then how clear of the target, then each playbook's extra checks. t is the same reading the playbook's filter was given.
+// MC 2026-11-17 asked to put these away: off the Labs page, the Backtest page and the playbook pickers, but not deleted. They keep
+// running underneath (an account still set to one carries on and still shows it), so taking one out of this list brings it back
+// with its history.
+const ARCH = new Set(['kelly', 'no95', 'six', 'tr10', 'edge', 'edge2', 'two']);
 function labWhy(id, t, K = {}) {
   const c = v => `${(v * 100).toFixed(1).replace(/\.0$/, '')}¢`, m = (v, need) => (v < need && +v.toFixed(2) >= need ? v.toFixed(3) : v.toFixed(2)), pc = v => `${(v * 100).toFixed(0)}%`;
   const need = px => px + 0.07 * px * (1 - px) + 0.01, far = (z, bar, what = '') => `it was only ${m(z, bar)} usual moves from its target${what} and this playbook wants at least ${bar}, so a normal swing could still flip it`;
@@ -1709,10 +1713,10 @@ export function createKalshi(state, env, keep) {
     return LABS.map(lab => {
       const trades = lab.ep ? epT : lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
-      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
+      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep), since: first.close, ...both(false), cx: both(true) };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep), since: first.close, ...both(false), cx: both(true) };
     });
   }
 
