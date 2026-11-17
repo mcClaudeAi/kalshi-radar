@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.70 (Nov 16, 2026): Skip tags name the real reason
+- [fixed] A skipped trade always read "1.00 moves clear, needs 1", even when a chart check had turned it down. The tag now says which check failed: too straight a last 15 minutes, too far on the wrong side, a late swing, or too few coins leading the same way.
+- [fixed] A moves figure just under its bar (0.996) no longer rounds up to the bar; it keeps a third decimal.
+
 ## 1.2.69 (Nov 16, 2026): "Not trading right now" no longer sticks
 - [fixed] A reason for passing on one coin (a full window, a benched coin, a price over your limit) stayed up as "Not trading right now" until the next order, so the dash looked frozen. It now clears when that window closes.
 - [improved] While it shows, a one-window reason reads as a quiet note ("This window: passed on a coin...") instead of a red warning. Day-long stops still show in red.
