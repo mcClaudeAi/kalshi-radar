@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.75 (Nov 17, 2026): Header win count matches the trades
+- [fixed] The Mode tile could show a loss on a day with none. It counted a trade as won only if it made money, so a small part fill that settled a winner but made $0.00 after the fee read as lost. It now counts what settled your way, the same as the Trades page.
+
 ## 1.2.74 (Nov 17, 2026): Try again for a missed fill
 A new live setting for orders that miss because the price ticked over your top price just as they arrived.
 - [new] "Try again for a missed fill" in Live settings, off unless you turn it on. A short order is sent again for the contracts still wanted, once straight away and once about 4 seconds later.

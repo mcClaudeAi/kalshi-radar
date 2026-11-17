@@ -3523,10 +3523,12 @@ const KXT={paper:{day:null,page:0},live:{day:null,page:0}},KX_PAGE=10;
 // line (one step per settled trade, from 30 minutes before the first close to now), the zero line dotted, a pulsing dot at now,
 // and under it the day's wins, losses, open trades and the next trade check. It is redrawn with the header on every refresh.
 function kxModeSpark(kind,K,lv){const td=kxToday(),now=Date.now();
-  const rows=kind==='live'?(lv?.recent||[]).filter(x=>x.fill>0&&x.result&&x.pnl!=null&&kxDay(x.close)===td).map(x=>[x.sold?.at||x.close,x.pnl]):(K?.recent||[]).filter(t=>t.done&&!t.capped&&t.pnl!=null&&kxDay(t.close)===td).map(t=>[t.close,t.pnl]);
+  const rows=kind==='live'?(lv?.recent||[]).filter(x=>x.fill>0&&x.result&&x.pnl!=null&&kxDay(x.close)===td).map(x=>[x.sold?.at||x.close,x.pnl,x.result==='sold'?x.pnl>0:!!x.won]):(K?.recent||[]).filter(t=>t.done&&!t.capped&&t.pnl!=null&&kxDay(t.close)===td).map(t=>[t.close,t.pnl,!!t.won]);
   rows.sort((a,b)=>a[0]-b[0]);const open=kind==='live'?(lv?.recent||[]).filter(x=>x.fill>0&&!x.result).length:(K?.pending||[]).filter(t=>!t.capped).length;
   const nx=new Date(Math.ceil((now-5*60000+1)/(15*60000))*15*60000+5*60000).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'});
-  const w=rows.filter(r=>r[1]>0).length,l=rows.length-w,cap=`<div class="kx-mcap"><em><strong class="pos">${w}</strong> won · <strong class="${l?'neg':''}">${l}</strong> lost${open?` · ${open} open`:''}</em><em class="nx">next <bdi class="nxw">check </bdi>${nx}</em></div>`;
+  // MC 2026-11-17 Steven's tile read 14 won, 1 lost on a day with 15 of 15 won: won was counted as "made money", and a small part
+  // fill that settled a winner made $0.00 after the fee. Won now means the contract settled our way (a cash-out counts by its result).
+  const w=rows.filter(r=>r[2]).length,l=rows.length-w,cap=`<div class="kx-mcap"><em><strong class="pos">${w}</strong> won · <strong class="${l?'neg':''}">${l}</strong> lost${open?` · ${open} open`:''}</em><em class="nx">next <bdi class="nxw">check </bdi>${nx}</em></div>`;
   if(!rows.length)return `<div class="kx-msp kx-msp0"><svg viewBox="0 0 200 40" preserveAspectRatio="none"><line x1="0" y1="20" x2="200" y2="20" class="z"/></svg><i style="left:100%;top:50%"></i></div>${cap}`;
   const t0=rows[0][0]-30*60000,t1=Math.max(now,rows[rows.length-1][0]+60000);let run=0;const pts=[[t0,0]];for(const [t,v] of rows){pts.push([t,run]);run+=v;pts.push([t,run])}pts.push([t1,run]);
   const vs=pts.map(p=>p[1]),lo=Math.min(0,...vs),hi=Math.max(0,...vs),sp=hi-lo||1,X=t=>(t-t0)/(t1-t0)*200,Y=v=>36-(v-lo)/sp*32;
@@ -4968,7 +4970,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.74',KR_DATE='Nov 17, 2026';
+const KR_VERSION='1.2.75',KR_DATE='Nov 17, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
