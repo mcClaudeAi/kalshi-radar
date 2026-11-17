@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.67 (Nov 16, 2026): New playbook: Claude's pick
+The best setup found in testing, as one playbook you can pick for paper or live.
+- [new] Claude's pick buys leaders under 95¢ that are at least one usual move clear of their target, and skips a last 15 minutes that ran in a near-straight line (a stricter bar than chart checked) or a coin that was 2 or more usual moves on the wrong side in the last 30 minutes.
+- [new] It shows in Labs beside the others, with its history filled from the trades already recorded.
+
 ## 1.2.66 (Nov 16, 2026): Paper home rebuilt to match
 - [improved] The paper panel now uses the same layout as the live one: status chips with your playbook, the paper bank as the one big figure, a Today card with the profit target inside it, and a ledger row (Started with, Bank now, This run, Trades) in place of the sentence.
 

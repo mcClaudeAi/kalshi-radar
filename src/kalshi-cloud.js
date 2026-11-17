@@ -48,7 +48,7 @@ const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindo
 // ceiling, so a coin picked at 94.8c under an under-95 playbook filled at 95.6c. The room is now a live setting (slipC, cents,
 // default 1) and the order's top price never goes past live's Maximum price or the playbook's own price limit. pbCap is that
 // limit: the price the playbook would no longer take (exclusive), or tr10's 98c (inclusive).
-const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, all: 0.95, mv96: 0.96 };
+const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, all: 0.95, mv96: 0.96 };
 function orderLimit(r, labId, cfg) {
   const room = Math.max(0, Math.min(3, cfg.slipC ?? 1)) / 100, tick = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01;
   let top = Math.min(0.99, cfg.maxAsk ?? 0.99, +(r.ask + room).toFixed(4)), why = room ? `${(room * 100).toFixed(1).replace(/\.0$/, '')}c of room` : 'no room';
@@ -146,6 +146,14 @@ function labDefs(K) {
     // MC 2026-11-16 Mitchell asked for the chart-shape version as its own playbook, next to "no late swing". In the same test it made
     // $0.95 a trade against $0.59 for the live playbook ($0.90 and $1.01 in the two halves, $0.99 over the last four weeks), more
     // in total on 30% fewer trades, with the worst day about half as deep. Cut-offs picked by looking at five groups, so expect less.
+    // MC 2026-11-16 asked for the best setup as one playbook, after Steven's idea of trading only when several playbooks agree
+    // (they all judge the same trade, so agreeing came out as roughly chart checked). Walk-forward on Sep 9 to Nov 16: 160
+    // threshold mixes were scored on the first half and the pick tested on the unseen second half. Most mixes didn't carry over
+    // (per-trade result on the two halves was uncorrelated), but one thing did, and smoothly: how straight the last 15 minutes
+    // were. Under 0.70 held $1.18 then $1.20 a trade; the trades it skips lost money. Depth is kept as a loose guard (2 moves, was
+    // 1.7). Both halves over $1 a trade, every week green, $1.17 a trade against $1.03 for chart checked and $0.66 for under 95c.
+    // Tried and dropped: a higher moves bar, a pack count, a 91c floor, coin and hour picks; each looked good on one half only.
+    { id: 'cpk', name: "Claude's pick", desc: 'The best setup found in testing, as one playbook. Buys leaders under 95¢ that are at least one usual move clear of their target, and skips two chart shapes: a last 15 minutes that ran in a near-straight line (a stricter bar than chart checked), and a coin that was 2 or more usual moves on the wrong side of its target in the last 30 minutes.', color: '#C792EA', filter: t => t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7 },
     { id: 'mvcc', name: 'Margin vs volatility, chart checked', desc: 'Margin vs volatility under 95¢, skipping two chart shapes that tended to snap back in testing: a coin that was 1.7 or more usual moves on the wrong side of its target in the last 30 minutes, and a coin whose last 15 minutes were a near-straight run.', color: '#FF7F50', filter: t => t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -1.7 && t.r2 < 0.81 },
     // MC 2026-11-16 Mitchell's own hand-buy pattern, named by him. His live hand buys Nov 15 to 16 (63 on Main, 84% won, +$163)
     // won 95% (+$379) in windows where every coin he bought went the same way and 55% (-$216) where he bought both sides. His best
