@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.72 (Nov 16, 2026): Smooth scrolling on phones
+The dash stuttered while scrolling on a phone. Found and fixed the causes.
+- [fixed] The whole page was rebuilt every 10 seconds, changed or not, which froze it for a moment and broke a swipe in progress. It now skips a rebuild when nothing changed, and never rebuilds while your finger is down or the page is still gliding.
+- [fixed] The light that follows the mouse over cards was also running under a finger, on every movement of a swipe. It is mouse only now.
+- [improved] The live charts pause their half-second redraw while the page is moving, and read the theme colours once every few seconds instead of for every chart.
+- [improved] Lighter effects on phones: no blur behind the Today card, and the final-minute glow no longer repaints the card's shadow.
+
 ## 1.2.71 (Nov 16, 2026): An account only says Paused when it is
 - [fixed] An account showed PAUSED whenever its playbook had passed on one coin, even with trades open. Only a day-long stop (loss cap, target, give-back, drawdown, low cash) pauses an account now.
 - [improved] A pass on one coin shows as a grey note for that window and clears when the window closes.
