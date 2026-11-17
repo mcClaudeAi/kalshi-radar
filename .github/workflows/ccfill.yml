@@ -1,0 +1,19 @@
+# Backtest data: the two chart readings (depth on the wrong side, straightness of the last 15 minutes) for every trade in backtest.json, printed to the job log (public market data only).
+name: Chart readings for the backtest
+on:
+  workflow_dispatch:
+    inputs:
+      coins: { description: 'Coins as a JSON list', default: '["BTC","ETH","SOL","XRP","DOGE","BNB","HYPE","ZEC","NEAR"]' }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        coin: ${{ fromJSON(github.event.inputs.coins) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node research/ccfill.mjs ${{ matrix.coin }}
