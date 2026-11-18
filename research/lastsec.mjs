@@ -9,11 +9,12 @@ const B = 'https://api.elections.kalshi.com/trade-api/v2', COIN = process.argv[2
 const END = Math.floor(Date.now() / 1000) - 1800, START = END - DAYS * 86400;
 async function j(u) { for (let i = 0; i < 7; i++) { try { const r = await fetch(B + u, { headers: { accept: 'application/json', 'user-agent': 'kalshi-radar-research' } }); if (r.status === 429 || r.status >= 500) { await sleep(700 * (i + 1)); continue; } if (!r.ok) return { _err: r.status }; return await r.json(); } catch { await sleep(700 * (i + 1)); } } return { _err: 'gave up' }; }
 const px = (o, k) => { if (!o) return null; const d = o[k + '_dollars']; if (d != null) return +d; const v = o[k]; return v == null ? null : (String(v).includes('.') || +v <= 1) ? +v : +v / 100; };
+// the historical list ignores the close-time bounds, so they are checked again on each market
 const M = []; { const seen = new Set(); for (const path of ['/markets?status=settled&', '/historical/markets?']) { let cur = ''; for (let k = 0; k < 400; k++) { const r = await j(`${path}series_ticker=${S}&min_close_ts=${START}&max_close_ts=${END}&limit=1000${cur ? '&cursor=' + cur : ''}`);
-    for (const m of r.markets || []) if ((m.result === 'yes' || m.result === 'no') && !seen.has(m.ticker)) { seen.add(m.ticker); M.push(m); } cur = r.cursor; if (!cur || !(r.markets || []).length) break; await sleep(150); } } }
+    for (const m of r.markets || []) { const c = Date.parse(m.close_time) / 1000; if ((m.result === 'yes' || m.result === 'no') && c >= START && c <= END && !seen.has(m.ticker)) { seen.add(m.ticker); M.push(m); } } cur = r.cursor; if (!cur || !(r.markets || []).length) break; await sleep(150); } } }
 M.sort((a, b) => Date.parse(a.close_time) - Date.parse(b.close_time)); console.log(S, M.length, 'settled markets over', DAYS, 'days');
 let i = 0, n = 0, none = 0, shown = 0;
-await Promise.all(Array.from({ length: 4 }, async () => { while (i < M.length) { const m = M[i++], close = Math.floor(Date.parse(m.close_time) / 1000);
+await Promise.all(Array.from({ length: 6 }, async () => { while (i < M.length) { const m = M[i++], close = Math.floor(Date.parse(m.close_time) / 1000);
   let T = [], cur = '', path = '/markets/trades?';
   for (let pg = 0; pg < 6; pg++) { let r = await j(`${path}ticker=${m.ticker}&min_ts=${close - 240}&max_ts=${close + 5}&limit=1000${cur ? '&cursor=' + cur : ''}`);
     if (pg === 0 && (r._err || !(r.trades || []).length)) { path = '/historical/trades?'; r = await j(`${path}ticker=${m.ticker}&min_ts=${close - 240}&max_ts=${close + 5}&limit=1000`); }
