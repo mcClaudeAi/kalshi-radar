@@ -16,7 +16,7 @@ const all = []; for (const path of ['/markets?status=settled&', '/historical/mar
 const byT = {}; for (const m of all) byT[m.ticker] = byT[m.ticker] || m;
 const ms = Object.values(byT).filter(m => (m.result === 'yes' || m.result === 'no') && ts(m) >= START && ts(m) <= END).sort((a, b) => ts(b) - ts(a));
 console.log(S, ms.length, 'markets');
-const [QA, QB] = (process.argv[4] || '1-5').split('-').map(Number);
+const [QA, QB] = (process.argv[5] || '1-5').split('-').map(Number);
 let i = 0, n = 0; await Promise.all(Array.from({ length: 6 }, async () => { while (i < ms.length) { const m = ms[i++], c = ts(m), open = c - 900, mark = c - 600, k = m.floor_strike ?? m.cap_strike ?? null; if (!(k > 0)) continue;
   let r = await j(`/series/${S}/markets/${m.ticker}/candlesticks?start_ts=${open - 60}&end_ts=${open + QB * 60}&period_interval=1`); if (r._err) r = await j(`/historical/markets/${m.ticker}/candlesticks?start_ts=${open - 60}&end_ts=${open + QB * 60}&period_interval=1`);
   const K = r.candlesticks || [], mins = []; let any = false;
