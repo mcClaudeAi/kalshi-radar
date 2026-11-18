@@ -1582,6 +1582,15 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  #kpis{order:9;flex:1 1 100%;margin:0 0 12px;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1.2fr)}
  #kpis:has(.kp.mode.paper){grid-template-columns:minmax(0,1.35fr) minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1fr)}
 }
+/* MC 2026-11-18 scrolling and opening a sheet still felt shaky, on the web most of all. Measured frame by frame: the page drew at
+   about 30 frames a second standing still, 20 while scrolling and 10 with a sheet open, and none of that time was script. It
+   was the frosted-glass blur (backdrop-filter). Every card had one, so did the hero's inner panels, the side menu and the dark
+   layer behind a sheet, and a blur has to be worked out again on every frame in which anything under it moves (the pulsing dots
+   and the live charts never stop). With those blurs off the same page holds 60. The cards are 92% solid, so the blur behind
+   them was not visible anyway. Kept only on the bars that content really scrolls under (top bar, bottom tabs, pane headers).
+   Tried turning off only the layer behind a sheet first: better with a sheet open, no change to scrolling. */
+.card,.kxg,.lh-today,.kx-allbox,.side,.fx-chip,.modal .bk,.pal .bk{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.modal .bk{background:rgba(5,7,10,.74)}.pal .bk{background:rgba(5,7,10,.68)}
 </style>
 <script id="themes">
 // MC 2026-11-14 themes. Asked for at least five theme choices that stay easy to read. Every theme is one row here (its base,
@@ -1656,6 +1665,19 @@ const pc=v=>v==null?'–':(v>0?'+':'')+Number(v).toFixed(1)+'%';
 const cls=v=>v>0?'pos':v<0?'neg':'zero';
 const n0=v=>v==null?'–':Number(v).toLocaleString('en-US');
 const ET={timeZone:'America/New_York'};
+// MC 2026-11-18 the page still hitched on a phone, and on the web with a sheet open. Measured it: every rebuild spent most of its
+// time formatting dates and money. toLocaleDateString / toLocaleTimeString / toLocaleString build a new formatter on every call,
+// and the trades list alone asks for the day of every trade on record (0.7s per rebuild on a slowed-down phone). Each distinct
+// (locale, options) now gets one formatter that is kept and reused. Same output, checked call for call against the browser's own.
+(()=>{const C=new Map(),DF=['weekday','year','month','day'],TF=['dayPeriod','hour','minute','second','fractionalSecondDigits'],ST2=['dateStyle','timeStyle'],has=(o,ks)=>ks.some(k=>o[k]!==undefined);
+  const fmt=(kind,l,o)=>{const key=kind+'|'+(l||'')+'|'+(o?JSON.stringify(o):'');let f=C.get(key);if(!f){let q=o||{};
+      if(kind==='d'&&!has(q,DF)&&!has(q,ST2))q={...q,year:'numeric',month:'numeric',day:'numeric'};
+      else if(kind==='t'&&!has(q,TF)&&!has(q,ST2))q={...q,hour:'numeric',minute:'numeric',second:'numeric'};
+      else if(kind==='a'&&!has(q,DF)&&!has(q,TF)&&!has(q,ST2))q={...q,year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'};
+      f=kind==='n'?new Intl.NumberFormat(l,o):new Intl.DateTimeFormat(l,q);if(C.size>400)C.clear();C.set(key,f)}return f};
+  const D=Date.prototype,N=Number.prototype,nat={d:D.toLocaleDateString,t:D.toLocaleTimeString,a:D.toLocaleString,n:N.toLocaleString};window.__natFmt=nat;
+  const wrap=kind=>function(l,o){try{if(kind!=='n'&&isNaN(this))return nat[kind].call(this,l,o);return fmt(kind,l,o).format(this)}catch{return nat[kind].call(this,l,o)}};
+  D.toLocaleDateString=wrap('d');D.toLocaleTimeString=wrap('t');D.toLocaleString=wrap('a');N.toLocaleString=wrap('n')})();
 const tm=s=>s?new Date(s*1000).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'}):'–';
 const dt=s=>s?new Date(s*1000).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'–';
 const dayKey=s=>new Date(s*1000).toLocaleDateString('en-CA',ET);
@@ -3762,8 +3784,9 @@ function kxAccts(){const lv=kxLv()||{},A=[{id:'main',name:'Main',main:1,on:!!lv.
   for(const b of kbBooks())A.push({id:b.id,name:b.name,sub:b.sub,on:!!b.on,stopped:b.on&&b.stoppedDay!==false&&b.stopped||null,note:b.on&&b.stoppedDay===false&&b.stopped||null,err:b.err||null,pb:b.playbook?.id,size:b.size,bal:b.bal,crypto:b.crypto,today:b.today||{},total:b.total||{},open:(b.open||[]).length,hist:b.hist||[],keyOk:b.keyOk,loss:b.loss,tg:b.cfg?(+b.cfg.dailyWinUsd||0):null,logo:kxLogoOf(b.id)});return A}
 // MC 2026-11-17 a picture on an account's badge in place of M, 1, 2 (those stay as the default). Picked from the account's sheet.
 // The picture is cut to a centred square and shrunk to 128px here, so what is sent is a few KB whatever was chosen. A friend's
-// dashboard shows the default badges: its pictures live on the friend's tracker, not this one.
-const kxLogoOf=id=>{if(ST.fv)return null;const at=kxLv()?.logos?.[id];return at?`/api/klogo?id=${encodeURIComponent(id)}&v=${at}`:null};
+// dashboard asks the friend's tracker for its pictures through this one (/api/friends/logo), and falls back to the letter if
+// the friend's copy is older and does not answer.
+const kxLogoOf=id=>{const at=kxLv()?.logos?.[id];return !at?null:ST.fv?`/api/friends/logo?f=${encodeURIComponent(ST.fv.id)}&id=${encodeURIComponent(id)}&v=${at}`:`/api/klogo?id=${encodeURIComponent(id)}&v=${at}`};
 function kxLogoPick(id){const f=document.createElement('input');f.type='file';f.accept='image/png,image/jpeg,image/webp,image/gif';f.onchange=()=>{const file=f.files?.[0];if(!file)return;const im=new Image(),url=URL.createObjectURL(file);
   im.onerror=()=>{URL.revokeObjectURL(url);toast('That file is not a picture this browser can read')};
   im.onload=async()=>{const S=128,c=document.createElement('canvas'),m=Math.min(im.naturalWidth,im.naturalHeight);c.width=c.height=S;const g=c.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(im,(im.naturalWidth-m)/2,(im.naturalHeight-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(url);
@@ -3791,7 +3814,7 @@ function kxAccAv(x,big){const R=kxAccRing(x),C=2*Math.PI*19,wl=C*R.f,n=1,w=1,ll=
   const tag=big?'span':'button';
   return `<${tag} ${big?'':'type="button" '}class="kx-av${x.on?' on':''}${big?' big':''}${R.hit?' hit':''}" ${big?'':`onclick="event.stopPropagation();kxAccSheet('${x.id}')"`} aria-label="${esc(x.name)}: ${esc(R.txt)}. Open account details" title="${esc(R.txt)}">
    <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="tr" cx="22" cy="22" r="19"/>${R.f>0.004?`<circle class="${R.cls}${R.hit?' hit':''}" cx="22" cy="22" r="19" stroke-dasharray="${R.hit?C.toFixed(2):wl.toFixed(2)} ${C.toFixed(2)}"/>`:''}</svg>
-   <span class="g${x.logo?' pic':''}">${x.logo?`<img src="${esc(x.logo)}" alt="" loading="lazy" decoding="async">`:x.main?'M':esc(String(x.sub??'S'))}</span>${x.on?'<i class="lv"></i>':''}</${tag}>`}
+   <span class="g${x.logo?' pic':''}">${x.logo?`<img src="${esc(x.logo)}" alt="" loading="lazy" decoding="async" data-l="${x.main?'M':esc(String(x.sub??'S'))}" onerror="const g=this.parentNode;g.classList.remove('pic');g.textContent=this.dataset.l">`:x.main?'M':esc(String(x.sub??'S'))}</span>${x.on?'<i class="lv"></i>':''}</${tag}>`}
 function kxAccSheet(id){const x=kxAccts().find(a=>a.id===id);if(!x)return;const t=x.today,T=x.total,l=kxLabOf(ST.D?.kalshi,x.pb||'rule'),can=ST.me.control,lv=kxLv()||{},b=x.main?null:kbB(id),m0=x.main?(lv.shard?.[0]??lv.shard?.['0']):(x.bal!=null&&x.crypto!=null?Math.max(0,x.bal-x.crypto):null);
   const cell=(k,v,s)=>`<div><span>${k}</span><b>${v}</b>${s?`<small>${s}</small>`:''}</div>`,why=x.keyOk===false?'Kalshi rejected this account\'s key.':x.err||x.stopped||'';
   modal(`<div class="kx-accs"><div class="hd">${kxAccAv(x,1)}<div><h2>${esc(x.name)}</h2><p>${x.main?'Main Kalshi account':'Subaccount '+esc(String(x.sub??''))} · ${x.keyOk===false?'key rejected':x.err?'error':x.stopped?'paused':x.on?'trading':'off'}</p><p><i class="pd" style="background:${l.color}"></i>${esc(l.name)}${x.size?` · $${n0(x.size)} a trade`:''}${b?.loss?` · stop -$${n0(b.loss)}/day`:x.main&&lv.dailyLossUsd?` · stop -$${n0(lv.dailyLossUsd)}/day`:''}</p></div></div>
@@ -5084,7 +5107,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.85',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.2.86',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

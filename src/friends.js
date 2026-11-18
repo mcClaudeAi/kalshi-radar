@@ -94,6 +94,10 @@ export async function friendsPeer(st, req, ctx) {
   if (p === '/f/meta' && post) { if (body.name) f.name = clean(body.name, 40); if ('share' in body) f.tShare = !!body.share; if ('live' in body) f.tLive = !!body.live; if ('read' in body) f.tRead = +body.read || 0; f.gone = false; await putAll(st, all); return J({ ok: true }); }
   if (p === '/f/bye' && post) { f.gone = true; f.tShare = false; f.tLive = false; await putAll(st, all); return J({ ok: true }); }
   if (p === '/f/view') { if (!f.share) return J({ ok: false, msg: 'Not shared.' }, 403); const v = sanitize(await ctx.view(), f.live); return J({ ok: true, kx: v, at: Date.now() }); }
+  // MC 2026-11-18 the pictures a friend put on their account badges. Opening Steve's dashboard showed his accounts with the
+  // default M, 1, 2: a picture lives on its owner's tracker and the page only knew how to ask its own. Shared under the same
+  // switch as the live account, since the badges are part of it.
+  if (p === '/f/logo') { if (!f.share || !f.live) return J({ ok: false, msg: 'Not shared.' }, 403); const x = ctx.logo ? await ctx.logo(u.searchParams.get('id') || '') : null; return x ? J({ ok: true, type: x.type, b64: x.b64 }) : J({ ok: false, msg: 'not found' }, 404); }
   if (p === '/f/live') { if (!f.share) return J({ ok: false, msg: 'Not shared.' }, 403); let k; try { k = JSON.parse((await ctx.live()) || 'null'); } catch { k = null; } if (k && !f.live) k.live = { on: false, hidden: true }; return J({ ok: true, live: k }); }
   return J({ ok: false, msg: 'not found' }, 404);
 }
@@ -109,6 +113,10 @@ export async function friendsOwner(st, req, body, ctx) {
     return J({ ok: true, friend: pub(f), tRead: f.tRead || 0, msgs: th.filter(m => m.at > since || m.s === 'failed').map(m => ({ m: m.m, me: !!m.f, t: m.t, at: m.at, s: m.s || null, img: m.img || null })) }); }
   if (p === '/api/friends/img') { const f = all[q('f')], im = f ? loadImg(st, f.id, q('id')) : null; if (!im) return J({ ok: false, msg: 'not found' }, 404);
     return new Response(im.u, { headers: { 'content-type': im.mime, 'cache-control': 'private, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" } }); }
+  if (p === '/api/friends/logo') { const f = all[q('f')]; if (!f || !f.tShare) return J({ ok: false, msg: 'not found' }, 404);
+    let r; try { r = await peer(f, '/f/logo?id=' + encodeURIComponent(q('id'))); } catch { return J({ ok: false, msg: 'not reachable' }, 502); }
+    const t = r.j?.type, d = r.j?.b64; if (!r.ok || !/^image\/(png|jpeg|webp)$/.test(t || '') || typeof d !== 'string' || d.length > 40000 || !/^[A-Za-z0-9+/]+=*$/.test(d)) return J({ ok: false, msg: 'not found' }, 404);
+    return new Response(Uint8Array.from(atob(d), c => c.charCodeAt(0)), { headers: { 'content-type': t, 'cache-control': 'private, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" } }); }
   if (p === '/api/friends/view' || p === '/api/friends/live') {
     const f = all[q('id')]; if (!f) return J({ ok: false, msg: 'No such friend.' }, 404);
     if (!f.tShare) return J({ ok: false, msg: `${f.alias || f.name} is not sharing their dashboard with you.` }, 403);

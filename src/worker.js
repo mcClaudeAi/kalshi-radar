@@ -129,7 +129,7 @@ export class Store {
     if (p === '/k/tick') { await this.loadKeys(); await this.K.tick(); await this.notify(); return new Response('ok'); }
     // state-changing calls must come from the page itself (SameSite=Strict cookie + this header, which a form post can't set)
     // MC 2026-11-11 a friend's dashboard calling in (friends.js checks the pair id and secret); no session or page header here
-    const fctx = { origin: u.origin, view: async () => { let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; } return kv; }, live: async () => { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return h; }, notify: ev => pushSend(this.state.storage, ev) };
+    const fctx = { origin: u.origin, logo: id => this.K.logoOf(id), view: async () => { let kv = await this.read('kview'); if (!kv) { await this.K.publish(false); kv = this.mem.kview; } return kv; }, live: async () => { let h = await this.read('klive'); if (!h) { await this.K.publish(false); h = this.mem.klive; } return h; }, notify: ev => pushSend(this.state.storage, ev) };
     if (p.startsWith('/f/')) return friendsPeer(this.state.storage, req, fctx);
     if (post && req.headers.get('x-cr') !== '1') return J({ ok: false, msg: 'bad request' }, 400);
     const body = post ? await req.json().catch(() => ({})) : {};

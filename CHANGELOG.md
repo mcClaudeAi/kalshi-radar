@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.86 (Nov 18, 2026): Smooth scrolling and sheets, friends' account pictures
+- [fixed] Scrolling and opening a sheet felt shaky, on the web most of all. The frosted-glass blur behind every card, the hero's panels, the side menu and the dark layer behind a sheet had to be worked out again on every frame. Those blurs are off. The top bar and the bottom tabs keep theirs. The page looks the same apart from the layer behind an open sheet, which is plain dark now.
+- [fixed] Each time the page rebuilt itself it paused, long enough to feel on a phone. Most of that pause was formatting dates and dollar amounts from scratch, thousands of times. The formatting is now reused.
+- [new] A friend's dashboard shows the pictures they put on their accounts. Both copies need this version, and the friend must be sharing their live account with you. Until their copy updates you see the default M, 1, 2.
+
 ## 1.2.85 (Nov 18, 2026): Sub accounts show their cash as fast as Main after a trade settles
 - [fixed] Right after a win, Main's cash updated within seconds while each sub account's cash could sit on the old figure for up to a minute. The quick check that settles a trade seconds after its close read Main's balance again but left the sub accounts for the next minute run. It now reads theirs at the same moment.
 - [improved] If Kalshi has not paid a sub account yet when that read happens, it is read again at the next minute run.
