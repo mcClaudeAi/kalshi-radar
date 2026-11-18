@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.85 (Nov 18, 2026): Sub accounts show their cash as fast as Main after a trade settles
+- [fixed] Right after a win, Main's cash updated within seconds while each sub account's cash could sit on the old figure for up to a minute. The quick check that settles a trade seconds after its close read Main's balance again but left the sub accounts for the next minute run. It now reads theirs at the same moment.
+- [improved] If Kalshi has not paid a sub account yet when that read happens, it is read again at the next minute run.
+
 ## 1.2.84 (Nov 18, 2026): "Try again for a missed fill" covers hand buys
 - [fixed] With "Try again for a missed fill" on, a buy made by hand that got no contracts, or fewer than it wanted, was left as it was. The second try only ran for the trade check's own orders. A hand buy now looks at the book again and sends for the rest, up to twice within about two seconds.
 - [improved] It never pays more than the price you confirmed, asks for whole contracts only, and does not go again if the offer has dropped more than 3¢ under the quote you saw.

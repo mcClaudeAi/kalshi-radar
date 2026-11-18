@@ -1069,6 +1069,7 @@ export function createKalshi(state, env, keep) {
     if (now - mk < 60000 && st.lastMark < mk) { try { await entry(now); } catch (e) { say('entry error: ' + e.message); } }
     let moved = false; try { moved = await settleSome(now, true); } catch (e) { say('quick settle error: ' + e.message); }
     if (moved && hasKeys()) { try { await balance(); } catch (e) { fail(e.message); } }
+    if (moved) { try { await books.afterSettle(); } catch (e) { say('books balance after settle: ' + e.message); } }   // MC 2026-11-18 the books' cash too, not only Main's
     await state.storage.setAlarm(nextAlarm(now));
     await publish(true);
   }

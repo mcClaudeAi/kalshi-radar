@@ -316,6 +316,14 @@ export function createBooks(D) {
     if (!list) return;
     for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
   }
+  // MC 2026-11-18 right after a win Main's cash was up to date and the sub accounts' was not, for up to a minute. The quick look
+  // that settles a trade seconds after its close read Main's balance again but left the books for the next minute run.
+  // afterSettle reads the balance of every book that has just had a trade settle (onSettle marks it with balAt 0).
+  async function afterSettle() {
+    if (!list) return 0; let n = 0;
+    await Promise.all(list.filter(b => S[b.id] && !S[b.id].balAt && [...(L[b.id]?.values() || [])].some(x => x.fill > 0)).map(async b => { try { const was = S[b.id].bal; await balance(b); n++; if (S[b.id].bal === was) S[b.id].balAt = 0; } catch { } }));   // unchanged: Kalshi may not have paid yet, so the minute run reads again
+    return n;
+  }
   async function upkeep(now) {
     await load();
     for (const b of list) {
@@ -480,5 +488,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onSettle, upkeep, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
+  return { load, onMark, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
 }
