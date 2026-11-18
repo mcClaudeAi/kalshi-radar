@@ -713,13 +713,17 @@ export function createKalshi(state, env, keep) {
   const obC = new Map();
   async function obGet(tk) { const c = obC.get(tk), now = Date.now(); if (c && now - c.at < 4000) return c.j; const j = await get(`/markets/${tk}/orderbook`); if (j) { obC.set(tk, { at: now, j }); if (obC.size > 40) for (const [k, v] of obC) if (now - v.at > 60000) obC.delete(k); } return j; }
   async function sellQuote(tk) {
-    const x = L.get(tk); if (!x || !(x.fill > 0) || x.result) return { ok: false, msg: 'No open live position in that market.' };
+    // MC 2026-11-18 a market only the sub accounts held could not be sold by hand: the quote (and the Sell button behind it) was
+    // built on Main's position alone. Seen when a hand buy filled in two sub accounts and not in Main. When Main does not
+    // hold the market the quote is now worked out from the first sub account that does, and names it (ref).
+    await books.load(); const mx = L.get(tk), hasMain = !!(mx && mx.fill > 0 && !mx.result && mx.fill - (mx.sold?.fill || 0) > 0), held = books.heldList(tk);
+    const x = hasMain ? mx : books.rowsOf(tk).find(r => r.fill > 0 && !r.result && r.fill - (r.sold?.fill || 0) > 0); if (!x) return { ok: false, msg: 'No open live position in that market.' };
     if (x.close <= Date.now()) return { ok: false, msg: 'That market has closed; it settles on its own.' };
     const left = x.fill - (x.sold?.fill || 0); let b; try { b = bids(await obGet(tk)); } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
     const mine = x.side === 'yes' ? b.yes : b.no, best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is buying ${x.side.toUpperCase()} right now, so it cannot be sold.` };
     const avg = walk(mine, left) ?? null, depth = mine.reduce((a, l) => a + l[1], 0), est = Math.min(left, depth), px = avg ?? (mine.reduce((a, l) => a + l[0] * l[1], 0) / depth), fe = fee(px, est);
     const prior = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0, proceeds = +(est * px - fe).toFixed(2);
-    return { ok: true, tk, coin: x.coin, side: x.side, left, est, best, avg: +px.toFixed(4), minPx: +Math.max(0.01, best - 0.03).toFixed(4), proceeds, pnl: +(proceeds + prior - (x.cost ?? 0)).toFixed(2), ifWin: +(left + prior - (x.cost ?? 0)).toFixed(2), ifLose: +(prior - (x.cost ?? 0)).toFixed(2), paid: x.px, accts: [{ id: 'main', name: 'Main', left, ok: true }, ...(await books.load(), books.heldList(tk)).map(b => ({ ...b, ok: true }))] };
+    return { ok: true, tk, coin: x.coin, side: x.side, left, est, best, avg: +px.toFixed(4), minPx: +Math.max(0.01, best - 0.03).toFixed(4), proceeds, pnl: +(proceeds + prior - (x.cost ?? 0)).toFixed(2), ifWin: +(left + prior - (x.cost ?? 0)).toFixed(2), ifLose: +(prior - (x.cost ?? 0)).toFixed(2), paid: x.px, ref: hasMain ? 'Main' : held[0]?.name || 'the sub account', accts: [...(hasMain ? [{ id: 'main', name: 'Main', left, ok: true }] : []), ...held.map(b => ({ ...b, ok: true }))] };
   }
   // MC 2026-11-14 manual buy, the other half of the manual sell. Asked for after SOL led NO at 94c with 7 minutes left: the rule
   // only buys at the trade check, so there was no way to pick it up from the dashboard. buyQuote reads the book for the side asked:

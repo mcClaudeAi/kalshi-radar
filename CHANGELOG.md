@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.91 (Nov 18, 2026): Sell by hand from sub accounts when Main does not hold the market
+- [fixed] A position held only by sub accounts had no Sell button. The sale price and the button were built on Main's position alone, so when a hand buy filled in the sub accounts and not in Main, there was no way to sell it from the dashboard. The Sell row now shows whenever any account holds the market.
+- [improved] The confirm box lists the accounts that hold it, and says whose figures it is showing when Main is not one of them. Holding to confirm is unchanged.
+
 ## 1.2.90 (Nov 18, 2026): Today's record split into automatic and by hand
 - [improved] The Today box on the live summary shows two lines where it had one mixed count: Automatic (settled, won, lost, result, and the trades the playbook passed on) and By hand (settled, won, lost, result). A loss on a buy made by hand no longer reads as the playbook's loss.
 
