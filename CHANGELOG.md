@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.95 (Nov 18, 2026): New window bar on the live board
+- [improved] The window bar is rebuilt. It names the three stretches of a window (watching, holding, and the final minute Kalshi averages for the result), marks every minute, and shows one large countdown to whatever comes next: the trade check, then the settle.
+- [fixed] For up to a minute after a window ended the bar sat full on the old window, because it took the window from the tracker's last read. It now works the window out from the clock, so it rolls over on the second.
+- [fixed] Times on the bar used the device's own clock, which can be seconds off on a phone. When the device is more than 1.5 seconds out, the bar uses the server's time.
+- [new] In the final minute the bar turns amber and says the result is the average of that minute, not the last tick.
+
 ## 1.2.94 (Nov 18, 2026): "Strong setup" rows light up on the scanner
 - [new] A scanner row gets a breathing green frame, a band of light crossing it and a "Strong setup" tag when every reading lines up and you do not hold the coin yet: a cushion of 2 usual moves or more, a price from 85¢ to under 95¢, a win chance at least as high as the price, a path that is not a straight run, and at least three coins in four leaning the same way.
 - [improved] The effect stops as soon as you hold the coin in any account or on paper, and when 20 seconds or less are left to buy. It stays still for anyone who has reduced motion switched on.
