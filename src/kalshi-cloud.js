@@ -913,6 +913,20 @@ export function createKalshi(state, env, keep) {
     return n;
   }
 
+  let scanPbOf = null;
+  async function scanPbRead(out, now) {
+    const c = ctl(), live = !!c.enabled && hasKeys(), cfg = live ? cfgL : cfgP, sid = stratAt(live ? c.strat : cfg.strat, now), lab = labDefs(cfg).find(l => l.id === sid);
+    scanPbOf = { id: sid, name: sid === 'rule' ? 'the plain rule' : lab?.name || sid, live };
+    const H = out.filter(s => s.lask != null && s.leader && !s.taken && s.close - now > 600000 && s.lask >= cfg.minAsk && s.lask <= (cfg.maxAsk ?? 0.99) + 1e-9 && (!cfg.coins?.length || cfg.coins.includes(s.coin)));
+    if (!H.length) return;
+    if (sid === 'rule') { for (const s of H) { s.pb = 1; s.pbSide = s.leader; } return; }
+    if (!lab || lab.m10Only || lab.ep || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) return;
+    const carry = H.some(s => s.close - now - 600000 < 50000), old = new Map(scan.map(z => [z.tk + z.leader, z]));
+    const V = await Promise.all(H.map(s => { const o = old.get(s.tk + s.leader); return carry ? (o?.pbV || null) : s.strike > 0 ? volAt(s.coin, s.strike, s.leader).catch(() => null) : null; }));
+    H.forEach((s, i) => { const v = V[i]; if (!v) return; s.pbV = v; s.pbSide = s.leader;
+      const t = { px: s.lask, win: H.length, same: H.filter(h => h.leader === s.leader).length, z: v.z ?? null, z2: v.z2 ?? null, z10: v.z10 ?? null, tl: v.tl ?? null, lk: v.lk ?? null, sw: v.sw ?? null, dp: v.dp ?? null, r2: v.r2 ?? null, kf: null, pl: null };
+      let f = false; try { f = lab.filter(t); } catch { return; } s.pb = f === true ? 1 : 0; if (f !== true) s.pbWhy = labWhy(sid, t, cfg) || null; });
+  }
   // ---------- every minute: scanner, price paths, settlement ----------
   async function tick() {
     await load();
@@ -936,6 +950,13 @@ export function createKalshi(state, env, keep) {
       // when nobody has the page open, so most paths held only their last minute or two.
       if (r && !r.result && (r.ask >= K.minAsk || (PAID && r.ask >= KEEP_LO))) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); if (PAID) saveRec(r); }
     }
+    // MC 2026-11-18 asked: on the scanner, tell a leader that only qualifies on price from one the running playbook would buy.
+    // The chart readings a playbook needs were only taken at the trade check, so before it the page could not know. Each
+    // minute before the check the leaders that qualify on price now get the same Coinbase reading and the running playbook's
+    // own test (live's when live is on, paper's otherwise): pb 1 = would buy, 0 = would pass (pbWhy says why), unset = no
+    // reading. Not read in the last 50 seconds before the check, so these calls never compete with the check's own readings;
+    // the last answer is carried over.
+    try { await scanPbRead(out, now); } catch (e) { say('scanner playbook read error: ' + e.message); }
     scan = out; scanAt = now;
     // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend
     // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
@@ -1113,7 +1134,7 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = rec.get(r.ticker)?.path?.at(-1), i = open.findIndex(o => o.tk === r.ticker), o = { late: 1, left: r.left, tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: rec.get(r.ticker)?.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: null };
       if (i >= 0) open[i] = o; else open.push(o);
     }
-    return { at: Math.max(scanAt, ...scan.map(z => z.q || 0)) || now, open, scan, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
+    return { at: Math.max(scanAt, ...scan.map(z => z.q || 0)) || now, open, scan: scan.map(({ pbV, ...z }) => z), scanPb: scanPbOf, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
   }
   async function publish(save) {
     const kl = JSON.stringify(kliveBody());

@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.87 (Nov 18, 2026): Scanner shows which leaders the running playbook would buy
+- [new] Before the trade check, the scanner now tells two cases apart. Yellow "would take" with a yellow glow: the leader qualifies on price only. Blue "would buy" with the blue glow: it also passes the playbook that is running right now (live's when live is on, paper's otherwise).
+- [new] Hover or tap-hold a yellow tag to read why the playbook would pass, in plain words.
+- [improved] The line under the window timeline lists both groups: which coins would be bought now and which qualify on price only.
+- [improved] The tracker takes the chart reading for this each minute before the trade check, only for leaders that qualify on price, and not in the last 50 seconds so it never competes with the trade check's own readings. With the plain rule running, every price qualifier is blue.
+
 ## 1.2.86 (Nov 18, 2026): Smooth scrolling and sheets, friends' account pictures
 - [fixed] Scrolling and opening a sheet felt shaky, on the web most of all. The frosted-glass blur behind every card, the hero's panels, the side menu and the dark layer behind a sheet had to be worked out again on every frame. Those blurs are off. The top bar and the bottom tabs keep theirs. The page looks the same apart from the layer behind an open sheet, which is plain dark now.
 - [fixed] Each time the page rebuilt itself it paused, long enough to feel on a phone. Most of that pause was formatting dates and dollar amounts from scratch, thousands of times. The formatting is now reused.
