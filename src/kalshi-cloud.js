@@ -398,6 +398,7 @@ export function createKalshi(state, env, keep) {
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     apiV = (await kv.get('kapi')) || null;
     kmoney = (await kv.get('kmoney')) || null;
+    klogos = (await kv.get('klogos')) || {};
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
     await books.load(); await vault.load();
   }
@@ -764,6 +765,17 @@ export function createKalshi(state, env, keep) {
   }
   // MC 2026-11-07 150 recent live orders (was 40) so the dashboard day filter can page back through them
   let apiV = null, labRowsMem = null, tradesMem = null;
+  // MC 2026-11-17 a picture for each account's badge in place of the M, 1, 2. The page crops and shrinks it to a small square
+  // before sending, and only a plain picture is accepted here (png, jpeg or webp as a data address, 40,000 characters at most),
+  // so nothing that could carry a script is ever stored or served. Kept under its own key, apart from the settings and out of
+  // the command log; the view carries only when each one was last changed, and the picture itself is asked for once and cached.
+  let klogos = {};
+  const logoSet = async (id, d) => { await load(); id = String(id || '');
+    if (id !== 'main' && !books.view().some(b => b.id === id)) return { ok: false, msg: 'That account was not found.' };
+    if (d == null || d === '') { delete klogos[id]; await kv.put('klogos', klogos); viewDirty = true; return { ok: true, msg: 'Back to the default badge.' }; }
+    if (typeof d !== 'string' || d.length > 40000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(d)) return { ok: false, msg: 'That picture could not be used. Try another one.' };
+    klogos[id] = { at: Date.now(), d }; await kv.put('klogos', klogos); viewDirty = true; return { ok: true, msg: 'Picture saved.', at: klogos[id].at }; };
+  const logoOf = async id => { await load(); const x = klogos[String(id || '')]; if (!x) return null; const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(x.d); return m ? { type: m[1], b64: m[2] } : null; };
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
     return { on: c.enabled, autoPause: c.autoPause, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
@@ -779,7 +791,7 @@ export function createKalshi(state, env, keep) {
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
       recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, mres: rr?.result === 'yes' || rr?.result === 'no' ? rr.result : null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
         ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
-      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view() };
+      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view(), logos: Object.fromEntries(Object.entries(klogos).map(([k, x]) => [k, x.at])) };
   }
 
   // ---------- the rule: record the leader at the 10-minute mark ----------
@@ -1989,5 +2001,5 @@ export function createKalshi(state, env, keep) {
     return out.sort((a, b) => a.close - b.close); };
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, logoSet, logoOf, paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

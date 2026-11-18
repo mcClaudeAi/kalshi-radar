@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.82 (Nov 17, 2026): Account pictures, movable Home sections, a clearer Move money
+- [new] Give an account its own picture. Open an account's sheet (tap its round badge or the ⋯ on its line) and choose "Add a picture". It is cut to a square and shows on the badge everywhere, on every device signed in to your dashboard. M, 1, 2 stay as the default, and "Use the default" brings them back.
+- [new] On the web, the sections of Home can be moved. Press "Arrange" above the page, drag Summary, Accounts, Playbooks, Live board and Scanner to where you want them in either column, then "Done". The layout is remembered in that browser; "Reset layout" puts it back.
+- [new] Move money works between any two accounts, including one sub account to another. Pick From and To, type an amount or tap a quick one, and the form shows what each account will hold afterwards before you confirm.
+- [improved] A move between two sub accounts goes through the main account in two steps, because Kalshi has no direct move between them. If the second step is refused the money is left on the main account and the message says so.
+- [improved] "Move money" is on the Accounts panel and on the main account's sheet too. Holding to confirm is unchanged.
+
 ## 1.2.81 (Nov 17, 2026): Accounts panel rebuilt
 - [improved] The Accounts panel is one table now. Cash, Today, Won today and All time sit in the same place on every line, with the column names written once on top.
 - [improved] Totals for all accounts lead the panel: cash, today's result, trades open now and the all-time result.

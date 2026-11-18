@@ -324,6 +324,18 @@ export function createBooks(D) {
   async function command(a, labIds) {
     await load(); const op = a.op, b = list.find(x => x.id === a.id), nm = s => String(s || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 30);
     const fresh = (name, sub, made, end) => ({ id: hex(crypto.getRandomValues(new Uint8Array(6))), name, sub, made, keyEnd: end, on: false, size: 10, loss: 100, floor: 0, strat: [], at: Date.now(), sellAt: 0, sellDone: 0 });
+    // MC 2026-11-17 one "move money" for any pair of accounts. Kalshi only moves money between the main account and a
+    // subaccount, so main to a book is the old 'fund', a book to main is the old 'withdraw', and book to book is those two in
+    // a row through the main account. If the second half is refused the money is left on the main account and the answer says so.
+    if (op === 'move') { const F = a.from === 'main' ? null : list.find(x => x.id === a.from), T = a.to === 'main' ? null : list.find(x => x.id === a.to);
+      if ((a.from !== 'main' && !F) || (a.to !== 'main' && !T) || a.from === a.to) return { ok: false, msg: 'Pick two different accounts.' };
+      if (!F) return command({ op: 'fund', id: T.id, amount: a.amount }, labIds);
+      if (!T) return command({ op: 'withdraw', id: F.id, amount: a.amount }, labIds);
+      const out = await command({ op: 'withdraw', id: F.id, amount: a.amount }, labIds); if (!out.ok) return out;
+      const m = /^\$([\d.]+) moved/.exec(out.msg || ''), amt = m ? +m[1] : +a.amount; if (!(amt >= 1)) return { ok: false, msg: `The money left ${F.name} and is on the main account, but the amount could not be read back. Move it on to ${T.name} from there.` };
+      const inn = await command({ op: 'fund', id: T.id, amount: amt }, labIds);
+      if (!inn.ok) return { ok: false, msg: `$${amt.toFixed(2)} left ${F.name} and is now on the main account, but the second half to ${T.name} did not go through: ${inn.msg} Nothing is lost; move it from Main to ${T.name} when ready.` };
+      return { ok: true, msg: `$${amt.toFixed(2)} moved from ${F.name} to ${T.name} (through the main account).` }; }
     if (op === 'add') {
       if (!D.mainKeys()) return { ok: false, msg: 'Connect the main Kalshi key first. Books are made from it.' };
       const name = nm(a.name) || `Book ${list.length + 1}`; if (list.some(x => x.name.toLowerCase() === name.toLowerCase())) return { ok: false, msg: 'There is already a book with that name.' };
