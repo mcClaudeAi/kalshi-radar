@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.88 (Nov 18, 2026): Automatic and by-hand buys apart on Trades and Analytics
+- [new] The live orders list on Trades has three tabs: All, Automatic and By hand. Each shows its count, wins, losses and result for the day or range picked, and tapping one filters the list. The tabs appear once that day or range has a buy made by hand. Skipped and unfilled orders are the tracker's, so they sit under Automatic.
+- [improved] On Live analytics, the three tiles (All live trades, Tracker bought, Bought by hand) now spell out wins, losses, the win rate, dollars won and dollars lost. Tapping a tile still filters every figure and chart on the page to that group.
+
 ## 1.2.87 (Nov 18, 2026): Scanner shows which leaders the running playbook would buy
 - [new] Before the trade check, the scanner now tells two cases apart. Yellow "would take" with a yellow glow: the leader qualifies on price only. Blue "would buy" with the blue glow: it also passes the playbook that is running right now (live's when live is on, paper's otherwise).
 - [new] Hover or tap-hold a yellow tag to read why the playbook would pass, in plain words.
