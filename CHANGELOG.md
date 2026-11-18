@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.93 (Nov 18, 2026): "Last 30 seconds" playbook in Labs
+- [new] Labs playbook "Last 30 seconds". Thirty seconds before each close the tracker reads every coin's order book, and paper-buys the leader when $50 of it can be had at 90.5¢ to 94.5¢, a price that pays about $3 to $5. It counts a buy only when the book really held that much at that price.
+- [new] Labs only for now: it cannot be picked for paper or live. The point is to see what is truly on offer at that moment before any money follows it.
+- [improved] The readings are kept for leaders from 88¢ to 97¢, so the price band can be studied later without waiting again.
+
 ## 1.2.92 (Nov 18, 2026): Four readings on every scanner row and in the buy box
 - [new] Cushion: how far the coin is past its target, counted in its own usual 10-minute moves. Under 1 means an ordinary swing could flip it; 2 or more is a wide cushion. It is the same measure the playbooks use.
 - [new] Win chance: a model's chance the leader wins from here with the time left counted, next to Kalshi's price, marked cheap or dear when the two are more than 3 points apart. A model, not a promise.
