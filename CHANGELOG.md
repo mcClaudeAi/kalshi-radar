@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.81 (Nov 17, 2026): Accounts panel rebuilt
+- [improved] The Accounts panel is one table now. Cash, Today, Won today and All time sit in the same place on every line, with the column names written once on top.
+- [improved] Totals for all accounts lead the panel: cash, today's result, trades open now and the all-time result.
+- [new] Won today shows the count with a bar, green for wins and red for losses.
+- [improved] An account's status (Trading, Paused, Off) sits under its name with its playbook, so a long name no longer pushes it onto a second line.
+- [improved] Move money and Settings moved behind the ⋯ button on each line (the same sheet the round badge opens), so the lines are not crowded with buttons. "Manage books" is now "Manage accounts".
+- [improved] On a phone each account is a short card with four labelled figures.
+
 ## 1.2.80 (Nov 17, 2026): Quicker trade checks, a backtest on your own record, deeper record keeping
 - [improved] The trade check reads each coin faster. It no longer asks Kalshi for the market list first (the minute scan already knows the market), and it asks Coinbase for the chart at the same moment as the order book, not after it. Orders go out that much sooner after the 10-minute mark.
 - [new] Backtest has a second source, "This tracker's record": every playbook run over the leaders your own tracker recorded, at the prices its own order book reads gave. The published four-month history is still the default.
