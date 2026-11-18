@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.94 (Nov 18, 2026): "Strong setup" rows light up on the scanner
+- [new] A scanner row gets a breathing green frame, a band of light crossing it and a "Strong setup" tag when every reading lines up and you do not hold the coin yet: a cushion of 2 usual moves or more, a price from 85¢ to under 95¢, a win chance at least as high as the price, a path that is not a straight run, and at least three coins in four leaning the same way.
+- [improved] The effect stops as soon as you hold the coin in any account or on paper, and when 20 seconds or less are left to buy. It stays still for anyone who has reduced motion switched on.
+- [improved] It is a strong reading, not a promise: hover the tag to see the five checks.
+
 ## 1.2.93 (Nov 18, 2026): "Last 30 seconds" playbook in Labs
 - [new] Labs playbook "Last 30 seconds". Thirty seconds before each close the tracker reads every coin's order book, and paper-buys the leader when $50 of it can be had at 90.5¢ to 94.5¢, a price that pays about $3 to $5. It counts a buy only when the book really held that much at that price.
 - [new] Labs only for now: it cannot be picked for paper or live. The point is to see what is truly on offer at that moment before any money follows it.
