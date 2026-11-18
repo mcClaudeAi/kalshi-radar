@@ -297,6 +297,7 @@ async function volAt(c, strike, side) {
     if (age > 120) { src = 'stale';
       for (const [name, url, pick] of [['adv', `https://api.coinbase.com/api/v3/brokerage/market/products/${pid}`, j => j?.price], ['spot', `https://api.coinbase.com/v2/prices/${pid}/spot`, j => j?.data?.amount], ['ticker', `https://api.exchange.coinbase.com/products/${pid}/ticker`, j => j?.price]]) {
         try { const t = await fetch(url, { headers: CBH }); if (!t.ok) { console.log(`vol ${c}: ${name} ${t.status}`); continue; } const v = Number(pick(await t.json())); if (v > 0) { px = v; src = name; break; } } catch (e) { console.log(`vol ${c}: ${name} threw`); } } }
+    side = await side; if (side !== 'yes' && side !== 'no') return null;   // MC 2026-11-17 the trade check asks before it knows the side
     const out = volCalc(all, rows, px, strike, side, age, src); console.log(`vol ${c}: ok ${from} age ${age}s ${src} z ${out.z} z10 ${out.z10}`); return out;
   } catch (e) { console.log(`vol ${c}: error ${e.message}`); return null; }
 }
@@ -343,6 +344,7 @@ function volCalc(all, rows, px, strike, side, age, src) {
 // MC 2026-11-10 the same reading rebuilt from Coinbase's history for a past trade check: candles up to the minute before `at`.
 // Used to repair readings taken from a stale candle list, and to give older trades the 10-minute measure they never had.
 let CCB = 4;      // Coinbase requests the repair may still make this minute
+let CCB_MAX = 4;  // MC 2026-11-17 what that allowance starts at each pass: 4 on Cloudflare's free plan, more with PAID_PLAN set (see createKalshi)
 const CC = {};   // coin -> { m: Map(second -> close), got: [[from, to]] } candles already pulled for the repair, kept in memory
 async function volPast(c, strike, side, at) {
   const pid = CBPID[c]; if (!pid || !(strike > 0)) return null;
@@ -369,6 +371,13 @@ const b64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; 
 
 export function createKalshi(state, env, keep) {
   const sql = state.storage.sql, kv = state.storage;
+  // MC 2026-11-17 Cloudflare's paid Workers plan allows 10,000 outside calls a run (the free plan 50) and far more computing
+  // time. With PAID_PLAN set to 1 (a variable or secret on the worker) the fill-ins stop rationing: chart readings for past
+  // trades, hand-buy readings, the second-by-second coin paths and late settles work through a backlog in minutes, and every
+  // trade's minute-by-minute Kalshi prices are saved as they come in. Without it nothing changes, so a copy on the free plan
+  // keeps the old limits. Kalshi's and Coinbase's own rate limits still apply either way (a 429 pauses the pass as before).
+  const PAID = String(env.PAID_PLAN ?? '').trim() === '1'; CCB_MAX = PAID ? 24 : 4;
+  const mkMem = new Map();   // series -> the market the last minute scan saw open, so the trade check can skip the market list
   sql.exec('CREATE TABLE IF NOT EXISTS kt (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS ko (tk TEXT PRIMARY KEY, at INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS k2 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // second-look entries, kept apart from the mark records so nothing else counts them
@@ -787,23 +796,35 @@ export function createKalshi(state, env, keep) {
     const t0 = Date.now();
     // MC 2026-11-14 read the live balances while the coins are scanned, so the first order does not wait for one
     const warm = Promise.all([ctl().enabled && hasKeys() ? balance(true).catch(() => { }) : null, books.warm().catch(() => { })]);
+    // MC 2026-11-17 two waits taken out of every coin's read. (1) The market list was asked first just to learn the ticker; the
+    // minute scan saw the same market under a minute ago, so when it is still in memory the read goes straight to the order
+    // book (the list is still asked when memory is empty or the market does not fit the mark). (2) The Coinbase candles were
+    // asked only after the order book had answered, because the reading needs the leading side; they are now asked at the same
+    // moment and the side is handed over when the book is in. Each coin waits for the slower of the two, not one after the other.
     const scanOne = async s => {
-      const got = [], j = await get(`/markets?series_ticker=${s}&status=open&limit=6`);
-      for (const m of j?.markets || []) {
+      const got = [], mem = mkMem.get(s), fits = m => { const left = (Date.parse(m.close_time) - now) / 60000; return left <= MIN_LEFT + 0.4 && left >= MIN_LEFT - 1; };
+      const ms = mem && fits(mem) && detail(mem).strike > 0 ? [mem] : (await get(`/markets?series_ticker=${s}&status=open&limit=6`))?.markets || [];
+      for (const m of ms) {
         const close = Date.parse(m.close_time), left = (close - now) / 60000;
         if (rec.has(m.ticker) || left > MIN_LEFT + 0.4 || left < MIN_LEFT - 1) continue;
+        let tell = null; const sideP = new Promise(z => { tell = z; }), det = detail(m), vP = volAt(coin(s), det.strike, sideP);
+        try {
         const b = book(await get(`/markets/${m.ticker}/orderbook`));
         const ya = b.yesAsks[0]?.[0], na = b.noAsks[0]?.[0]; if (ya == null || na == null) continue;
         const side = ya >= na ? 'yes' : 'no', asks = side === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0][0];
         if (ask < KEEP_LO) continue;
+        tell(side);
         const avgN = walk(asks, BOOK_N);
         // MC 2026-11-12 what 250 and 500 contracts would cost at the mark, logged beside the 100-contract price. The backtests
         // assume every order fills near the quote; before the live size goes past $50 a trade we need to know which coins have
         // the book for it. null = the book did not hold that many.
+        // MC 2026-11-17 1,000 contracts too, and lad: the ten best offers as [price in tenths of a cent, contracts], so any
+        // order size can be priced afterwards, in dollars, without guessing from three fixed sizes.
         const dp = n => { const a = walk(asks, n); return a == null ? null : +a.toFixed(4); };
-        const r = { a250: dp(250), a500: dp(500), ticker: m.ticker, series: s, at: now, close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), ...detail(m), ya, na, depth: asks.reduce((a, x) => a + x[1], 0), src: 'cloud' };
-        const v = await volAt(coin(s), r.strike, side); if (v) r.vol = v;
+        const r = { a250: dp(250), a500: dp(500), a1000: dp(1000), lad: asks.slice(0, 10).map(([p, q]) => [Math.round(p * 1000), Math.round(q)]), ticker: m.ticker, series: s, at: now, close, left: +left.toFixed(2), side, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), ...det, ya, na, depth: asks.reduce((a, x) => a + x[1], 0), src: 'cloud' };
+        const v = await vP; if (v) r.vol = v;
         got.push(r);
+        } finally { tell(null); }
       }
       return got;
     };
@@ -879,18 +900,22 @@ export function createKalshi(state, env, keep) {
       const na = yb == null ? null : +(1 - yb).toFixed(4), det = detail(m), leader = ya == null || na == null ? null : ya >= na ? 'yes' : 'no', lask = leader === 'yes' ? ya : leader === 'no' ? na : null;
       out.push({ coin: coin(s), tk: m.ticker, open: cur.o, close: cur.c, strike: det.strike ?? null, yb, ya, last, leader, lask, next: nxt ? { tk: nxt.m.ticker, open: nxt.o, close: nxt.c } : null, taken: rec.has(m.ticker) ? (rec.get(m.ticker).ask >= K.minAsk ? 'rule' : 'skip') : null });
       const r = rec.get(m.ticker);
-      if (r && !r.result && r.ask >= K.minAsk) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); }
+      mkMem.set(s, m);
+      // MC 2026-11-17 on the paid plan every kept leader (60c and up) gets its minute prices, and they are saved each minute.
+      // Before, the path lived in memory until the trade settled, and Cloudflare drops this object from memory between minutes
+      // when nobody has the page open, so most paths held only their last minute or two.
+      if (r && !r.result && (r.ask >= K.minAsk || (PAID && r.ask >= KEEP_LO))) { r.path = r.path || []; r.path.push([Math.round(now / 1000), yb, ya, last]); if (r.path.length > 40) r.path.splice(0, r.path.length - 40); if (PAID) saveRec(r); }
     }
     scan = out; scanAt = now;
     // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend
     // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
     const toClose = Q - (now % Q);
     if (now - mk > 150000 && nextMark(now) - now > 90000) { const cbOk = toClose > 420000 || toClose < 180000;
-      if (cbOk) try { await trendFill(now); } catch (e) { say('trend fill error: ' + e.message); }
+      if (cbOk) try { await trendFill(now, PAID ? 600 : 60); } catch (e) { say('trend fill error: ' + e.message); }
       if (cbOk) try { await pathFill(now); } catch (e) { console.log('path fill error: ' + e.message); }
       try { await gapFill(now); } catch (e) { say('gap fill error: ' + e.message); }
       try { await moneySync(now); } catch (e) { console.log('money sync error: ' + e.message); }
-      if (cbOk) try { await volRepair(now); } catch (e) { say('repair error: ' + e.message); } }
+      if (cbOk) try { await volRepair(now, PAID ? 400 : 40); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
@@ -966,7 +991,7 @@ export function createKalshi(state, env, keep) {
     for (const r of rec.values()) {
       if (r.result || now < r.close + (quick ? 15000 : 60000)) continue;
       if (quick && (!ours(r) || now > r.close + 600000)) continue;
-      if (++k > 12) break;
+      if (++k > (PAID ? 40 : 12)) break;
       const j = await get(`/markets/${r.ticker}`), res = j?.market?.result;
       if (res !== 'yes' && res !== 'no') { if (now > r.close + 6 * 3600000) { r.result = 'void'; saveRec(r); viewDirty = true; } continue; }
       r.result = res; r.won = res === r.side; Object.assign(r, detail(j.market), { final: fin(j.market) });
@@ -1155,7 +1180,7 @@ export function createKalshi(state, env, keep) {
   // opens. The first run also queues the last two days. The exchange feed is not used: it rate-limits Cloudflare (Nov 10).
   sql.exec('CREATE TABLE IF NOT EXISTS kpath (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');
   let pq = null, pqAt = null, pj = null, pqSaveAt = 0;
-  const PATH_DAYS = 30, PATH_BUDGET = 8;
+  const PATH_DAYS = 30, PATH_BUDGET = PAID ? 30 : 8;
   async function pathQueue(now) {
     if (pq == null) { pq = (await kv.get('kpq')) || []; pqAt = (await kv.get('kpqAt')) ?? now - 2 * 86400000; pj = (await kv.get('kpj')) || null; }
     const upTo = now - 45000; let add = 0;
@@ -1190,7 +1215,7 @@ export function createKalshi(state, env, keep) {
   async function keepFill(now) {
     let n = 0;
     const due = [...rec.values()].filter(r => { const x = r.exit; return x && (x.keep == null || (x.keepV || 0) < KEEP_V) && (x.keepTry || 0) < 3 && r.strike > 0 && r.close <= now - 60000; }).sort((a, b) => b.close - a.close);
-    for (const r of due) { const x = r.exit; if (++n > 8) break;
+    for (const r of due) { const x = r.exit; if (++n > (PAID ? 40 : 8)) break;
       const c = coin(r.series), key = c + ':' + r.close; if (!leads.has(key)) { slopes.delete(key); try { await slopeOf(c, r.close); } catch { } }
       const L = leads.get(key); if (!L) { x.keepTry = (x.keepTry || 0) + 1; saveRec(r); continue; }
       x.keep = keepOf(L, r.side, r.strike); x.keepV = KEEP_V; saveRec(r); viewDirty = true; }
@@ -1408,11 +1433,11 @@ export function createKalshi(state, env, keep) {
     if (now - tfAt < 50000) return; tfAt = now;
     if (!tfReset) { tfReset = true; if (!(await kv.get('tfReset1'))) { for (const r of rec.values()) if (r.vol && r.vol.dp === undefined && r.vol.tlTry) { delete r.vol.tlTry; saveRec(r); } await kv.put('tfReset1', 1); } }
     // hand buys from before their readings were kept: worked out from Coinbase's history at the moment of the buy, a few a pass
-    { const hs = [...L.values(), ...books.allRows()].filter(x => x.hand && x.fill > 0 && x.strike > 0 && !x.vol && (x.volTry || 0) < 2 && x.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, 20);
-      CCB = 4; for (const x of hs) { try { const v = await volPast(x.coin, x.strike, x.side, x.at); if (v) x.vol = volPick(v); else x.volTry = (x.volTry || 0) + 1; if (L.get(x.tk) === x) saveL(x); else books.saveAny(x); viewDirty = true; }
+    { const hs = [...L.values(), ...books.allRows()].filter(x => x.hand && x.fill > 0 && x.strike > 0 && !x.vol && (x.volTry || 0) < 2 && x.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, PAID ? 200 : 20);
+      CCB = CCB_MAX; for (const x of hs) { try { const v = await volPast(x.coin, x.strike, x.side, x.at); if (v) x.vol = volPick(v); else x.volTry = (x.volTry || 0) + 1; if (L.get(x.tk) === x) saveL(x); else books.saveAny(x); viewDirty = true; }
         catch (e) { if (e.status === 'budget' || /subrequest/i.test(e.message || '')) break; if (e.status === 429) { tfAt = now + 5 * 60000; return; } x.volTry = (x.volTry || 0) + 1; break; } } }
     const todo = [...rec.values()].filter(r => r.ask >= KEEP_ASK && r.vol && (r.vol.tl === undefined || r.vol.sw === undefined || r.vol.dp === undefined) && r.strike > 0 && (r.vol.tlTry || 0) < 2 && r.at < now - 120000 && r.at > now - 21 * 86400000).sort((a, b) => b.at - a.at).slice(0, max); if (!todo.length) return;
-    let n = 0; CCB = 4;
+    let n = 0; CCB = CCB_MAX;
     for (const r of todo) { try { const v = await volPast(coin(r.series), r.strike, r.side, r.at); if (v) { r.vol.tl = v.tl ?? null; r.vol.lk = v.lk ?? null; r.vol.sw = v.sw ?? null; r.vol.dp = v.dp ?? null; r.vol.r2 = v.r2 ?? null; n++; } else r.vol.tlTry = (r.vol.tlTry || 0) + 1; saveRec(r); }
       // MC 2026-11-16 the fill stalled at Nov 15 for no late swing and chart checked. It runs last in a busy minute, and when the
       // run had used up Cloudflare's calls the fetch threw "Too many subrequests", which counted as a failed try on that trade:
@@ -1430,7 +1455,7 @@ export function createKalshi(state, env, keep) {
       if (!(r.ask >= KEEP_ASK) || (v.age != null && v.src !== 'stale') || v.chk || v.fixed || (v.rt || 0) >= 3 || !(r.strike > 0) || r.at > now - 120000) continue;
       const zz = v.z10 ?? v.z; if (v.src === 'stale' || (zz != null && winP(zz) < (r.avgN || r.ask) - 0.15)) sus.push(r); else if (v.z10 == null) old.push(r); else rest.push(r); }
     const todo = [...sus.sort((a, b) => b.at - a.at), ...none.sort((a, b) => b.at - a.at), ...rest.sort((a, b) => b.at - a.at), ...old.sort((a, b) => b.at - a.at)].slice(0, max); if (!todo.length) return;
-    let fixed = 0; CCB = 4;
+    let fixed = 0; CCB = CCB_MAX;
     for (const r of todo) {
       const v = r.vol;
       try {
@@ -1650,7 +1675,7 @@ export function createKalshi(state, env, keep) {
       avg: done.length ? +(sum(done) / done.length).toFixed(2) : 0, streak, uncappedNet: +(balU - K.startUsd).toFixed(2), capped: trades.filter(t => t.capped).length,
       runFrom: runFrom || null, runN: done.length, prevN: doneAll.length - done.length, worstWin: Math.max(0, ...Object.values(winLoss)), halts: trades.filter(t => t.halted).length, seen, rule, since: (runFrom ? (done[0]?.t || runFrom) : rows[0]?.at) || null, last: rows[rows.length - 1]?.at || null,
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
-      eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K),
+      eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K), paid: PAID,
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
       look2sum: l2sum ? { since: l2sum.since, size: +cfgP.sizeUsd || 50, h: Object.entries(l2sum.h).map(([k, v]) => [+k, ...v]).sort((a, b) => a[0] - b[0]), d: Object.entries(l2sum.d).map(([k, v]) => [k, ...v]).sort((a, b) => a[0] < b[0] ? -1 : 1) } : null,
       look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), chartfill: (() => { const now = Date.now(); let left = 0, oldest = null; for (const r of rec.values()) { if (!r.vol || !(r.strike > 0) || r.at < now - 21 * 86400000 || r.at > now - 120000) continue; if (r.vol.dp === undefined && (r.vol.tlTry || 0) < 2) left++; else if (r.vol.dp != null && (oldest == null || r.at < oldest)) oldest = r.at; } return { left, oldest }; })(),
@@ -1666,11 +1691,11 @@ export function createKalshi(state, env, keep) {
   // many at all. The 250 and 500 columns count only marks logged since those sizes were recorded.
   function roomOf(rows, K) {
     const cut = Date.now() - 30 * 86400000, by = {};
-    for (const r of rows) { if (!(r.ask >= K.minAsk) || r.at < cut || r.result === 'void' || r.src === 'fill') continue; const b = by[coin(r.series)] || (by[coin(r.series)] = { coin: coin(r.series), d: [], s: { 100: [0, 0, 0], 250: [0, 0, 0], 500: [0, 0, 0] } });
+    for (const r of rows) { if (!(r.ask >= K.minAsk) || r.at < cut || r.result === 'void' || r.src === 'fill') continue; const b = by[coin(r.series)] || (by[coin(r.series)] = { coin: coin(r.series), d: [], s: { 100: [0, 0, 0], 250: [0, 0, 0], 500: [0, 0, 0], 1000: [0, 0, 0] } });
       if (r.depthAtAsk != null) b.d.push(r.depthAtAsk);
-      for (const [n, a] of [[100, r.avgN], [250, r.a250], [500, r.a500]]) { if (a === undefined) continue; const x = b.s[n]; x[0]++; if (a != null) { x[1]++; x[2] += (a - r.ask) * 100; } } }
+      for (const [n, a] of [[100, r.avgN], [250, r.a250], [500, r.a500], [1000, r.a1000]]) { if (a === undefined) continue; const x = b.s[n]; x[0]++; if (a != null) { x[1]++; x[2] += (a - r.ask) * 100; } } }
     return Object.values(by).map(b => { b.d.sort((x, y) => x - y); const o = { coin: b.coin, n: b.d.length, med: b.d.length ? Math.round(b.d[b.d.length >> 1]) : null };
-      for (const n of [100, 250, 500]) { const x = b.s[n]; o['n' + n] = x[0]; o['ok' + n] = x[0] ? +(x[1] / x[0]).toFixed(3) : null; o['c' + n] = x[1] ? +(x[2] / x[1]).toFixed(2) : null; } return o; }).sort((a, b) => (b.med ?? 0) - (a.med ?? 0));
+      for (const n of [100, 250, 500, 1000]) { const x = b.s[n]; o['n' + n] = x[0]; o['ok' + n] = x[0] ? +(x[1] / x[0]).toFixed(3) : null; o['c' + n] = x[1] ? +(x[2] / x[1]).toFixed(2) : null; } return o; }).sort((a, b) => (b.med ?? 0) - (a.med ?? 0));
   }
   function runLabs(tradesIn, K, lateT = [], m10T = [], epT = []) {
     labRowsMem = {};
@@ -1947,7 +1972,22 @@ export function createKalshi(state, env, keep) {
   function resetKey() { KEY = null; st.keyOk = null; st.bal = null; st.balAt = 0; viewDirty = true; }
   // MC 2026-11-13 Steven could not replay early-morning trades: the view only carries the last 60 in full, older ones arrive as
   // short rows with no target price, so Trades could not open them. One full trade is now served on request (/ktrade).
+  // MC 2026-11-17 the Backtest page can run on this tracker's own record. Same row shape as the published four-month history
+  // (research/learn/btdata.mjs): every settled leader at 90c or more, priced at what 100 contracts cost in the book.
+  const btRows = async () => { await load(); const R = [...rec.values()].filter(r => !r.late && (r.result === 'yes' || r.result === 'no') && r.ask >= 0.9 && r.ask <= 0.99 + 1e-9 && r.src !== 'fill'), byW = {};
+    for (const r of R) (byW[r.close] = byW[r.close] || []).push(r);
+    const cs = [...new Set(R.map(r => coin(r.series)))].sort(), i = (v, k) => v == null || !isFinite(v) ? null : Math.round(v * k);
+    const rows = R.sort((a, b) => a.close - b.close).map(r => { const W = byW[r.close], v = r.vol || {}, x = r.exit || null;
+      return [Math.round((r.close - 600000) / 60000), cs.indexOf(coin(r.series)), i(r.avgN || r.ask, 1000), r.result === r.side ? 1 : 0, W.filter(q => q.side === r.side).length, W.length, i(v.z, 100), i(v.z2, 100), i(v.z10, 100), i(r.lp, 1000), i(x?.pct, 1000), i(x?.px ?? x?.best, 1000), i(x?.keep, 1000), i(v.dp, 100), i(v.r2, 100)]; });
+    return { own: 1, built: Date.now(), from: rows.length ? rows[0][0] * 60000 : null, to: rows.length ? rows[rows.length - 1][0] * 60000 : null, coins: cs, rows, m10: [] }; };
+  // one stretch of settled trades (a day at most) with each one's minute prices and the coin's price at those minutes, for the
+  // path export: [seconds, yes bid, yes ask, last] from the minute scan, and the Coinbase price from the saved second path
+  const pathsOf = async (from, to) => { await load(); to = Math.min(to, from + 86400000); const out = [];
+    for (const r of rec.values()) { if (r.late || !(r.close >= from && r.close < to) || !r.path?.length || !(r.result === 'yes' || r.result === 'no')) continue;
+      const cp = await pathOf(r.ticker); let k = 0; const lead = r.path.map(p => { if (!cp) return null; while (k + 1 < cp.length && cp[k + 1][0] <= p[0]) k++; return cp[k][0] <= p[0] ? cp[k][1] : null; });
+      out.push({ tk: r.ticker, coin: coin(r.series), side: r.side, at: r.at, close: r.close, ask: r.ask, px: r.avgN ?? r.ask, strike: r.strike ?? null, won: r.result === r.side ? 1 : 0, path: r.path, lead }); }
+    return out.sort((a, b) => a.close - b.close); };
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

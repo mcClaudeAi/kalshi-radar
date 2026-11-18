@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.80 (Nov 17, 2026): Quicker trade checks, a backtest on your own record, deeper record keeping
+- [improved] The trade check reads each coin faster. It no longer asks Kalshi for the market list first (the minute scan already knows the market), and it asks Coinbase for the chart at the same moment as the order book, not after it. Orders go out that much sooner after the 10-minute mark.
+- [new] Backtest has a second source, "This tracker's record": every playbook run over the leaders your own tracker recorded, at the prices its own order book reads gave. The published four-month history is still the default.
+- [new] Backtest setting "Stop after losses in a day": 1 means one loss and that playbook is done until the next day. Use it with "Most trades a window".
+- [new] "Export minute paths" on the Trades page: each settled trade of the last 7 days, one line a minute, with what your side would have sold and bought for and how far the coin was past its target.
+- [new] Each trade check saves the ten best offers in the order book, and Room in the book (Analytics) gains a 1,000 contracts column.
+- [new] For copies on Cloudflare's paid Workers plan, an optional PAID_PLAN setting (see wrangler.toml). With it, chart readings and price paths for past trades fill in within minutes, and every trade's minute prices are saved as they happen. Leave it out on the free plan; nothing changes there.
+
 ## 1.2.79 (Nov 17, 2026): Claude's pick in the Backtest, and seven playbooks archived
 - [new] The Backtest page runs Claude's pick and Margin vs volatility, chart checked over the full four months. The history had no chart readings, so they were worked out for every trade from Coinbase's minute prices (9,334 of the 9,743 trades; the rest had gaps in the price history and are left out of these two).
 - [improved] Archived, so they no longer show on the Labs page, the Backtest page or the playbook pickers: Kelly sizing, Skip 95¢ and up, 6 or more coins (and its under 95¢ version in the Backtest), Wait for the trend, Beats the market, Beats the market v2, Two moves clear. They are not deleted and keep their history; an account still set to one keeps running it and still shows it.

@@ -25,4 +25,7 @@ fallthrough = true
 
 # Optional secrets (Cloudflare dashboard > your worker > Settings > Variables and Secrets):
 #   ENC_KEY         extra key used to encrypt the saved Kalshi key. If you set it later, connect the Kalshi key again.
+#   PAID_PLAN       set to 1 only if your Cloudflare account is on the paid Workers plan. Past trades then get their chart
+#                   readings and price paths filled in within minutes, and every trade's minute prices are saved. Leave it
+#                   out on the free plan: the tracker would run out of calls.
 #   RESET_PASSCODE  12+ characters. Type it on the sign-in screen to reset a forgotten passcode, then delete the secret.
