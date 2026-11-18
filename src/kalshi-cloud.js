@@ -647,6 +647,22 @@ export function createKalshi(state, env, keep) {
     row.fill = tot; row.fees = +((row.fees || 0) + fe).toFixed(4); const before = row.cost || 0; row.cost = row.px == null ? null : +(tot * row.px + row.fees).toFixed(2); row.again = (row.again || 0) + 1;
     return { fill: f, cost: row.cost == null ? 0 : +(row.cost - before).toFixed(2) };
   }
+  // MC 2026-11-18 "Try again for a missed fill" did nothing for a buy made by hand: the second try lived only in the trade
+  // check's own path, and a hand buy that came up short just reported it. With the setting on, a hand buy that fills short (or
+  // not at all) now looks at the book again and sends for the rest, twice at most, about a second apart. Same rules as the
+  // automatic second try: never above the price that was confirmed, whole contracts only, and not if the offer has fallen
+  // more than 3 cents under the quote (that is a different trade from the one confirmed). left() says how many are still
+  // wanted, more(k) sends for them.
+  async function handRetry(tk, side, maxPx, ask0, close, left, more) {
+    let tries = 0;
+    for (let k = 1; k <= 2 && left() >= 1 && close - Date.now() > 20000; k++) {
+      await new Promise(r => setTimeout(r, k === 1 ? 600 : 1400));
+      let a = null; try { const b = book(await get(`/markets/${tk}/orderbook`)); a = (side === 'yes' ? b.yesAsks : b.noAsks)[0]?.[0] ?? null; } catch { }
+      if (a == null || a > maxPx + 1e-9 || (ask0 > 0 && a < ask0 - 0.03 - 1e-9)) continue;
+      tries++; try { await more(k); } catch (e) { say('hand buy second try error: ' + e.message); }
+    }
+    return tries;
+  }
   async function missCheck(missed) {
     if (!missed.length) return;
     const read = async list => { const tks = [...new Set(list.map(m => m.row.tk))], bk = {}; await Promise.all(tks.map(async tk => { try { bk[tk] = book(await get(`/markets/${tk}/orderbook`)); } catch { } }));
@@ -1827,7 +1843,7 @@ export function createKalshi(state, env, keep) {
         if (!wantMain && !held) return { ok: false, msg: 'A hand buy for a subaccount goes with Main, unless Main already holds that market.' };
         const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); if (!(Number(a.maxPx) > 0)) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
         let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { } const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
-        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1 }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null }) : []]);
+        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1 }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null, cfg: cfgL, retry: handRetry }) : []]);
         viewDirty = true; await publish(true);
         return { ok: !!mr?.ok || br.some(x => x.ok), msg: [mr ? `Main: ${mr.msg}` : '', ...br.map(x => `${x.name}: ${x.msg}.`)].filter(Boolean).join(' ') }; }
       const tk = String(a.tk || ''), side = a.side, s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
@@ -1854,13 +1870,18 @@ export function createKalshi(state, env, keep) {
       row.rtt = Date.now() - t0;
       if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 200); undo(); fail(`hand buy ${tk} refused: ${e}`); await publish(true); return { ok: false, msg: `Kalshi refused the order: ${e}` }; }
       const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
-      if (!(fill > 0) || avgYes == null) { undo(); await publish(true); return { ok: false, msg: `Nothing bought at ${(maxPx * 100).toFixed(1)}¢ or less; the price moved. Nothing was spent.` }; }
-      Object.assign(row, { id: j.order_id || null, fill, avgYes, px: +(side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees: +(fill * avgFee).toFixed(4) });
-      row.cost = +(fill * row.px + row.fees).toFixed(2); saveL(row);
-      if (st.bal != null) st.bal = +(st.bal - row.cost).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - row.cost).toFixed(2);
+      const spend = d => { if (!d) return; if (st.bal != null) st.bal = +(st.bal - d).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - d).toFixed(2); };
+      if (fill > 0 && avgYes != null) { Object.assign(row, { id: j.order_id || null, fill, avgYes, px: +(side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees: +(fill * avgFee).toFixed(4) }); row.cost = +(fill * row.px + row.fees).toFixed(2); saveL(row); spend(row.cost); }
+      let tried = 0;
+      if (cfgL.retryFill && row.fill < n) tried = await handRetry(tk, side, maxPx, Number(a.ask) || 0, close, () => Math.floor(n - row.fill + 1e-9), async k => {
+        const r2 = await kreq('POST', '/portfolio/events/orders', { ...body, count: String(Math.floor(n - row.fill + 1e-9)), client_order_id: `crh${k}r${Date.now() % 100000}-${tk}`.slice(0, 60) });
+        if (!r2?.ok) { say(`LIVE hand buy ${tk} second try refused: ${r2?.status} ${errOf(r2)}`.slice(0, 200)); return; }
+        const j2 = r2.j?.order || r2.j || {}, got = fillMerge(row, side, j2); if (got.fill > 0) { row.id = row.id || j2.order_id || null; row.tries = k; saveL(row); spend(got.cost); } });
+      if (!(row.fill > 0) || row.px == null) { undo(); await publish(true); return { ok: false, msg: `Nothing bought at ${(maxPx * 100).toFixed(1)}¢ or less; the price moved.${cfgL.retryFill ? (tried ? ` Tried ${tried} more time${tried === 1 ? '' : 's'}, still nothing on offer at your price.` : ' No second try: nothing was on offer at your price when it looked again.') : ''} Nothing was spent.` }; }
+      saveL(row);
       st.balAt = 0; viewDirty = true; await publish(true);
-      say(`LIVE bought ${tk} ${side.toUpperCase()} by hand: ${fill}/${n} at ${(row.px * 100).toFixed(1)}c ($${row.cost.toFixed(2)})`);
-      return { ok: true, msg: `Bought ${fill}${fill < n ? ` of ${n}` : ''} ${cn} ${side.toUpperCase()} at ${(row.px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}. It pays $${fill}.00 if ${side.toUpperCase()} wins.` };
+      say(`LIVE bought ${tk} ${side.toUpperCase()} by hand: ${row.fill}/${n} at ${(row.px * 100).toFixed(1)}c ($${row.cost.toFixed(2)})${row.again ? `, ${row.again} second tr${row.again === 1 ? 'y' : 'ies'} filled` : ''}`);
+      return { ok: true, msg: `Bought ${row.fill}${row.fill < n ? ` of ${n}` : ''} ${cn} ${side.toUpperCase()} at ${(row.px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}${row.again ? ' (a second try filled the rest)' : ''}. It pays $${row.fill.toFixed(Number.isInteger(row.fill) ? 0 : 2)}${Number.isInteger(row.fill) ? '.00' : ''} if ${side.toUpperCase()} wins.` };
     }
     if (type === 'kalshiSellOne') {
       // MC 2026-11-14 sell one open live position now (the Sell button on its card). The page shows the quote first; minPx is the

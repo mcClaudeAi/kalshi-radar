@@ -274,12 +274,21 @@ export function createBooks(D) {
         const res = await breq(b, 'POST', '/portfolio/events/orders', body);
         if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 160); D.say(`BOOK ${nm} hand buy ${o.tk} refused: ${e}`); return { name: nm, ok: false, msg: `Kalshi refused it: ${e}` }; }
         const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
-        if (!(fill > 0) || avgYes == null) return { name: nm, ok: false, msg: 'nothing filled, the price moved' };
-        const prev = Lb.get(o.tk), px = +(o.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees = +(fill * avgFee).toFixed(4);
-        const row = { tk: o.tk, coin: o.coin, side: o.side, at: Date.now(), close: o.close, strike: o.strike ?? null, title: o.title || null, ask: o.ask ?? null, want: n, limit: o.maxPx, limWhy: 'the price you confirmed', size, fill, avgYes, px, fees, cost: +(fill * px + fees).toFixed(2), id: j.order_id || null, strat: 'hand', hand: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
-        Lb.set(o.tk, row); saveRow(b, row); if (s.bal != null) s.bal = +(s.bal - row.cost).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - row.cost).toFixed(2); s.balAt = 0;
-        D.say(`BOOK ${nm} bought ${o.tk} ${o.side.toUpperCase()} by hand: ${fill}/${n} at ${(px * 100).toFixed(1)}c`);
-        return { name: nm, ok: true, msg: `bought ${fill}${fill < n ? ` of ${n}` : ''} at ${(px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}` };
+        // MC 2026-11-18 with "Try again for a missed fill" on for this account, a short hand buy is sent for again (see handRetry
+        // in kalshi-cloud.js). The row is only kept once something has filled.
+        const prev = Lb.get(o.tk), got1 = fill > 0 && avgYes != null, px1 = got1 ? +(o.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4) : null, fees1 = got1 ? +(fill * avgFee).toFixed(4) : 0;
+        const row = { tk: o.tk, coin: o.coin, side: o.side, at: Date.now(), close: o.close, strike: o.strike ?? null, title: o.title || null, ask: o.ask ?? null, want: n, limit: o.maxPx, limWhy: 'the price you confirmed', size, fill: got1 ? fill : 0, ...(got1 ? { avgYes, px: px1, fees: fees1, cost: +(fill * px1 + fees1).toFixed(2) } : {}), id: j.order_id || null, strat: 'hand', hand: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
+        const spend = d => { if (!d) return; if (s.bal != null) s.bal = +(s.bal - d).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - d).toFixed(2); };
+        if (got1) { Lb.set(o.tk, row); saveRow(b, row); spend(row.cost); }
+        const retry = !!cfgOf(b, o.cfg || {}).retryFill && typeof o.retry === 'function'; let tried = 0;
+        if (retry && row.fill < n) tried = await o.retry(o.tk, o.side, o.maxPx, o.ask || 0, o.close, () => Math.floor(n - row.fill + 1e-9), async k => {
+          const r2 = await breq(b, 'POST', '/portfolio/events/orders', { ...body, count: String(Math.floor(n - row.fill + 1e-9)), client_order_id: `crh${b.sub}r${k}-${Date.now() % 100000}-${o.tk}`.slice(0, 60) });
+          if (!r2?.ok) { D.say(`BOOK ${nm} hand buy ${o.tk} second try refused: ${r2?.status} ${errOf(r2)}`.slice(0, 200)); return; }
+          const j2 = r2.j?.order || r2.j || {}, got = D.fillMerge(row, o.side, j2); if (got.fill > 0) { row.id = row.id || j2.order_id || null; row.tries = k; Lb.set(o.tk, row); saveRow(b, row); spend(got.cost); } });
+        s.balAt = 0;
+        if (!(row.fill > 0) || row.px == null) return { name: nm, ok: false, msg: 'nothing filled, the price moved' + (retry ? (tried ? `, and ${tried} more tr${tried === 1 ? 'y' : 'ies'} found nothing at your price` : ', and nothing was on offer at your price when it looked again') : '') };
+        D.say(`BOOK ${nm} bought ${o.tk} ${o.side.toUpperCase()} by hand: ${row.fill}/${n} at ${(row.px * 100).toFixed(1)}c${row.again ? ` (${row.again} second tr${row.again === 1 ? 'y' : 'ies'} filled)` : ''}`);
+        return { name: nm, ok: true, msg: `bought ${row.fill}${row.fill < n ? ` of ${n}` : ''} at ${(row.px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}${row.again ? ' (with a second try)' : ''}` };
       } catch (e) { return { name: nm, ok: false, msg: e.message }; } }));
   }
   async function handSell(ids, tk, minPx) {

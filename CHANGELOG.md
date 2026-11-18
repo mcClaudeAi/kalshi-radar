@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.84 (Nov 18, 2026): "Try again for a missed fill" covers hand buys
+- [fixed] With "Try again for a missed fill" on, a buy made by hand that got no contracts, or fewer than it wanted, was left as it was. The second try only ran for the trade check's own orders. A hand buy now looks at the book again and sends for the rest, up to twice within about two seconds.
+- [improved] It never pays more than the price you confirmed, asks for whole contracts only, and does not go again if the offer has dropped more than 3¢ under the quote you saw.
+- [improved] The message after a hand buy says when a second try filled the rest, or that it looked again and found nothing at your price. Each sub account follows its own setting.
+
 ## 1.2.83 (Nov 17, 2026): Top-up after a money move no longer refused
 - [fixed] After money was moved out of a sub account, the account could stop with "could not move $… to the crypto shard: 400 insufficient balance". A move out brings the account's whole balance back from crypto trading first, and the next top-up then asked for all of it. A balance can hold a fraction of a cent and Kalshi reports it rounded, so asking for the full figure was refused. The top-up now leaves 2 cents behind.
 - [improved] If Kalshi still says there is not enough, the balances are read fresh and it tries once more, leaving $1. An account shows an error for this only when its crypto side cannot cover the next order.
