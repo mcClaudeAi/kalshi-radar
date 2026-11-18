@@ -1,0 +1,20 @@
+# Research: every trade in the last 90 seconds of each settled 15-minute market, printed to the job log (public market data only).
+name: Last seconds of each market
+on:
+  workflow_dispatch:
+    inputs:
+      coins: { description: 'Coins as a JSON list', default: '["BTC","ETH","SOL","XRP","DOGE","BNB","HYPE","ZEC","NEAR"]' }
+      days: { description: 'Days back', default: '30' }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        coin: ${{ fromJSON(github.event.inputs.coins) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node research/lastsec.mjs ${{ matrix.coin }} ${{ github.event.inputs.days }}
