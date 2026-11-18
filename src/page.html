@@ -1047,6 +1047,11 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-sb.q::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--kx);box-shadow:0 0 0 1px color-mix(in srgb,var(--kx) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--kx) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--kx) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--kx) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
 .kx-sb.q .kx-q.on{color:#04121a;background:var(--kx);border-color:var(--kx);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--kx) 70%,transparent)}
 @media(prefers-reduced-motion:reduce){.kx-sb.q::before{animation:none}}
+.kx-sb.qg{border-color:var(--good);background:linear-gradient(90deg,color-mix(in srgb,var(--good) 18%,var(--s2)),color-mix(in srgb,var(--good) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--good)}
+.kx-sb.qg::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--good);box-shadow:0 0 0 1px color-mix(in srgb,var(--good) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--good) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--good) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--good) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
+.kx-sb.qg .kx-q.gn{color:#04140b;background:var(--good);border-color:var(--good);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--good) 70%,transparent)}
+.kx-sb.qg.past{opacity:1}.kx-sb.qg .kx-buyrow .btn{background:var(--good);color:#04140b;border-color:var(--good)}
+@media(prefers-reduced-motion:reduce){.kx-sb.qg::before{animation:none}}
 .kx-sb.qy{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));box-shadow:inset 3px 0 0 var(--warn),0 0 28px -10px color-mix(in srgb,var(--warn) 70%,transparent)}
 .kx-sb.own{border-color:color-mix(in srgb,var(--good) 45%,var(--line));box-shadow:inset 3px 0 0 var(--good)}
 .kx-sb.past{opacity:.72}
@@ -2988,7 +2993,11 @@ function kxRdChips(s){const r=kxRd(s);if(!r)return '';const [zc,zw]=kxRdZ(r.z),S
 // away from the trade check it is the same test on live numbers, so it is a strong reading and not a promise.
 function kxRdHot(s){const r=kxRd(s);if(!r||r.z==null||r.w==null||r.ask==null||r.r2==null||s.close-Date.now()<20000)return false;
   if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)))return false;
-  const held=x=>x.tk===s.tk&&x.fill>0,lv=kxLv();return !(kxOpen().some(o=>o.tk===s.tk)||kxPp(s.tk)||(lv?.recent||[]).some(held)||(lv?.books||[]).some(b=>(b.recent||[]).some(held)))}
+  return !kxHeld(s)}
+function kxHeld(s){const held=x=>x.tk===s.tk&&x.fill>0,lv=kxLv();return !!(kxOpen().some(o=>o.tk===s.tk)||kxPp(s.tk)||(lv?.recent||[]).some(held)||(lv?.books||[]).some(b=>(b.recent||[]).some(held)))}
+// MC 2026-11-18 asked: after the trade check, a row the running playbook would buy right now should glow green as a buy.
+// The tracker reads these each minute until 4 minutes are left (pbLate on the scan row); shown only while the coin is not held.
+const kxLateBuy=s=>s.pbLate===1&&kxPbBuy(s)&&s.close-Date.now()>=4*60000&&!kxHeld(s);
 // the same readings as lines for the buy box, and the cautions that go into its warning
 function kxRdBox(s,side){const r=kxRd(s,side);if(!r)return {rows:[],warn:[]};const [zc,zw]=kxRdZ(r.z),S=side.toUpperCase(),rows=[],warn=[],split=r.n>=4&&r.same/r.n<.75;
   rows.push(['Cushion',r.z==null?'no reading yet':`<b class="${zc}">${r.z.toFixed(1)} usual moves</b> past the target (${zw})`]);
@@ -3436,9 +3445,9 @@ function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.ka
   for(const s of sc){const t=el.querySelector(`[data-tk="${CSS.escape(s.tk)}"]`);if(!t)continue;const lead=t.querySelector('[data-k=lead]');kxSlot(t.querySelector('[data-k=hand]'),kxHandRow(s));
     const q=s.lask!=null&&s.lask>=minAsk,mark=s.close-10*60000,past=Date.now()>=mark;
     const own=s.taken==='rule'?kxOpen().find(o=>o.tk===s.tk):null;
-    const buy=q&&kxPbBuy(s);t.classList.toggle('own',!!own);t.classList.toggle('q',!own&&buy&&!past);t.classList.toggle('qy',!own&&q&&!buy&&!past);t.classList.toggle('past',!own&&past&&!(kxHandOn()?(kxLv()?.recent||[]).some(r=>r.tk===s.tk&&r.fill>0&&!r.result):!!kxPp(s.tk)));
+    const buy=q&&kxPbBuy(s);t.classList.toggle('own',!!own);t.classList.toggle('q',!own&&buy&&!past);t.classList.toggle('qy',!own&&q&&!buy&&!past);const lb=!own&&q&&past&&kxLateBuy(s);t.classList.toggle('qg',lb);t.classList.toggle('past',!own&&past&&!(kxHandOn()?(kxLv()?.recent||[]).some(r=>r.tk===s.tk&&r.fill>0&&!r.result):!!kxPp(s.tk)));
     if(own){const nowP=own.side==='yes'?s.ya:(s.yb==null?null:+(1-s.yb).toFixed(4)),up=nowP!=null&&nowP>=.5;lead.innerHTML=`<span class="kx-side ${own.side}">${own.side.toUpperCase()}</span><span style="color:var(--mute)">bought ${kxC(own.px)}</span><b class="${nowP==null?'':up?'pos':'neg'}">now ${nowP==null?'–':Math.round(nowP*100)+'¢'}</b><i class="kx-q on">ours</i>`;continue}
-    lead.innerHTML=s.leader?`<span class="kx-side ${s.leader}">${s.leader.toUpperCase()}</span><b>${Math.round(s.lask*100)}¢</b>${past?(s.taken==='rule'?'<i class="kx-q on">taken</i>':s.taken==='skip'?'<i class="kx-q">under '+kxCt(minAsk)+'¢ at the mark</i>':'<i class="kx-q">mark passed</i>'):q?(buy?`<i class="kx-q on" title="The price qualifies and ${esc(kxPbNm())} would buy it right now">would buy</i>`:`<i class="kx-q yl" title="${esc(kxPbWhy(s))}">would take</i>`):'<i class="kx-q">under '+kxCt(minAsk)+'¢</i>'}`:'<span class="kx-q">no quote</span>'}}
+    lead.innerHTML=s.leader?`<span class="kx-side ${s.leader}">${s.leader.toUpperCase()}</span><b>${Math.round(s.lask*100)}¢</b>${past?(lb?`<i class="kx-q gn" title="The trade check passed this coin by, but ${esc(kxPbNm())} would buy it at this price right now. A buy by hand; the tracker does not take it.">buy now</i>`:s.taken==='rule'?'<i class="kx-q on">taken</i>':s.taken==='skip'?'<i class="kx-q">under '+kxCt(minAsk)+'¢ at the mark</i>':'<i class="kx-q">mark passed</i>'):q?(buy?`<i class="kx-q on" title="The price qualifies and ${esc(kxPbNm())} would buy it right now">would buy</i>`:`<i class="kx-q yl" title="${esc(kxPbWhy(s))}">would take</i>`):'<i class="kx-q">under '+kxCt(minAsk)+'¢</i>'}`:'<span class="kx-q">no quote</span>'}}
 // MC 2026-11-18 two kinds of "would take" on the scanner. Yellow: the leader qualifies on price alone. Blue ("would buy"): it
 // also passes the playbook that is running, read by the tracker each minute before the trade check (pb on the scan row).
 // A reading taken for the other side, after the leader flipped, does not count.
@@ -5217,7 +5226,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.97',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.2.98',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

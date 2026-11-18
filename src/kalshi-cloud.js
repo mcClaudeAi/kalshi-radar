@@ -935,13 +935,19 @@ export function createKalshi(state, env, keep) {
   async function scanPbRead(out, now) {
     const c = ctl(), live = !!c.enabled && hasKeys(), cfg = live ? cfgL : cfgP, sid = stratAt(live ? c.strat : cfg.strat, now), lab = labDefs(cfg).find(l => l.id === sid);
     scanPbOf = { id: sid, name: sid === 'rule' ? 'the plain rule' : lab?.name || sid, live };
-    const H = out.filter(s => s.lask != null && s.leader && !s.taken && s.close - now > 600000 && s.lask >= cfg.minAsk && s.lask <= (cfg.maxAsk ?? 0.99) + 1e-9 && (!cfg.coins?.length || cfg.coins.includes(s.coin)));
+    // MC 2026-11-18 asked: after the trade check, light a row green when the playbook would buy it now (a coin that was under
+    // the price floor or failed a reading at the check and has since come good), so it can be bought by hand. Same reading and
+    // same test, each minute from about 9 minutes left down to 4 (the second look's own hours), on coins the check did not
+    // take, four a minute at most. Marked pbLate so the page can tell it from the reading before the check. Nothing is bought.
+    let lateN = 0; const band = s => s.lask != null && s.leader && s.lask >= cfg.minAsk && s.lask <= (cfg.maxAsk ?? 0.99) + 1e-9 && (!cfg.coins?.length || cfg.coins.includes(s.coin));
+    const isLate = s => { const left = s.close - now; return left <= 530000 && left >= L2_MIN_LEFT * 60000 && s.taken !== 'rule' && ++lateN <= 4; };
+    const H = out.filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
     if (!H.length) return;
     if (sid === 'rule') { for (const s of H) { s.pb = 1; s.pbSide = s.leader; } return; }
     if (!lab || lab.m10Only || lab.ep || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) return;
-    const carry = H.some(s => s.close - now - 600000 < 50000), old = new Map(scan.map(z => [z.tk + z.leader, z]));
+    const carry = H.some(s => !s.pbLate && s.close - now - 600000 < 50000), old = new Map(scan.map(z => [z.tk + z.leader, z]));
     const V = await Promise.all(H.map(s => { const o = old.get(s.tk + s.leader); return carry ? (o?.pbV || null) : s.strike > 0 ? volAt(s.coin, s.strike, s.leader).catch(() => null) : null; }));
-    H.forEach((s, i) => { const v = V[i]; if (!v) return; s.pbV = v; s.pbSide = s.leader;
+    H.forEach((s, i) => { const v = V[i]; if (!v || (s.pbLate && v.src === 'stale')) return; s.pbV = v; s.pbSide = s.leader;
       const t = { px: s.lask, win: H.length, same: H.filter(h => h.leader === s.leader).length, z: v.z ?? null, z2: v.z2 ?? null, z10: v.z10 ?? null, tl: v.tl ?? null, lk: v.lk ?? null, sw: v.sw ?? null, dp: v.dp ?? null, r2: v.r2 ?? null, kf: null, pl: null };
       let f = false; try { f = lab.filter(t); } catch { return; } s.pb = f === true ? 1 : 0; if (f !== true) s.pbWhy = labWhy(sid, t, cfg) || null; });
   }

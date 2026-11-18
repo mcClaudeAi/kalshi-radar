@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.98 (2026-11-18): Green "buy now" rows after the trade check
+- [new] After the trade check, the scanner keeps reading coins the check did not take, each minute until 4 minutes are left. When the running playbook would buy one at its price right now, the row lights up green with a BUY NOW tag so you can buy it by hand. The tracker does not buy these.
+
 ## 1.2.97 (Nov 18, 2026): "Would buy" rows stand out on the scanner
 - [improved] A row the running playbook would buy now has a bright blue frame that breathes, a lit background and a solid "WOULD BUY" tag, so it cannot be missed among the rows that only qualify on price.
 - [improved] A row that is also a strong setup keeps the green treatment and carries the solid "WOULD BUY" tag as well.
