@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.96 (Nov 18, 2026): Final-minute view rebuilt so only the price and the average move
+- [improved] The target is now a fixed line through the middle for the whole minute, with the winning side tinted green and the losing side red. Before, the view slid in, the price scale kept re-fitting itself and an amber line swung further off as time ran out.
+- [new] Every second that has passed is a bar from the target to that second's price: green seconds help, red seconds hurt. The average Kalshi settles on is those bars evened out, drawn as one level line that moves less and less as the minute fills.
+- [new] A strip of 60 cells under the chart fills in second by second, so you can count how much of the result is already decided.
+- [new] One sentence says what it would take to change the result ("to lose, the last 20s would have to average $24.80 below the target"), how that compares with a usual move for the time left, and a plain verdict: all but locked in, holding, still open, needs a big move or out of reach.
+- [improved] A large clock counts the seconds, and the headline says how far the average is on the winning or losing side.
+
 ## 1.2.95 (Nov 18, 2026): New window bar on the live board
 - [improved] The window bar is rebuilt. It names the three stretches of a window (watching, holding, and the final minute Kalshi averages for the result), marks every minute, and shows one large countdown to whatever comes next: the trade check, then the settle.
 - [fixed] For up to a minute after a window ended the bar sat full on the old window, because it took the window from the tracker's last read. It now works the window out from the clock, so it rolls over on the second.
