@@ -10,7 +10,8 @@ const BT = JSON.parse(readFileSync(new URL('../backtest.json', import.meta.url),
 if (ci < 0 || !rows.length) { console.log('no rows for', COIN); process.exit(0); }
 const START = rows[0][0] * 60 - 7200, END = rows.at(-1)[0] * 60 + 1200;
 async function j(u, base = B) { for (let i = 0; i < 6; i++) { try { const r = await fetch(base + u, { headers: { accept: 'application/json', 'user-agent': 'kalshi-radar-research' } }); if (r.status === 429 || r.status >= 500) { await sleep(800 * (i + 1)); continue; } if (!r.ok) return { _err: r.status }; return await r.json(); } catch { await sleep(800 * (i + 1)); } } return { _err: 'gave up' }; }
-const px = (o, k) => { if (!o) return null; const d = o[k + '_dollars']; if (d != null) return +d; return o[k] != null ? o[k] / 100 : null; };
+// older markets come back from the historical endpoint priced in dollars under the plain key (0.93), newer ones in cents (93)
+const px = (o, k) => { if (!o) return null; const d = o[k + '_dollars']; if (d != null) return +d; const v = o[k]; return v == null ? null : (String(v).includes('.') || +v <= 1) ? +v : +v / 100; };
 const ts = m => Math.floor(new Date(m.close_time).getTime() / 1000);
 const C = new Map(); { let bad = 0; for (let e = END; e > START; e -= 300 * 60) { const s = e - 299 * 60, r = await j(`/products/${PID}/candles?granularity=60&start=${new Date(s * 1000).toISOString()}&end=${new Date(e * 1000).toISOString()}`, CB);
     if (Array.isArray(r)) for (const k of r) { if (+k[4] > 0) C.set(+k[0], +k[4]); } else bad++; await sleep(130); } console.log(S, 'coinbase minutes', C.size, 'failed requests', bad); }
