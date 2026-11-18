@@ -185,6 +185,8 @@ export class Store {
     if (p === '/api/kbuyq') return new Response(JSON.stringify(await this.K.buyQuote(u.searchParams.get('tk') || '', u.searchParams.get('side') || '', u.searchParams.get('book') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
     if (p === '/api/kpath') return new Response(JSON.stringify(await this.K.pathOf(u.searchParams.get('tk') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=86400' } });
     if (p === '/api/ktrade') return new Response(JSON.stringify(await this.K.tradeAt(+u.searchParams.get('close'), u.searchParams.get('coin') || '')), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    if (p === '/api/kbt') return new Response(JSON.stringify(await this.K.btRows()), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    if (p === '/api/kpaths') return new Response(JSON.stringify(await this.K.pathsOf(+u.searchParams.get('from') || 0, +u.searchParams.get('to') || 0)), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
     if (p === '/api/klab') return etagged(req, JSON.stringify(await this.K.labRows(u.searchParams.get('id') || '')), { 'content-type': 'application/json' });
     if (p === '/api/klive') { if (u.searchParams.get('all')) return new Response(JSON.stringify(await this.K.liveAll()), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
       if (u.searchParams.get('fresh')) { try { if (await this.K.scanQuick() !== null) return new Response(this.K.liveJson(), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); } catch { } }
