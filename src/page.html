@@ -1040,7 +1040,13 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 /* scanner board */
 .kx-sbw{display:flex;flex-direction:column;gap:6px}
 .kx-sb{display:grid;grid-template-columns:70px 128px 90px minmax(96px,.9fr) minmax(0,1.2fr);gap:12px;align-items:center;padding:9px 12px 9px 14px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--s2) 72%,transparent);min-width:0;transition:border-color .3s,box-shadow .3s}
-.kx-sb.q{border-color:color-mix(in srgb,var(--kx) 45%,var(--line));box-shadow:inset 3px 0 0 var(--kx),0 0 28px -10px color-mix(in srgb,var(--kx) 70%,transparent)}
+/* MC 2026-11-18 asked to make "would buy now" unmistakable: the row the running playbook would buy gets a bright frame in the
+   tracker's blue that breathes, a lit background and a larger tag. Only the frame's opacity is animated (its own layer). A row
+   that is also a strong setup shows the green treatment further down, which is defined after this and wins. */
+.kx-sb.q{border-color:var(--kx);background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 16%,var(--s2)),color-mix(in srgb,var(--kx) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--kx)}
+.kx-sb.q::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--kx);box-shadow:0 0 0 1px color-mix(in srgb,var(--kx) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--kx) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--kx) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--kx) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
+.kx-sb.q .kx-q.on{color:#04121a;background:var(--kx);border-color:var(--kx);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--kx) 70%,transparent)}
+@media(prefers-reduced-motion:reduce){.kx-sb.q::before{animation:none}}
 .kx-sb.qy{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));box-shadow:inset 3px 0 0 var(--warn),0 0 28px -10px color-mix(in srgb,var(--warn) 70%,transparent)}
 .kx-sb.own{border-color:color-mix(in srgb,var(--good) 45%,var(--line));box-shadow:inset 3px 0 0 var(--good)}
 .kx-sb.past{opacity:.72}
@@ -5211,7 +5217,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.96',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.2.97',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

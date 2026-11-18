@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.97 (Nov 18, 2026): "Would buy" rows stand out on the scanner
+- [improved] A row the running playbook would buy now has a bright blue frame that breathes, a lit background and a solid "WOULD BUY" tag, so it cannot be missed among the rows that only qualify on price.
+- [improved] A row that is also a strong setup keeps the green treatment and carries the solid "WOULD BUY" tag as well.
+
 ## 1.2.96 (Nov 18, 2026): Final-minute view rebuilt so only the price and the average move
 - [improved] The target is now a fixed line through the middle for the whole minute, with the winning side tinted green and the losing side red. Before, the view slid in, the price scale kept re-fitting itself and an amber line swung further off as time ran out.
 - [new] Every second that has passed is a bar from the target to that second's price: green seconds help, red seconds hurt. The average Kalshi settles on is those bars evened out, drawn as one level line that moves less and less as the minute fills.
