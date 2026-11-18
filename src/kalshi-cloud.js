@@ -546,7 +546,9 @@ export function createKalshi(state, env, keep) {
     if (Date.now() - st.balAt > 5000) { if (st.balAt) st.balAt = 1; await balance(true); }
     const have = st.shard[XI] ?? 0, src = Math.max(0, Math.min(st.shard[0] ?? 0, (st.bal ?? Infinity) - have) - vault.held()), want = Math.round(c.sizeUsd * 12), low = c.sizeUsd * 9;
     if (have >= low || src < 1) return;
-    const amt = Math.floor(Math.min(src, want - have) * 100) / 100; if (amt < 1) return;
+    // MC 2026-11-17 leaves 2 cents behind: a balance can hold a fraction of a cent and the reported figure is rounded, so asking
+    // for all of it can be refused as "insufficient balance" (it happened on a sub account; see fund in books.js)
+    const amt = Math.floor(Math.min(src - 0.02, want - have) * 100) / 100; if (amt < 1) return;
     st.xferAt = Date.now();
     const res = await kreq('POST', '/portfolio/intra_exchange_instance_transfer', { source: 'event_contract', destination: 'event_contract', amount: Math.floor(amt * 100) * 100, source_exchange_shard: 0, destination_exchange_shard: XI, client_transfer_id: crypto.randomUUID() });
     if (!res?.ok) { const m = `could not move $${amt.toFixed(2)} to the crypto shard: ${res?.status} ${errOf(res)}`; st.balAt = 0; if (have >= c.sizeUsd + 1) console.log('fund: ' + m + ' (shard still covers the next order)'); else fail(m); return; }

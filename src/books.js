@@ -115,16 +115,26 @@ export function createBooks(D) {
   }
   // the crypto markets trade on shard XI; keep about 12 trades' worth there, moved inside the book's own subaccount
   const subXfer = (b, amount, from, to) => ({ source: 'event_contract', destination: 'event_contract', amount, source_exchange_shard: from, destination_exchange_shard: to, source_subaccount: b.sub, destination_subaccount: b.sub });
-  async function fund(b) {
-    const s = S[b.id]; if (Date.now() - s.xferAt < 60000) return;
+  // MC 2026-11-17 The Retirement Plan stopped with "could not move $500.86 to the crypto shard: 400 insufficient balance" right
+  // after money was moved out of it. A move out first brings the whole crypto balance back to the main balance, so the next
+  // top-up asked for everything there. Kalshi fills at tenths of a cent, so a balance carries a fraction of a cent, and the
+  // figure it reports is rounded: $500.86 can be $500.856, and asking for the full $500.86 is refused. Until now a top-up
+  // almost never took the whole balance, which is why this had not shown. The top-up now leaves 2 cents behind. If Kalshi
+  // still says there is not enough, the balances are read fresh and it tries once more leaving $1, and the account only
+  // shows an error when the crypto side cannot cover the next order.
+  async function fund(b, again) {
+    const s = S[b.id]; if (!again && Date.now() - s.xferAt < 60000) return;
     const have = s.shard[D.XI] ?? 0, src = s.shard[0] ?? 0, want = Math.round(b.size * 12), low = b.size * 9;
-    if (have >= low || src < 1) return; const amt = Math.min(src, want - have); if (amt < 1) return;
+    if (have >= low || src < 1) return; const amt = Math.floor(Math.min(src - (again ? 1 : 0.02), want - have) * 100) / 100; if (amt < 1) return;
     s.xferAt = Date.now();
     // MC 2026-11-15 the first book to go live showed ERROR with its $200 stuck off the crypto shard. For a numbered subaccount
     // Kalshi's docs say this call rejects client_transfer_id (primary accounts only) and that both subaccount fields must name the
     // key's own subaccount; the book was sending the main account's form of the request. subXfer builds the subaccount form.
-    const res = await breq(b, 'POST', '/portfolio/intra_exchange_instance_transfer', subXfer(b, Math.floor(amt * 100) * 100, 0, D.XI));
-    if (!res?.ok) { fail(b, `could not move $${amt.toFixed(2)} to the crypto shard: ${res?.status} ${errOf(res)}`); return; }
+    const res = await breq(b, 'POST', '/portfolio/intra_exchange_instance_transfer', subXfer(b, Math.round(amt * 100) * 100, 0, D.XI));
+    if (!res?.ok) {
+      if (!again && res?.status === 400 && /insufficient/i.test(errOf(res) || '')) { s.balAt = 0; s.shAt = 0; try { await balance(b, true); } catch { } return fund(b, true); }
+      const m = `could not move $${amt.toFixed(2)} to the crypto shard: ${res?.status} ${errOf(res)}`; s.balAt = 0;
+      if (have >= b.size + 1) D.say(`BOOK ${b.name}: ${m} (the crypto side still covers the next order)`); else fail(b, m); return; }
     s.lastXfer = { at: Date.now(), amt: +amt.toFixed(2) }; s.balAt = 0; if (/crypto shard/.test(s.err || '')) s.err = null; D.say(`BOOK ${b.name} moved $${amt.toFixed(2)} to the crypto shard`);
   }
 

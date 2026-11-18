@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.83 (Nov 17, 2026): Top-up after a money move no longer refused
+- [fixed] After money was moved out of a sub account, the account could stop with "could not move $… to the crypto shard: 400 insufficient balance". A move out brings the account's whole balance back from crypto trading first, and the next top-up then asked for all of it. A balance can hold a fraction of a cent and Kalshi reports it rounded, so asking for the full figure was refused. The top-up now leaves 2 cents behind.
+- [improved] If Kalshi still says there is not enough, the balances are read fresh and it tries once more, leaving $1. An account shows an error for this only when its crypto side cannot cover the next order.
+- [improved] The main account's own top-up leaves the same 2 cents.
+
 ## 1.2.82 (Nov 17, 2026): Account pictures, movable Home sections, a clearer Move money
 - [new] Give an account its own picture. Open an account's sheet (tap its round badge or the ⋯ on its line) and choose "Add a picture". It is cut to a square and shows on the badge everywhere, on every device signed in to your dashboard. M, 1, 2 stay as the default, and "Use the default" brings them back.
 - [new] On the web, the sections of Home can be moved. Press "Arrange" above the page, drag Summary, Accounts, Playbooks, Live board and Scanner to where you want them in either column, then "Done". The layout is remembered in that browser; "Reset layout" puts it back.
