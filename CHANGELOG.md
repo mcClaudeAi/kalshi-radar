@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.92 (Nov 18, 2026): Four readings on every scanner row and in the buy box
+- [new] Cushion: how far the coin is past its target, counted in its own usual 10-minute moves. Under 1 means an ordinary swing could flip it; 2 or more is a wide cushion. It is the same measure the playbooks use.
+- [new] Win chance: a model's chance the leader wins from here with the time left counted, next to Kalshi's price, marked cheap or dear when the two are more than 3 points apart. A model, not a promise.
+- [new] Path: whether the coin got here in a straight run, steadily or choppily over the last 15 minutes. In the backtest the straight runs won least.
+- [new] Coins: how many of the window's coins lean the same way, marked "split" when fewer than three in four agree.
+- [new] The buy box for a hand buy lists the cushion, the win chance and the coins, and its warning now names what to weigh first: a thin cushion, a price under 85¢, a split window or a straight run.
+- [improved] These are worked out on the page from Coinbase's live price, so they show before and after the trade check and on every coin, with no extra load on the tracker.
+
 ## 1.2.91 (Nov 18, 2026): Sell by hand from sub accounts when Main does not hold the market
 - [fixed] A position held only by sub accounts had no Sell button. The sale price and the button were built on Main's position alone, so when a hand buy filled in the sub accounts and not in Main, there was no way to sell it from the dashboard. The Sell row now shows whenever any account holds the market.
 - [improved] The confirm box lists the accounts that hold it, and says whose figures it is showing when Main is not one of them. Holding to confirm is unchanged.
