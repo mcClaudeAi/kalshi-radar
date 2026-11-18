@@ -3428,7 +3428,7 @@ async function kxPlayLoad(tk){const host=document.querySelector(`[data-play="${C
   kxPlayBuild(host,tk,t)}
 // a live row (Main's or a book's) shaped like a paper record, for the replay
 function kxLiveAsT(tk){const lv=kxLv(),x=[...(lv?.recent||[]),...(lv?.books||[]).flatMap(b=>b.recent||[])].find(r=>r.tk===tk&&r.strike!=null);if(!x)return null;
-  return {tk,coin:x.coin,side:x.side,close:x.close,strike:x.strike,title:x.title,t:x.at,px:x.px,done:!!x.result,won:x.result==='sold'?null:x.won,final:x.final??null,path:[]}}
+  return {tk,coin:x.coin,side:x.side,close:x.close,strike:x.strike,title:x.title,t:x.at,px:x.px,done:!!x.result,won:x.result==='sold'?null:x.won,final:x.final??null,pnl:x.pnl??null,real:1,path:[]}}
 function kxPlayBuild(host,tk,t){const P=KXP[tk],pts=P.pts,open=t.close-15*60000,x0=open/1000,x1=t.close/1000,id=tk.replace(/[^a-z0-9]/gi,'');
   const W=Math.max(300,host.clientWidth||600),H=190,PD={l:8,r:70,t:16,b:22},iw=W-PD.l-PD.r,ih=H-PD.t-PD.b;
   let lo=Math.min(t.strike,...pts.map(p=>p[1]),t.final??Infinity),hi=Math.max(t.strike,...pts.map(p=>p[1]),t.final??-Infinity);const mn=Math.max((hi-lo)*.15,t.strike*.0005);lo-=mn;hi+=mn;
@@ -3500,7 +3500,7 @@ function kxPlayPaint(tk,t){const P=KXP[tk];if(!P?.geo)return;t=t||kxPlayTrade(tk
   if(showHead){ln.setAttribute('x1',g.X(s));ln.setAttribute('x2',g.X(s));dt.setAttribute('cx',g.X(s));dt.setAttribute('cy',g.Y(px));dt.setAttribute('fill',win?'var(--good)':'var(--bad)')}
   const f=$i('kpf');if(f)f.style.display=showHead?'none':'inline';
   const left=Math.max(0,g.x1-s),mg=px==null?null:(px-t.strike)/t.strike*(t.side==='yes'?1:-1),kp=kxAt(P.kal,s),before=s<t.t/1000;
-  $i('kph').innerHTML=!showHead&&t.done?`<span class="kp-st ${t.won?'win':'lose'}">${t.won?'WON':'LOST'}</span><span><small>settled at</small><b>${t.final!=null?esc(kxFmt(t.final,t.strike)):'–'}</b></span><span><small>target</small><b>${esc(kxFmt(t.strike,t.strike))}</b></span><span><small>result</small><b class="${cls(t.pnl)}">${t.pnl!=null?usd(t.pnl):t.won?'would have won':'would have lost'}</b></span>`
+  $i('kph').innerHTML=!showHead&&t.done?`<span class="kp-st ${t.won?'win':'lose'}">${t.won?'WON':'LOST'}</span><span><small>settled at</small><b>${t.final!=null?esc(kxFmt(t.final,t.strike)):'–'}</b></span><span><small>target</small><b>${esc(kxFmt(t.strike,t.strike))}</b></span><span><small>result</small><b class="${t.pnl!=null?cls(t.pnl):t.real?(t.won?'pos':'neg'):''}">${t.pnl!=null?usd(t.pnl):t.real?(t.won?'won':'lost'):t.won?'would have won':'would have lost'}</b></span>`
     :`<span class="kp-st ${win?'win':'lose'}">${before?'BEFORE BUY · ':''}${win?'WINNING':'LOSING'}</span><span><small>left</small><b>${kxCd(left*1000)}</b></span><span><small>${esc(t.coin)}</small><b>${esc(kxFmt(px,t.strike))}</b></span><span><small>vs target</small><b class="${mg>=0?'pos':'neg'}">${mg==null?'–':(mg>=0?'+':'')+(mg*100).toFixed(2)+'%'}</b></span>${kp!=null&&!before?`<span><small>Kalshi ${t.side.toUpperCase()}</small><b>${Math.round(kp*100)}¢</b></span>`:''}`;
   const b=$i('kpb');if(b){b.textContent=P.playing?'❚❚':'▶';b.classList.toggle('on',P.playing)}const sl=$i('kps');if(sl&&document.activeElement!==sl)sl.value=Math.round((s-g.x0)/(g.x1-g.x0)*1000)}
 function kxPlayToggle(tk){const P=KXP[tk];if(!P?.geo)return;if(P.playing){P.playing=false;kxPlayPaint(tk);return}if(P.s==null||P.s>=P.geo.x1-.5)P.s=P.geo.x0;P.playing=true;P.last=performance.now();kxPlayLoop(tk)}
@@ -5120,7 +5120,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.2.88',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.2.89',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

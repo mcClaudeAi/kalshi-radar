@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.89 (Nov 18, 2026): A live trade's replay shows what it settled at
+- [fixed] Under a settled live trade, "Settled at" showed a dash. It now shows the 60-second average Kalshi settled the market on, next to the target, so a close loss can be read at a glance. Trades settled in the last 24 hours are filled in on their own within a few minutes.
+- [fixed] The result on that panel read "would have lost" for a real trade. That is paper wording. A live trade now shows its result in dollars.
+
 ## 1.2.88 (Nov 18, 2026): Automatic and by-hand buys apart on Trades and Analytics
 - [new] The live orders list on Trades has three tabs: All, Automatic and By hand. Each shows its count, wins, losses and result for the day or range picked, and tapping one filters the list. The tabs appear once that day or range has a buy made by hand. Skipped and unfilled orders are the tracker's, so they sit under Automatic.
 - [improved] On Live analytics, the three tiles (All live trades, Tracker bought, Bought by hand) now spell out wins, losses, the win rate, dollars won and dollars lost. Tapping a tile still filters every figure and chart on the page to that group.

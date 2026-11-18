@@ -765,7 +765,7 @@ export function createKalshi(state, env, keep) {
     if (x.sold && !x.sold.cash && !x.sold.manual) return;
     // the rest of a partly cashed-out position settles here, with the sale counted in
     const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0;
-    x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); saveL(x); st.balAt = 0;
+    x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveL(x); st.balAt = 0;
     say(`LIVE settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl >= 0 ? '+' : ''}$${x.pnl}`);
   }
   async function sellAll() {
@@ -1067,6 +1067,12 @@ export function createKalshi(state, env, keep) {
         try { onSettle(r); } catch (e) { fail('settle error: ' + e.message); } try { books.onSettle(r); } catch (e) { say('books settle error: ' + e.message); } any = true; viewDirty = true; } }
     // MC 2026-11-16 hand buys made before their rows kept the market's target have no replay under Trades; fill the target,
     // title and settled value in from the market, a few a pass, for the last week
+    // MC 2026-11-18 a settled live trade's replay showed "settled at –": the value Kalshi settled on was only kept on the row when
+    // the market had to be asked for directly. It is now copied from the tracker's own record when the trade settles (onSettle),
+    // and a row that settled without it (Kalshi can post the result a moment before the value) is filled here afterwards.
+    { for (const x of [...L.values(), ...books.allRows()]) { if (!(x.fill > 0) || !x.result || x.final != null || x.close < now - 86400000) continue; const f = rec.get(x.tk)?.final; if (typeof f === 'number') { x.final = f; if (L.get(x.tk) === x) saveL(x); else books.saveAny(x); viewDirty = true; } }
+      const need = [...L.values(), ...books.allRows()].filter(x => x.fill > 0 && x.result && x.final == null && !x.finTry && x.close > now - 86400000 && x.close < now - 120000).slice(0, 4);
+      for (const x of need) { try { const j = await get(`/markets/${x.tk}`), fv = kNum(j?.market?.expiration_value); for (const y of [L.get(x.tk), ...books.rowsOf(x.tk)]) if (y) { y.finTry = 1; if (fv != null && y.final == null) y.final = fv; if (L.get(x.tk) === y) saveL(y); else books.saveAny(y); } viewDirty = true; } catch { } } }
     { const need = [...L.values(), ...books.allRows()].filter(x => x.hand && x.strike == null && !x.metaTry && x.close > now - 7 * 86400000 && x.close < now - 60000 && !rec.get(x.tk)?.strike).slice(0, 4);
       for (const x of need) { x.metaTry = 1; try { const j = await get(`/markets/${x.tk}`), mk = j?.market; if (!mk) continue; const fin = kNum(mk.expiration_value);
           for (const y of [L.get(x.tk), ...books.rowsOf(x.tk)]) if (y && y.strike == null) { y.strike = kStrike(mk) ?? null; y.title = y.title || mk.title || null; if (fin != null) y.final = fin; if (L.get(x.tk) === y) saveL(y); else books.saveAny(y); } viewDirty = true; } catch { } } }
