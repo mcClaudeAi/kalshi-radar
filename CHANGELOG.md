@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.90 (Nov 18, 2026): Today's record split into automatic and by hand
+- [improved] The Today box on the live summary shows two lines where it had one mixed count: Automatic (settled, won, lost, result, and the trades the playbook passed on) and By hand (settled, won, lost, result). A loss on a buy made by hand no longer reads as the playbook's loss.
+
 ## 1.2.89 (Nov 18, 2026): A live trade's replay shows what it settled at
 - [fixed] Under a settled live trade, "Settled at" showed a dash. It now shows the 60-second average Kalshi settled the market on, next to the target, so a close loss can be read at a glance. Trades settled in the last 24 hours are filled in on their own within a few minutes.
 - [fixed] The result on that panel read "would have lost" for a real trade. That is paper wording. A live trade now shows its result in dollars.
