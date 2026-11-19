@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.14 (Nov 18, 2026): Labs and Backtest as several accounts buying at once
+- [new] Labs: "Accounts buying at once" (1 to 4). Every playbook is priced as that many accounts buying the same coin in the same second, at the average price across all of them, worked out from the order book saved with each trade. Figures stay per account. Your paper book is not changed.
+- [new] Backtest: the same control. Each trade's price is raised by what the extra contracts cost, from this tracker's own order book measurements by coin.
+- [improved] Later-watched and early buys now keep the ten best offers in the order book, so they can be priced for any number of accounts.
+
 ## 1.3.13 (Nov 18, 2026): Corrected figures on the later-buy cushion setting
 - [fixed] The help text under "Later buys need a cushion of at least" quoted backtest figures that included the first minute after the trade check, which the playbook does not trade. It now shows the figures for 8 to 4 minutes left, with 1.25 added.
 
