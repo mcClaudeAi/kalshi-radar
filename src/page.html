@@ -1905,7 +1905,7 @@ function kxRelV(){after.krel=krlLoad;const L=KRL.list||[],head=kxSecHead('Releas
 // cloud tracker's labDefs; if one changes there, change it here. Second look is absent on purpose: the history has one
 // snapshot per trade, at the 10-minute mark, so there is nothing to recheck against.
 const KR_BT='https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/backtest.json',BT={at:0,d:null,err:false,rg:'all',per:'month',met:'net',hit:200,lockAt:null,lockKeep:null,off:new Set(),size:null,loss:null,win:null};
-const BT_ARCH=new Set(['kelly','no95','six','six95','tr10','edge','edge2','two']);   // MC 2026-11-17 archived with the Labs ones: still defined, not run or shown
+const BT_ARCH=new Set(['kelly','no95','six','six95','tr10','edge','edge2','two','pct','mv96','mvl','mvai','mvsw']);   // MC 2026-11-17 archived with the Labs ones: still defined, not run or shown
 const BTP=[['rule','The rule','#4CC9F0','Every 90¢+ leader at 10 minutes left.',t=>true],['no95','Skip 95¢ and up','#F8961E','Leaves out the dearest contracts.',t=>t.px<0.95],['six','6 or more coins','#43AA8B','Only when 6+ coins lead the same way.',t=>t.same>=6],
  ['vol','Margin vs volatility','#F72585','At least 1 typical move past the target.',t=>t.z==null?null:t.z>=1],['vol2','Margin vs volatility v2','#9D4EDD','Same, with the 10-minute move measured directly.',t=>t.z10==null?null:t.z10>=1],
  ['edge','Beats the market','#06D6A0','Our win chance must beat price + fee + 1¢.',t=>t.z==null?null:kxWinZ(t.z)>=kxNeed(t.px)],['edge2','Beats the market v2','#90BE6D','Same, stricter volatility and drift.',t=>t.z2==null?null:kxWinZ(t.z2)>=kxNeed(t.px)],
@@ -5244,7 +5244,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.0',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.3.1',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.1 (Nov 18, 2026): Five playbooks retired from Labs
+- [improved] Size follows the bank, Margin vs volatility under 96¢, Margin vs volatility + Learned, Margin vs volatility (AI checked) and Margin vs volatility, no late swing are archived. They no longer show in Labs, the Backtest or the playbook pickers. One that an account is still running stays visible until you switch it.
+
 ## 1.3.0 (Nov 18, 2026): Two new Claude's pick playbooks to test: early buy and later watched
 - [new] Backtest: "Claude's pick, early buy" buys at minute 3 or 4 of the window when a coin already passes with a wide enough cushion, and otherwise waits for the trade check. A new "Early buy cushion" control lets you compare bars from 1 to 3 moves.
 - [new] Backtest: "Claude's pick, later watched" adds the coins the trade check passed on that pass the same test afterwards, from 8 minutes left down to 4.

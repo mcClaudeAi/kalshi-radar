@@ -57,7 +57,8 @@ const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindo
 // MC 2026-11-17 asked to put these away: off the Labs page, the Backtest page and the playbook pickers, but not deleted. They keep
 // running underneath (an account still set to one carries on and still shows it), so taking one out of this list brings it back
 // with its history.
-const ARCH = new Set(['kelly', 'no95', 'six', 'tr10', 'edge', 'edge2', 'two']);
+// MC 2026-11-18 asked to drop five more from Labs: Size follows the bank and four Margin vs volatility variants
+const ARCH = new Set(['kelly', 'no95', 'six', 'tr10', 'edge', 'edge2', 'two', 'pct', 'mv96', 'mvl', 'mvai', 'mvsw']);
 function labWhy(id, t, K = {}) {
   const c = v => `${(v * 100).toFixed(1).replace(/\.0$/, '')}¢`, m = (v, need) => (v < need && +v.toFixed(2) >= need ? v.toFixed(3) : v.toFixed(2)), pc = v => `${(v * 100).toFixed(0)}%`;
   const need = px => px + 0.07 * px * (1 - px) + 0.01, far = (z, bar, what = '') => `it was only ${m(z, bar)} usual moves from its target${what} and this playbook wants at least ${bar}, so a normal swing could still flip it`;
