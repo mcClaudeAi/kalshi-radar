@@ -951,7 +951,9 @@ export function createKalshi(state, env, keep) {
   let scanPbOf = null;
   async function scanPbRead(out, now) {
     const c = ctl(), live = !!c.enabled && hasKeys(), cfg = live ? cfgL : cfgP, sid = stratAt(live ? c.strat : cfg.strat, now), lab = labDefs(cfg).find(l => l.id === sid);
-    scanPbOf = { id: sid, name: sid === 'rule' ? 'the plain rule' : lab?.name || sid, live };
+    // MC 2026-11-18 lo and hi: the price band the answer holds for. The page gets fresh prices between the minute readings, and a
+    // row kept its green "buy now" after the price ran from 94c to 99c (NEAR, a hand buy box offering 0 contracts and $0.00).
+    scanPbOf = { id: sid, name: sid === 'rule' ? 'the plain rule' : lab?.name || sid, live, lo: cfg.minAsk, hi: +Math.min(cfg.maxAsk ?? 0.99, (PB_CAP[sid] ?? 1) - 0.0001).toFixed(4) };
     // MC 2026-11-18 asked: after the trade check, light a row green when the playbook would buy it now (a coin that was under
     // the price floor or failed a reading at the check and has since come good), so it can be bought by hand. Same reading and
     // same test, each minute from about 9 minutes left down to 4 (the second look's own hours), on coins the check did not

@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.17 (Nov 18, 2026): "Buy now" goes out when the price leaves the band
+- [fixed] A row could keep its green "buy now" (or blue "would buy") after the price had run past what the playbook pays, for example 99¢ against a limit under 95¢. The tag now also checks the current price against the running playbook's price band, so it drops the moment the price is out of range.
+
 ## 1.3.16 (Nov 18, 2026): The later-buy cushion setting sits with its switch
 - [fixed] In Live settings, "Later buys need a cushion of at least" was further down the page among the rule settings and easy to miss. It is now directly under "Buy later-watched coins". In Paper settings it stays with the other rules.
 
