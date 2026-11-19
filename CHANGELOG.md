@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.27 (Nov 19, 2026): The Claude's pick labs go back to Nov 2
+- [improved] Labs: early buy, later watched, no stragglers and high confidence now start on Nov 2 like Claude's pick, instead of Nov 12. Their early and later buys before the evening of Nov 18 are rebuilt from Kalshi's one-minute history.
+
 ## 1.3.26 (Nov 19, 2026): Later watched, scored with your own settings
 - [new] Backtest: "Claude's pick, later watched (your settings)" uses the later-buy settings in Paper settings right now (least cushion, margin inside every line, crowd rule). Change them and the row changes with them.
 - [improved] Labs: "Claude's pick, later watched" now scores its later buys with your paper settings too, back to Nov 12, so it shows the playbook exactly as you run it. Changing the settings rescores the whole line.
