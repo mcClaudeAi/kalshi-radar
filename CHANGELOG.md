@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.5 (Nov 18, 2026): Paper and live playbook tiles look different
+- [improved] The paper tile is blue with a dashed edge and a "Paper · practice money" badge. The live tile is red with a solid edge, a red rail and a "Live · real money" badge, and turns grey with "Live · off" while live is off. The playbook keeps its own colour on the dot only.
+
 ## 1.3.4 (Nov 18, 2026): Notices can be dismissed
 - [fixed] A pop-up notice could not be closed and covered the buttons under it for several seconds. Tap it, swipe it to either side, or use its x to clear it. The empty space around notices no longer blocks taps.
 

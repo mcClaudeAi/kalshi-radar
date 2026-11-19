@@ -758,7 +758,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .kx-pbt .kx-pbb{flex:1;min-width:0}.kx-pbt small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:700}
 .kx-pbt b{display:block;font-size:17px;font-weight:700;color:var(--ink);line-height:1.25;margin-top:2px}.kx-pbt b i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:7px;vertical-align:1px;box-shadow:0 0 10px var(--c)}
 .kx-pbt span{display:block;font-size:12px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kx-pbt .btn.sm{flex:none;border-color:color-mix(in srgb,var(--c) 45%,var(--line))}.kx-pbt.live .kx-pbi{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bad) 50%,transparent)}
+.kx-pbt .btn.sm{flex:none;border-color:color-mix(in srgb,var(--t) 45%,var(--line))}
+/* MC 2026-11-18 the paper and live tiles looked the same when both ran one playbook: both took the playbook's colour. Each now has
+   its own: paper is blue with a dashed edge, live is red with a solid edge and a red rail (grey while live is off). The playbook
+   keeps its colour on the dot only. */
+.kx-pbt{--t:var(--kx);border:1.5px dashed color-mix(in srgb,var(--t) 55%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--t) 9%,transparent),color-mix(in srgb,var(--s1) 55%,transparent))}
+.kx-pbt:before{background:radial-gradient(120px 60px at 10% 0%,color-mix(in srgb,var(--t) 22%,transparent),transparent 70%)}
+.kx-pbt .kx-pbi{background:color-mix(in srgb,var(--t) 16%,transparent);color:var(--t)}
+.kx-pbt small em{display:inline-block;font-style:normal;padding:2px 9px;border-radius:999px;border:1px solid color-mix(in srgb,var(--t) 55%,transparent);color:var(--t);background:color-mix(in srgb,var(--t) 10%,transparent)}
+.kx-pbt.live{--t:#ff4d5e;border:1.5px solid color-mix(in srgb,var(--t) 65%,var(--line));box-shadow:inset 5px 0 0 var(--t),0 0 34px -14px var(--t)!important;padding-left:21px}
+.kx-pbt.live .kx-pbi{background:var(--t);color:#fff;box-shadow:0 0 16px -2px var(--t)}.kx-pbt.live small em{background:var(--t);color:#fff;border-color:var(--t)}
+.kx-pbt.live.off{--t:var(--faint);box-shadow:inset 5px 0 0 var(--line2)!important}.kx-pbt.live.off .kx-pbi{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--mute);box-shadow:none}.kx-pbt.live.off small em{background:transparent;color:var(--mute);border-color:var(--line2)}
+
 .kx-lact{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.kx-lact .btn.sm{padding:5px 9px;font-size:11.5px}.kx-lact .btn.sm.on{border-color:var(--c);color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);cursor:default}
 .kx-pick{display:grid;gap:8px;margin-top:12px;max-height:min(52vh,460px);overflow:auto;padding-right:2px}
 .kx-pk{display:grid;grid-template-columns:auto 1fr auto;gap:10px 12px;align-items:center;text-align:left;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);color:var(--ink);cursor:pointer;font:inherit;transition:border-color .15s,background .15s}
@@ -3798,7 +3809,7 @@ const kxLabOf=(K,id)=>(K?.labsAll||K?.labs||[]).find(l=>l.id===id)||{id:'rule',n
 function kxPbTile(book,K){const pb=book==='live'?K.live?.live?.playbook:K.playbook,id=pb?.id||'rule',l=kxLabOf(K,id),lv=K.live?.live;
   const since=pb?.since?new Date(pb.since).toLocaleString('en-US',{...ET,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):null;
   const sub=book==='live'?(lv?.on?`live is on, $${lv.size} a trade`:'live is off; this applies when it is turned on')+(since?` · since ${since}`:''):(since?`since ${since}`:'the original rule, since the start')+(K.playbook?.stratSkips?` · ${K.playbook.stratSkips} skipped by it`:'');
-  return `<div class="kx-pbt ${book}" style="--c:${l.color}"><div class="kx-pbi">${book==='live'?'$':'P'}</div><div class="kx-pbb"><small>${book==='live'?'Live runs':'Paper runs'}</small><b><i></i>${esc(l.name)}</b><span>${esc(sub)}</span></div><button class="btn sm" onclick="kxPbPick('${book}')" ${ST.me.control||(book!=='live'&&kxPaperFree())?'':'disabled'}>Change</button></div>`}
+  return `<div class="kx-pbt ${book}${book==='live'&&!lv?.on?' off':''}" style="--c:${l.color}"><div class="kx-pbi">${book==='live'?'$':'P'}</div><div class="kx-pbb"><small><em>${book==='live'?(lv?.on?'Live · real money':'Live · off'):'Paper · practice money'}</em></small><b><i></i>${esc(l.name)}</b><span>${esc(sub)}</span></div><button class="btn sm" onclick="kxPbPick('${book}')" ${ST.me.control||(book!=='live'&&kxPaperFree())?'':'disabled'}>Change</button></div>`}
 const kxPbSort=(labs,cur)=>(labs||[]).filter(l=>!l.labOnly).slice().sort((a,b)=>((b.id===cur)-(a.id===cur))||((!b.n)-(!a.n))||((b.net||0)-(a.net||0)));
 function kxPbPick(book,pre){const K=ST.D?.kalshi;if(!K)return;const cur=(book==='live'?K.live?.live?.playbook:K.playbook)?.id||'rule';let sel=pre||cur;
   // MC 2026-11-18 asked: best performers first. Most profit on top; a playbook with no settled trades yet has nothing to rank by,
@@ -5267,7 +5278,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.4',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.3.5',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
