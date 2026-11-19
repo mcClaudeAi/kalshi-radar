@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.13 (Nov 18, 2026): Corrected figures on the later-buy cushion setting
+- [fixed] The help text under "Later buys need a cushion of at least" quoted backtest figures that included the first minute after the trade check, which the playbook does not trade. It now shows the figures for 8 to 4 minutes left, with 1.25 added.
+
 ## 1.3.12 (Nov 18, 2026): The settling call listens to Kalshi
 - [fixed] A card could say "Settling · looks won" on a trade Kalshi then settled as lost. The guess used only Coinbase's last-minute average; Kalshi settles on its own index across several exchanges. The call now goes with Kalshi's own price when it is decisive ("Kalshi has it lost" or "Kalshi has it won"), and says "too close to call" when Coinbase finished within 0.1% of the target.
 
