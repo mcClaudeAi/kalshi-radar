@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.23 (Nov 19, 2026): The live trades export shows a later buy's own readings
+- [fixed] In the live trades CSV, a buy made after the trade check showed the readings from the trade check instead of the ones it was bought on. It now shows the readings at the moment of the buy, and a new later_buy column marks these rows.
+
 ## 1.3.22 (Nov 19, 2026): The three new Claude's pick labs go back to Nov 12
 - [improved] Labs: "Claude's pick, early buy", "Claude's pick, later watched" and "Claude's pick, later watched, no stragglers" now start on Nov 12 like the others. Their early and later buys before the evening of Nov 18 are rebuilt from Kalshi's one-minute price history using the same tests; from then on they are the buys the tracker recorded itself at real order book prices.
 
