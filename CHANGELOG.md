@@ -8,7 +8,7 @@
 - [new] Labs: both playbooks now record on paper at the price the order book really gives for $50, so their live record can be held against the backtest. Labs only for now; they cannot be set as the running playbook yet.
 - [new] The window bar marks the two early looks (minutes 3 and 4) with lit ticks and a line under the bar.
 - [improved] The scanner's chart readings are taken whichever playbook is running.
-- Both new backtests cover Aug 21 on and use quoted prices in whole cents, not fills.
+- [improved] Both new backtests cover Aug 21 on and use quoted prices in whole cents, not fills.
 
 ## 1.2.99 (Nov 18, 2026): The window bar stays up while a trade is open
 - [improved] The window bar (watching, holding, final minute, with the countdown) now stays at the top of the Live board all the time. It used to disappear as soon as a trade was open.
