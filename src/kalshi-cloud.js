@@ -227,7 +227,7 @@ function labDefs(K) {
     // after the check lost money, so it starts at 8 minutes left. Both are Labs only: these rows are what the order book
     // really offered for $50 at that moment (scanPbRead), kept in kxr.
     { id: 'cpe', name: "Claude's pick, early buy", x: 'e', desc: "Claude's pick with one change: at minute 3 or 4 of the window it buys a coin that already passes and is at least 1.5 usual moves clear of its target, at the price the order book gives for $50. Any coin not bought early gets the normal test at the trade check. In 90 days of quoted prices this made about 30% more than waiting. Labs only for now, to see what the real order book offers. Before the evening of Nov 18 its early and later buys are rebuilt from Kalshi's one-minute history at quoted prices; from then on they are what the order book really offered.", color: '#64DFDF', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
-    { id: 'cpl', name: "Claude's pick, later watched", x: 'l', run: true, desc: "Claude's pick at the trade check, plus coins it passed on: from 8 minutes left down to 4 it buys one the first minute it passes the same test. In 90 days of quoted prices the extra buys won 94% and made about half as much per trade as a trade-check buy. Paper takes the later buys whenever this is its playbook. Live takes them only with \"Buy later-watched coins\" turned on in Live settings; without it, live trades this exactly like Claude's pick. Before the evening of Nov 18 its early and later buys are rebuilt from Kalshi's one-minute history at quoted prices; from then on they are what the order book really offered.", color: '#B8F2A0', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
+    { id: 'cpl', name: "Claude's pick, later watched", x: 'y', run: true, desc: "Claude's pick at the trade check, plus coins it passed on: from 8 minutes left down to 4 it buys one the first minute it passes the same test. In 90 days of quoted prices the extra buys won 94% and made about half as much per trade as a trade-check buy. Paper takes the later buys whenever this is its playbook. Live takes them only with \"Buy later-watched coins\" turned on in Live settings; without it, live trades this exactly like Claude's pick. Labs scores its later buys with your paper settings (least cushion, margin inside every line, crowd rule), so changing them rescores the whole line. Before the evening of Nov 18 its early and later buys are rebuilt from Kalshi's one-minute history at quoted prices; from then on they are what the order book really offered.", color: '#B8F2A0', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
     // MC 2026-11-18 asked to find what the losing later buys had in common, keeping the number of trades. Out of 32 readings on
     // 8,341 later buys (90 days), one held in all three 30-day stretches: a later buy made while the other coins leaning the same
     // way already averaged more than 1.5 moves clear lost money (1,042 buys, 91.7% won, -$0.81 each; the rest 94.6%, +$0.84).
@@ -995,7 +995,7 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-19 a coin the running playbook took at the check can still be a later buy for high confidence (its check needs
     // 1.75 moves), so it is read too, marked hcOnly: it only feeds the high confidence record and never lights up on the scanner.
     const lateCap = PAID ? 9 : 4, isLate = s => { const left = s.close - now; if (!(left <= 530000 && left >= L2_MIN_LEFT * 60000)) return false; const took = tookIt(s); if (took && (sid === 'cph' || hcTaken(s.tk))) return false; if (++lateN > lateCap) return false; if (took) s.hcOnly = 1; return true; };
-    const H = [...out].sort((a, b) => xRows.some(r => r.tk === a.tk && r.k !== 'h') - xRows.some(r => r.tk === b.tk && r.k !== 'h')).filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
+    const H = [...out].sort((a, b) => xRows.some(r => r.tk === a.tk && r.k !== 'h' && r.k !== 'm') - xRows.some(r => r.tk === b.tk && r.k !== 'h' && r.k !== 'm')).filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
     if (!H.length) return;
     if (sid === 'rule') for (const s of H) { s.pb = 1; s.pbSide = s.leader; }
     // MC 2026-11-18 the readings are taken whichever playbook runs, so the two Claude's pick labs below can record. Only the
@@ -1036,9 +1036,13 @@ export function createKalshi(state, env, keep) {
       // bar a minute or two later. The Labs row stays as first recorded, but the paper record is brought up to date while paper
       // has not taken it, and live gets another go each minute while an account that wants it still does not hold it.
       const cz = k === 'l' ? await crowdZ(s, out, H, V, now) : null; if (k === 'l') s.cz = cz;
+      // MC 2026-11-19 asked to see later watched in Labs with the settings he runs (cushion 1.75, margin 0.2, crowd rule). Every
+      // minute Claude's pick passes a market its trade check did not take is kept (k 'm', quoted ask, no order book read), and the
+      // lab picks the first one that meets paper's settings, so changing them rescores the whole line.
+      if (k === 'l' && !cpkTaken(s.tk)) { const mk = Math.round(left); if (!xRows.some(r => r.k === 'm' && r.tk === s.tk && Math.round(r.left) === mk)) { xRows.push({ tk: s.tk, c: s.coin, k: 'm', at: now, close: s.close, side: s.leader, ask: s.lask, px: s.lask, z: v.z, dp: v.dp, r2: v.r2, cz, left: +left.toFixed(1) }); days.add(etDay(s.close)); } }
       if (k === 'l' && hcLateOk(v, s.lask, cz) && !hcTaken(s.tk)) { try { if (await hcNote(s, v, cz, left, now, days)) n++; } catch (e) { say('high confidence later buy error: ' + e.message); } }
       if (s.hcOnly) continue;
-      if (xRows.some(r => r.tk === s.tk && r.k !== 'h')) { const r4 = k === 'l' ? rec4.get(s.tk) : null; if (!r4 || r4.side !== s.leader) continue;
+      if (xRows.some(r => r.tk === s.tk && r.k !== 'h' && r.k !== 'm')) { const r4 = k === 'l' ? rec4.get(s.tk) : null; if (!r4 || r4.side !== s.leader) continue;
         const paperWaits = (r4.vol?.z ?? 0) < (r4.lz ?? 1) - 1e-9 || !!(r4.crowd && r4.lc) || !lateMOk(r4.vol, r4.lm), liveWaits = lateWants(r4, now); if (!paperWaits && !liveWaits) continue; if (++n > (PAID ? 9 : 4)) break;
         const b2 = book(await get(`/markets/${s.tk}/orderbook`)), asks2 = s.leader === 'yes' ? b2.yesAsks : b2.noAsks, ask2 = asks2[0]?.[0]; if (ask2 == null || !(ask2 >= XB_LO && ask2 <= XB_HI)) continue;
         const a2 = walk(asks2, BOOK_N), nr = { ...r4, at: Date.now(), left: +left.toFixed(2), ask: ask2, depthAtAsk: asks2[0][1], avgN: a2 == null ? null : +a2.toFixed(4), depth: asks2.reduce((q0, x) => q0 + x[1], 0), vol: v, cz, crowd: cz > XC_Z ? 1 : 0, lm: r4.lm ?? cfgP.lateM ?? 0.2 };
@@ -1132,9 +1136,9 @@ export function createKalshi(state, env, keep) {
     resv = 0; viewDirty = true;
   }
   async function xSettle(now) {
-    let k = 0; const days = new Set();
+    let k = 0; const days = new Set(), got = {};
     for (const r of xRows) { if (r.res || now < r.close + 30000) continue;
-      let res = rec.get(r.tk)?.result; if (!res) { if (++k > (PAID ? 9 : 3)) break; try { res = (await get(`/markets/${r.tk}`))?.market?.result; } catch { continue; } }
+      let res = rec.get(r.tk)?.result || got[r.tk]; if (!res) { if (++k > (PAID ? 9 : 3)) break; try { res = got[r.tk] = (await get(`/markets/${r.tk}`))?.market?.result; } catch { continue; } }
       if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.res = 'void'; days.add(etDay(r.close)); } continue; }
       r.res = res; r.won = res === r.side ? 1 : 0; days.add(etDay(r.close)); }
     for (const d of days) xSave(d); if (days.size) viewDirty = true;
@@ -1947,7 +1951,7 @@ export function createKalshi(state, env, keep) {
     // row the tracker recorded itself, so the two never overlap.
     const xFirst = {}; for (const r of xRows) xFirst[r.k] = Math.min(xFirst[r.k] ?? Infinity, r.close);
     const xAll = [...XSEED.filter(r => r.close < (xFirst[r.k] ?? Infinity)), ...xRows];   // each kind switches over when the tracker's own rows of that kind begin
-    const xT = xAll.filter(r => r.res !== 'void' && r.px != null).map(r => ({ lad: r.lad || null, cz: r.cz ?? null, x: r.k, tk: r.tk, t: r.at, close: r.close, coin: r.c, side: r.side, px: +r.px.toFixed(3), done: !!r.res, won: !!r.won, z: r.z ?? null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }));
+    const xT = xAll.filter(r => r.res !== 'void' && r.px != null).map(r => ({ lad: r.lad || null, cz: r.cz ?? null, dp: r.dp ?? null, r2: r.r2 ?? null, x: r.k, tk: r.tk, t: r.at, close: r.close, coin: r.c, side: r.side, px: +r.px.toFixed(3), done: !!r.res, won: !!r.won, z: r.z ?? null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }));
     const labs = runLabs(trades, K, lateT, m10T, epT, lsT, xT);
     pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
@@ -2024,7 +2028,10 @@ export function createKalshi(state, env, keep) {
     labRowsMem = {};
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
     // the two Claude's pick labs: the trade-check trades plus their own rows; a coin bought early is not bought again at the check
-    const xMix = {}; for (const k of ['e', 'l', 'h']) { const own = xT.filter(t => t.x === k), got = new Set(k === 'e' ? own.map(t => t.tk) : []); xMix[k] = [...plain.filter(t => !got.has(t.tk)), ...own].sort((a, b) => a.t - b.t); }
+    // later watched as paper runs it: for each market, the first later minute that meets paper's cushion, margin and crowd settings
+    { const zb = K.lateZ ?? 1, mb = K.lateM ?? 0.2, cr = K.lateCrowd !== 0, seen = new Set();
+      for (const t of xT.filter(t => t.x === 'm').sort((a, b) => a.t - b.t)) { if (seen.has(t.tk) || !(t.z >= zb - 1e-9) || !lateMOk({ z: t.z, dp: t.dp, r2: t.r2 }, mb) || (cr && t.cz > XC_Z)) continue; seen.add(t.tk); t.x = 'y'; } }
+    const xMix = {}; for (const k of ['e', 'l', 'h', 'y']) { const own = xT.filter(t => t.x === k), got = new Set(k === 'e' ? own.map(t => t.tk) : []); xMix[k] = [...plain.filter(t => !got.has(t.tk)), ...own].sort((a, b) => a.t - b.t); }
     const todayK = etDay(Date.now());
     // MC 2026-11-18 asked: Labs priced every trade as one $50 buy, but three accounts buy the same coin in the same second and
     // the second and third pay more (HYPE filled at 91.1c, 92.6c and 92.2c). labAccts (1 to 4, a paper setting) prices each
