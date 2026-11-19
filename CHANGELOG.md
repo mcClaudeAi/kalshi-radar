@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.30 (Nov 19, 2026): A cushion bar for Claude's pick at the trade check
+- [new] Settings: "Trade check: least cushion (moves)", 1 to 3, set per account. Claude's pick only buys at the trade check when a coin is at least this far clear of its target. It defaults to 1, the playbook's own bar, so nothing changes until you raise it.
+- [improved] Backtest: "Claude's pick, later watched (your settings)" now uses the trade-check cushion from Paper settings too.
+- [fixed] The note after saving settings showed later-buy cushions and switches as dollar amounts.
+
 ## 1.3.29 (Nov 19, 2026): Hide the coins the trade check passed on
 - [new] Scanner: once the trade check has passed, a "Hide passed" switch hides the coins it passed on or skipped that window. Taken coins and green "buy now" rows stay, and the switch is remembered on this device.
 
