@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.2.99 (Nov 18, 2026): The window bar stays up while a trade is open
+- [improved] The window bar (watching, holding, final minute, with the countdown) now stays at the top of the Live board all the time. It used to disappear as soon as a trade was open.
+
 ## 1.2.98 (Nov 18, 2026): Green "buy now" rows after the trade check
 - [new] After the trade check, the scanner keeps reading coins the check did not take, each minute until 4 minutes are left. When the running playbook would buy one at its price right now, the row lights up green with a BUY NOW tag so you can buy it by hand. The tracker does not buy these.
 
