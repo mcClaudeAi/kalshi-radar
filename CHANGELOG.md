@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.29 (Nov 19, 2026): Hide the coins the trade check passed on
+- [new] Scanner: once the trade check has passed, a "Hide passed" switch hides the coins it passed on or skipped that window. Taken coins and green "buy now" rows stay, and the switch is remembered on this device.
+
 ## 1.3.28 (Nov 19, 2026): Claude's pick labs start with their first trade of either kind
 - [fixed] A Claude's pick lab started at its first early or later buy, so with a high cushion bar its trade-check buys from the days before were left off. It now starts at its first trade of either kind.
 
