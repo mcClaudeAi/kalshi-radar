@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.3 (Nov 18, 2026): Playbook picker sorted by results, one-step setup for later buys
+- [improved] The playbook picker lists the running playbook first, then the rest by profit, best first. A playbook with no settled trades yet sits near the top with a "new" tag so it is easy to find.
+- [new] Choosing Claude's pick, later watched for live now asks, right after it is saved, whether to turn on the later buys for Main and the sub accounts. Hold to confirm; saying no leaves it trading like Claude's pick at the trade check.
+
 ## 1.3.2 (Nov 18, 2026): Claude's pick, later watched can run on paper and live
 - [new] "Claude's pick, later watched" can be picked as the paper or live playbook, for Main and for sub accounts. At the trade check it trades exactly like Claude's pick.
 - [new] Paper: while it is the paper playbook, coins the trade check passed on are bought the first minute they pass the same test afterwards, from 8 minutes left down to 4.
