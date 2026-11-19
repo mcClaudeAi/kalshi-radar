@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.24 (Nov 19, 2026): Safer later buys: a margin inside every line
+- [new] New setting for Claude's pick, later watched: "Later buys: margin inside every line", set to 0.2 for paper, live and every sub account. A buy after the trade check now has to clear Claude's pick's lines with room to spare: cushion 1.2 or more, worst dip above -1.8, straightness under 0.5. Coins right on a line are skipped and checked again the next minute. Trade-check buys are not affected. Set it to none to go back to the plain test.
+- [new] Backtest: "Claude's pick, later watched, safe" shows later watched with this margin and the crowd rule.
+
 ## 1.3.23 (Nov 19, 2026): The live trades export shows a later buy's own readings
 - [fixed] In the live trades CSV, a buy made after the trade check showed the readings from the trade check instead of the ones it was bought on. It now shows the readings at the moment of the buy, and a new later_buy column marks these rows.
 
