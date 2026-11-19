@@ -239,7 +239,7 @@ export function createBooks(D) {
   // already sent is left alone.
   async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null) {
     await load();
-    await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === 'cpl').map(async b => {
+    await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === 'cpl' && D.stratAt(b.strat, r.close - 600000) === 'cpl').map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
       const prev = Lb.get(r.ticker); if (prev && !prev.skipped) return; if (prev) Lb.delete(r.ticker);
       try { await buy(b, r, lab, cfgP, benchOf(cfgP), sends, missed);

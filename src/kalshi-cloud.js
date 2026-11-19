@@ -1008,7 +1008,7 @@ export function createKalshi(state, env, keep) {
     const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys()) return;
     const lab = labDefs(cfgL).find(l => l.id === 'cpl'), sends = [], missed = [], cn = coin(r.series);
     const ok = cfg => cfg.lateBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9 && !(cfg.skipHours || []).includes(etHour(now));
-    if (stratAt(c.strat, now) === 'cpl' && ok(cfgL) && liveSeries().includes(r.series)) { const prev = L.get(r.ticker);
+    if (stratAt(c.strat, now) === 'cpl' && stratAt(c.strat, r.close - 600000) === 'cpl' && ok(cfgL) && liveSeries().includes(r.series)) { const prev = L.get(r.ticker);
       if (!prev || prev.skipped) { if (prev) L.delete(r.ticker);
         try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); }
         const x = L.get(r.ticker); if (!x) { if (prev) L.set(r.ticker, prev); } else { x.late = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
@@ -1257,7 +1257,11 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
       open.push({ ...pbOf(r, px), tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: fresh(r.ticker)?.yb ?? lp?.[1] ?? null, ya: fresh(r.ticker)?.ya ?? lp?.[2] ?? null, last: fresh(r.ticker)?.last ?? lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
     }
+    // MC 2026-11-18 a playbook change applies from the next trade check, but a later-watched buy made minutes after the switch,
+    // inside the window already running, was joining the paper book (NEAR, bought 8:11 PM right after the 8:11 switch). A later
+    // buy now counts only when the playbook was already running at that window's trade check. Same for live (lateLive).
     { const sN0 = stratAt(K.strat, now); if (sN0 === 'look2' || sN0 === 'cpl') for (const r of (sN0 === 'cpl' ? rec4 : rec2).values()) {
+      if (sN0 === 'cpl' && stratAt(K.strat, r.close - 600000) !== 'cpl') continue;
       if (r.result || now > r.close + 300000 || (sN0 === 'cpl' ? cpkTaken(r.ticker) : baseTaken(r.ticker))) continue;
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = rec.get(r.ticker)?.path?.at(-1), i = open.findIndex(o => o.tk === r.ticker), o = { late: 1, lw: r.lw || 0, left: r.left, tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: rec.get(r.ticker)?.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: null };
       if (i >= 0) open[i] = o; else open.push(o);
@@ -1723,7 +1727,7 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-10 second-look entries join the paper book only while "Margin vs volatility + second look" is the playbook, in
     // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
     // own analytics, and one whose market the mark trade already holds is dropped.
-    const lates = [...[...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker)), ...[...rec4.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'cpl' && !cpkTaken(r.ticker))];
+    const lates = [...[...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker)), ...[...rec4.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.close - 600000) === 'cpl' && !cpkTaken(r.ticker))];
     const hands = [...loadH().values()].filter(r => r.result !== 'void');
     const rowsAll = lates.length || hands.length ? [...rows, ...lates, ...hands].sort(byClear) : rows, lockRem = {}, wSnap = {}, tookW = {}, ifW = {}, wCap = K.winCap ?? 9;
     for (const r of rowsAll) {

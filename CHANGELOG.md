@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.6 (Nov 18, 2026): Later-watched buys wait for the next trade check after a switch
+- [fixed] After switching to Claude's pick, later watched, a later buy could be taken minutes afterwards in the window already running, though a playbook change is meant to apply from the next trade check. Later buys now start with the first window whose trade check ran on that playbook, on paper and live.
+- [fixed] A later-watched card said "At the trade check" over readings taken when it was bought. It now says "When it was bought".
+
 ## 1.3.5 (Nov 18, 2026): Paper and live playbook tiles look different
 - [improved] The paper tile is blue with a dashed edge and a "Paper · practice money" badge. The live tile is red with a solid edge, a red rail and a "Live · real money" badge, and turns grey with "Live · off" while live is off. The playbook keeps its own colour on the dot only.
 
