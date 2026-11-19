@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.20 (Nov 18, 2026): Price room accepts tenths of a cent
+- [fixed] Price room was rounded to a whole cent when saved, so 1.5 became 2. It now keeps a tenth of a cent, 0 to 3.
+
 ## 1.3.19 (Nov 18, 2026): More is saved with every early and later buy
 - [new] With each early and later buy the tracker now also saves the bids on Kalshi, Kalshi's trades in the last minute, Coinbase's last minute in 10-second steps, and the same coin's price on Kraken and Bitstamp. Nothing about what gets bought changes; this is so there is more to learn from once enough of these buys have settled.
 - [new] "Export later buys" beside the other exports downloads all of it as one file.
