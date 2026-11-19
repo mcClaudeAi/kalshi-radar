@@ -41,7 +41,7 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
-const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
+const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, trendExit: 0, trendKeep: 50, winCap: 9 };
@@ -62,7 +62,7 @@ const ARCH = new Set(['kelly', 'no95', 'six', 'tr10', 'edge', 'edge2', 'two', 'p
 function labWhy(id, t, K = {}) {
   const c = v => `${(v * 100).toFixed(1).replace(/\.0$/, '')}¢`, m = (v, need) => (v < need && +v.toFixed(2) >= need ? v.toFixed(3) : v.toFixed(2)), pc = v => `${(v * 100).toFixed(0)}%`;
   const need = px => px + 0.07 * px * (1 - px) + 0.01, far = (z, bar, what = '') => `it was only ${m(z, bar)} usual moves from its target${what} and this playbook wants at least ${bar}, so a normal swing could still flip it`;
-  const cap = id === 'mv96' ? 0.96 : ['no95', 'mv95', 'mvl', 'mv15', 'mvai', 'mvsw', 'mvcc', 'cpk', 'all'].includes(id) ? 0.95 : id === 'mix' ? (K.mixMaxPx ?? 0.95) : null;
+  const cap = id === 'mv96' ? 0.96 : ['no95', 'mv95', 'mvl', 'mv15', 'mvai', 'mvsw', 'mvcc', 'cpk', 'cpl', 'cpe', 'all'].includes(id) ? 0.95 : id === 'mix' ? (K.mixMaxPx ?? 0.95) : null;
   if (cap != null && t.px >= cap) return `it cost ${c(t.px)} and this playbook only buys under ${c(cap)}, because the priciest contracts pay too little for the risk`;
   if (id === 'six' || id === 'all') { if (t.win != null && t.win < 6) return `only ${t.win} coin${t.win === 1 ? '' : 's'} qualified in this window and this playbook wants at least 6`; if (id === 'six') return null; }
   if (id === 'kelly') return t.kf == null ? 'there is not enough history at this price to size the bet yet' : 'trades at this price have not shown an edge yet, so it bets nothing';
@@ -77,14 +77,14 @@ function labWhy(id, t, K = {}) {
   if (id === 'mvl') return t.pl == null ? 'the learning model had no reading for this coin yet' : `the learning model gave it a ${pc(t.pl)} chance and the price needs ${pc(need(t.px))} to be worth it`;
   if (id === 'mvai' && t.same != null && t.same < 3) return `only ${t.same} coin${t.same === 1 ? ' was' : 's were'} leading this way at 90¢ or more and this playbook wants at least 3 moving together`;
   if (id === 'mvsw') return t.sw == null ? 'there was no chart reading for this coin yet, so it could not be checked' : 'its lead was mostly new: 20 minutes earlier it was on the other side of its target, and leads like that swung back more often in testing';
-  const ch = id === 'cpk' ? { r2: 0.7, dp: -2 } : id === 'mvcc' ? { r2: 0.81, dp: -1.7 } : null;
+  const ch = id === 'cpk' || id === 'cpl' || id === 'cpe' ? { r2: 0.7, dp: -2 } : id === 'mvcc' ? { r2: 0.81, dp: -1.7 } : null;
   if (ch) { if (t.r2 == null || t.dp == null) return 'there was no chart reading for this coin yet, so it could not be checked';
     if (t.dp <= ch.dp) return `it was ${Math.abs(t.dp).toFixed(1)} usual moves on the wrong side of its target in the last 30 minutes (the limit is ${Math.abs(ch.dp)}), and a coin that swung that far can swing back`;
     if (t.r2 >= ch.r2) return `its last 15 minutes ran in a near-straight line (${t.r2.toFixed(2)}, needs under ${ch.r2.toFixed(2)}), and runs like that reversed more often in testing`; }
   if (id === 'mix') return 'it did not pass the checks you set in Your mix';
   return null;
 }
-const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, all: 0.95, mv96: 0.96 };
+const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, cpl: 0.95, cpe: 0.95, all: 0.95, mv96: 0.96 };
 function orderLimit(r, labId, cfg) {
   const room = Math.max(0, Math.min(3, cfg.slipC ?? 1)) / 100, tick = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01;
   let top = Math.min(0.99, cfg.maxAsk ?? 0.99, +(r.ask + room).toFixed(4)), why = room ? `${(room * 100).toFixed(1).replace(/\.0$/, '')}c of room` : 'no room';
@@ -101,7 +101,7 @@ const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
 // MC 2026-11-13 a price as cents for copy: whole cents as before, and a tenth when the setting has one (94.5). Request 10 let
 // the minimum and maximum price take a tenth of a cent, because about half the leaders in the history sit between two cents.
 const cts = p => { const c = Math.round(p * 1000) / 10; return Number.isInteger(c) ? String(c) : c.toFixed(1); };
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1], retryFill: [0, 1] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1], retryFill: [0, 1], lateBuy: [0, 1] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -213,7 +213,7 @@ function labDefs(K) {
     // after the check lost money, so it starts at 8 minutes left. Both are Labs only: these rows are what the order book
     // really offered for $50 at that moment (scanPbRead), kept in kxr.
     { id: 'cpe', name: "Claude's pick, early buy", x: 'e', desc: "Claude's pick with one change: at minute 3 or 4 of the window it buys a coin that already passes and is at least 1.5 usual moves clear of its target, at the price the order book gives for $50. Any coin not bought early gets the normal test at the trade check. In 90 days of quoted prices this made about 30% more than waiting. Labs only for now, to see what the real order book offers.", color: '#64DFDF', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
-    { id: 'cpl', name: "Claude's pick, later watched", x: 'l', desc: "Claude's pick at the trade check, plus coins it passed on: from 8 minutes left down to 4 it buys one the first minute it passes the same test, at the price the order book gives for $50. In 90 days of quoted prices the extra buys won 94% and made about half as much per trade as a trade-check buy. Labs only for now.", color: '#B8F2A0', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
+    { id: 'cpl', name: "Claude's pick, later watched", x: 'l', run: true, desc: "Claude's pick at the trade check, plus coins it passed on: from 8 minutes left down to 4 it buys one the first minute it passes the same test. In 90 days of quoted prices the extra buys won 94% and made about half as much per trade as a trade-check buy. Paper takes the later buys whenever this is its playbook. Live takes them only with \"Buy later-watched coins\" turned on in Live settings; without it, live trades this exactly like Claude's pick.", color: '#B8F2A0', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
     { id: 'epk', name: 'Early pack', ep: true, desc: 'Buys the leader early and cheaper: 60¢ to 90¢ at the trade check (10 minutes left), only when at least 3 coins are leading the same way, before 9 PM ET, and never HYPE. Built from your own winning hand buys. Labs only for now; the paper and live price bands start higher.', color: '#F15BB5', filter: t => t.hr == null ? null : t.px >= EP_LO && t.px < EP_HI && t.same >= 3 && t.hr < 21 && t.coin !== 'HYPE' },
     { id: 'mv15', name: 'Margin vs volatility, 1.5 moves', desc: 'Margin vs volatility under 95¢ with a higher bar: the coin must be at least 1.5 normal 10-minute moves past its target, not 1. About 40% of the trades and half the profit in the history, but the worst day and the worst drop were both about half as deep, and the win rate went from 94.2% to 95.2%.', color: '#80FFDB', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
@@ -402,8 +402,9 @@ export function createKalshi(state, env, keep) {
   sql.exec('CREATE TABLE IF NOT EXISTS kt (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS ko (tk TEXT PRIMARY KEY, at INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS k2 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // second-look entries, kept apart from the mark records so nothing else counts them
+  sql.exec('CREATE TABLE IF NOT EXISTS k4 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // Claude's pick, later watched: its buys after the trade check, same shape as k2
   sql.exec('CREATE TABLE IF NOT EXISTS k3 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // every coin's price and trend at minute 10, for the Wait for the trend lab
-  let rec2 = new Map(), rec3 = new Map(), lsRows = [], lsDone = 0, xRows = [];
+  let rec2 = new Map(), rec3 = new Map(), rec4 = new Map(), lsRows = [], lsDone = 0, xRows = [];
   let cfgL = null;   // live rules (LIVE_KEYS), seeded from paper the first time
   let rec = null, L = null, cfgP = null, ctlL = null, scan = [], scanAt = 0, view = null, viewDirty = true, viewAt = 0;
   const st = { bal: null, balAt: 0, lastErr: null, errAt: 0, host: 0, sellAllDone: 0, stopped: null, keyOk: null, shard: {}, xferAt: 0, lastXfer: null, lastMark: 0 };
@@ -412,7 +413,7 @@ export function createKalshi(state, env, keep) {
   const say = s => { logs.push(`${new Date().toISOString().slice(11, 19)} ${s}`); if (logs.length > 60) logs.shift(); console.log('kx ' + s); };
   async function load() {
     if (rec) return;
-    rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3');
+    rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3'); rec4 = loadT('k4');
     lsRows = []; for (const row of sql.exec('SELECT j FROM kls WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { lsRows.push(...JSON.parse(row.j)); } catch { } }
     xRows = []; for (const row of sql.exec('SELECT j FROM kxr WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { xRows.push(...JSON.parse(row.j)); } catch { } }
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
@@ -439,9 +440,9 @@ export function createKalshi(state, env, keep) {
   // the early and later-watched paper buys of the two Claude's pick labs, kept the same way
   sql.exec('CREATE TABLE IF NOT EXISTS kxr (d TEXT PRIMARY KEY, j TEXT)');
   const xSave = d => sql.exec('INSERT OR REPLACE INTO kxr (d, j) VALUES (?, ?)', d, JSON.stringify(xRows.filter(r => etDay(r.close) === d)));
-  const H6 = 6 * 3600000, DAY = 86400000, TBL = ['kt', 'k2', 'k3'];
-  const where = { kt: new Map(), k2: new Map(), k3: new Map() }, packs = { kt: new Map(), k2: new Map(), k3: new Map() };   // ticker -> pack id, pack id -> tickers
-  const mapOf = t => t === 'kt' ? rec : t === 'k2' ? rec2 : rec3;
+  const H6 = 6 * 3600000, DAY = 86400000, TBL = ['kt', 'k2', 'k3', 'k4'];
+  const where = { kt: new Map(), k2: new Map(), k3: new Map(), k4: new Map() }, packs = { kt: new Map(), k2: new Map(), k3: new Map(), k4: new Map() };   // ticker -> pack id, pack id -> tickers
+  const mapOf = t => t === 'kt' ? rec : t === 'k2' ? rec2 : t === 'k4' ? rec4 : rec3;
   function loadT(t) {
     const m = new Map(); where[t].clear(); packs[t].clear();
     for (const r of sql.exec('SELECT b, j FROM kp WHERE t = ?', t)) { let a = []; try { a = JSON.parse(r.j); } catch {} const set = new Set(); packs[t].set(r.b, set);
@@ -469,7 +470,7 @@ export function createKalshi(state, env, keep) {
         packs[t].set(did, set); for (const k of set) where[t].set(k, did); writePack(t, did); for (const id of ids) { sql.exec('DELETE FROM kp WHERE t = ? AND b = ?', t, id); packs[t].delete(id); } }
     }
   }
-  const saveRec = r => saveT('kt', r), saveRec2 = r => saveT('k2', r), saveRec3 = r => saveT('k3', r);
+  const saveRec = r => saveT('kt', r), saveRec2 = r => saveT('k2', r), saveRec3 = r => saveT('k3', r), saveRec4 = r => saveT('k4', r);
   const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.tk, x.at, JSON.stringify(x));
   const ctl = () => ({ enabled: ctlL.enabled === true, autoPause: ctlL.autoPause === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
@@ -841,7 +842,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 limWhy: what set the order's top price (the room, or a cap that held it lower)
       // MC 2026-11-14 with the order's limit, the ask it was based on, how fast it went out, what a miss saw after, the fees, and
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
-      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, mres: rr?.result === 'yes' || rr?.result === 'no' ? rr.result : null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
+      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, mres: rr?.result === 'yes' || rr?.result === 'no' ? rr.result : null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, late: x.late || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
         ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
       playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view(), logos: Object.fromEntries(Object.entries(klogos).map(([k, x]) => [k, x.at])) };
   }
@@ -911,7 +912,7 @@ export function createKalshi(state, env, keep) {
     // the playbook check for one hit, shared by the main live book and the subaccount books
     // MC 2026-11-15 the check is built from a set of live rules and that set's trades, so a book with its own rules gets its own
     const mkGate = (cfg, H) => { let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfg.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
-      return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep || lab.x) return { ok: false, why: 'playbook not available live' };
+      return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep || (lab.x && !lab.run)) return { ok: false, why: 'playbook not available live' };
         if (sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = H.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) return { ok: true, lab }; const tt = { px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null };
@@ -962,7 +963,7 @@ export function createKalshi(state, env, keep) {
     if (sid === 'rule') for (const s of H) { s.pb = 1; s.pbSide = s.leader; }
     // MC 2026-11-18 the readings are taken whichever playbook runs, so the two Claude's pick labs below can record. Only the
     // would-buy answer on the row depends on the running playbook.
-    const mark = !(sid === 'rule' || !lab || lab.m10Only || lab.ep || lab.x || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly'));
+    const mark = !(sid === 'rule' || !lab || lab.m10Only || lab.ep || (lab.x && !lab.run) || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly'));
     const carry = H.some(s => !s.pbLate && s.close - now - 600000 < 50000), old = new Map(scan.map(z => [z.tk + z.leader, z]));
     const V = await Promise.all(H.map(s => { const o = old.get(s.tk + s.leader); return carry ? (o?.pbV || null) : s.strike > 0 ? volAt(s.coin, s.strike, s.leader).catch(() => null) : null; }));
     try { await xNote(H, V, now); } catch (e) { say('early/late lab error: ' + e.message); }
@@ -986,8 +987,36 @@ export function createKalshi(state, env, keep) {
       const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null || !(ask >= XB_LO && ask <= XB_HI)) continue;
       const q = Math.floor(50 / ask), a = walk(asks, q), series = activeSeries().find(x => coin(x) === s.coin) || null;
       xRows.push({ tk: s.tk, s: series, c: s.coin, k, at: now, close: s.close, side: s.leader, ask, px: a == null ? null : +a.toFixed(4), z: v.z, left: +left.toFixed(1) }); days.add(etDay(s.close));
+      // MC 2026-11-18 asked to run later watched on paper and live. The same buy as a full record (the second look's shape), kept
+      // in k4: the paper book takes it while this is the paper playbook, and live may buy it (lateLive has the conditions).
+      if (k === 'l' && series && !rec4.has(s.tk)) { const avgN = walk(asks, BOOK_N), ya = b.yesAsks[0]?.[0] ?? null, na = b.noAsks[0]?.[0] ?? null;
+        const r = { ticker: s.tk, late: 1, lw: 1, series, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya, na, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };
+        rec4.set(s.tk, r); saveRec4(r); try { await lateLive(r, now); } catch (e) { fail('later watched order error: ' + e.message); } }
       say(`${s.tk} ${s.leader.toUpperCase()} at ${Math.round(ask * 100)}c <- Claude's pick ${k === 'e' ? 'early buy' : 'later watched'} (Labs), ${v.z} moves clear, ${left.toFixed(1)} min left`); }
     for (const d of days) xSave(d); if (days.size) viewDirty = true;
+  }
+  // the trade check took this market under Claude's pick's own test (so later watched has nothing to add)
+  const cpkTaken = tk => { const b = rec.get(tk); return !!(b && b.result !== 'void' && b.ask >= XB_LO && cpkOk({ px: b.avgN || b.ask, z: b.vol?.z, dp: b.vol?.dp, r2: b.vol?.r2 })); };
+  // MC 2026-11-18 a later-watched buy on the live accounts. Real money, so every condition has to hold: live is on and not
+  // paused, the account's playbook is Claude's pick, later watched, its "Buy later-watched coins" setting is on (lateBuy, off
+  // unless turned on), the coin and price are inside that account's live band, and the hour is not switched off. The order
+  // then goes through the same path as a trade-check order (onRule, and buy in books.js), so the size cap, the daily stops,
+  // the cash floor, the window cap, the order limit under 95c and the missed-fill retry all apply unchanged. A market the
+  // account only has a skip note for (passed at the check, nothing sent) can be bought; one where an order was already sent
+  // is left alone, filled or not.
+  async function lateLive(r, now) {
+    const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys()) return;
+    const lab = labDefs(cfgL).find(l => l.id === 'cpl'), sends = [], missed = [], cn = coin(r.series);
+    const ok = cfg => cfg.lateBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9 && !(cfg.skipHours || []).includes(etHour(now));
+    if (stratAt(c.strat, now) === 'cpl' && ok(cfgL) && liveSeries().includes(r.series)) { const prev = L.get(r.ticker);
+      if (!prev || prev.skipped) { if (prev) L.delete(r.ticker);
+        try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); }
+        const x = L.get(r.ticker); if (!x) { if (prev) L.set(r.ticker, prev); } else { x.late = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
+    const ts = Date.now();
+    await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('order error: ' + e.message)))), books.onLate(r, now, lab, cfgL, ok, cfg => coldSet(now, cfg), missed).catch(e => say('books error: ' + e.message))]);
+    if (sends.length) console.log(`later watched: ${r.ticker} order answered ${Date.now() - ts}ms after sending`);
+    try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
+    resv = 0; viewDirty = true;
   }
   async function xSettle(now) {
     let k = 0; const days = new Set();
@@ -1228,11 +1257,11 @@ export function createKalshi(state, env, keep) {
       const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = r.path?.at(-1);
       open.push({ ...pbOf(r, px), tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: fresh(r.ticker)?.yb ?? lp?.[1] ?? null, ya: fresh(r.ticker)?.ya ?? lp?.[2] ?? null, last: fresh(r.ticker)?.last ?? lp?.[3] ?? null, path: r.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: r.lp ?? null });
     }
-    if (stratAt(K.strat, now) === 'look2') for (const r of rec2.values()) {
-      if (r.result || now > r.close + 300000 || baseTaken(r.ticker)) continue;
-      const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = rec.get(r.ticker)?.path?.at(-1), i = open.findIndex(o => o.tk === r.ticker), o = { late: 1, left: r.left, tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: rec.get(r.ticker)?.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: null };
+    { const sN0 = stratAt(K.strat, now); if (sN0 === 'look2' || sN0 === 'cpl') for (const r of (sN0 === 'cpl' ? rec4 : rec2).values()) {
+      if (r.result || now > r.close + 300000 || (sN0 === 'cpl' ? cpkTaken(r.ticker) : baseTaken(r.ticker))) continue;
+      const px = r.avgN || r.ask, n = Math.floor(K.sizeUsd / px), lp = rec.get(r.ticker)?.path?.at(-1), i = open.findIndex(o => o.tk === r.ticker), o = { late: 1, lw: r.lw || 0, left: r.left, tk: r.ticker, coin: coin(r.series), side: r.side, px: +px.toFixed(4), ask: r.ask, n, cost: +(n * px + fee(px, n)).toFixed(2), at: r.at, close: r.close, strike: r.strike ?? null, title: r.title || null, yb: lp?.[1] ?? null, ya: lp?.[2] ?? null, last: lp?.[3] ?? null, path: rec.get(r.ticker)?.path || [], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, pl: null };
       if (i >= 0) open[i] = o; else open.push(o);
-    }
+    } }
     return { at: Math.max(scanAt, ...scan.map(z => z.q || 0)) || now, open, scan: scan.map(({ pbV, ...z }) => z), scanPb: scanPbOf, size: K.sizeUsd, minAsk: K.minAsk, live: liveView(), where: 'cloud' };
   }
   async function publish(save) {
@@ -1261,7 +1290,7 @@ export function createKalshi(state, env, keep) {
         const o = w.filter(x => !seen[key + 'o' + x.id] && now - x.at < 12 * 60000 && now < close + 60000);
         if (o.length) { const cost = o.reduce((a, x) => a + x.cost, 0); o.forEach(x => mark(key + 'o' + x.id));
           out.push({ book, kind: 'open', tag: key + 'o' + close, url: '/', title: o.length === 1 ? `${label}: position opened` : `${label}: ${o.length} positions opened`,
-            body: (o.length === 1 ? `${o[0].coin} ${sd(o[0].side)}, ${o[0].n} contracts at ${c1(o[0].px)}${o[0].late ? ' (second look)' : ''}` : join(o.map(x => `${x.coin} ${sd(x.side)} ${c1(x.px)}`))) + `\nCommitted ${usd(cost)}. Settles ${tm(close)}.` + (pbName ? `\nPlaybook: ${pbName}.` : '') }); }
+            body: (o.length === 1 ? `${o[0].coin} ${sd(o[0].side)}, ${o[0].n} contracts at ${c1(o[0].px)}${o[0].late ? (/later watched/.test(pbName || '') ? ' (later watched)' : ' (second look)') : ''}` : join(o.map(x => `${x.coin} ${sd(x.side)} ${c1(x.px)}`))) + `\nCommitted ${usd(cost)}. Settles ${tm(close)}.` + (pbName ? `\nPlaybook: ${pbName}.` : '') }); }
         const d = w.filter(x => x.done && !seen[key + 's' + x.id] && now - close < 40 * 60000), all = w.every(x => x.done);
         if (d.length && (all || now > close + 4 * 60000)) { const net = d.reduce((a, x) => a + x.pnl, 0), nw = d.filter(x => x.won).length, nl = d.length - nw; d.forEach(x => mark(key + 's' + x.id));
           out.push({ book, kind: 'settle', win: nw > 0, loss: nl > 0, tag: key + 's' + close, url: '/',
@@ -1511,7 +1540,7 @@ export function createKalshi(state, env, keep) {
     }
   }
   // the open paper position in a market, from the last book run: the rule's trade, a second look, or a hand buy
-  const paperPos = tk => { const t = (pnT || []).find(t => t.mk === tk && !t.capped && !t.done); return t ? { t, r: t.hand ? loadH().get(tk) : t.late ? rec2.get(tk) : rec.get(tk), save: t.hand ? saveH : t.late ? saveRec2 : saveRec } : null; };
+  const paperPos = tk => { const t = (pnT || []).find(t => t.mk === tk && !t.capped && !t.done); return t ? { t, r: t.hand ? loadH().get(tk) : t.late ? (t.lw ? rec4.get(tk) : rec2.get(tk)) : rec.get(tk), save: t.hand ? saveH : t.late ? (t.lw ? saveRec4 : saveRec2) : saveRec } : null; };
   async function paperBuyQuote(tk, side) {
     tk = String(tk || ''); const s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
     kalshiView(); if (loadH().has(tk) || (pnT || []).some(t => t.mk === tk && !t.capped)) return { ok: false, msg: 'Paper already holds this market.' };
@@ -1539,6 +1568,13 @@ export function createKalshi(state, env, keep) {
       if (!res) { if (++k > 6) break; const j = await get(`/markets/${r.ticker}`); res = j?.market?.result; if (j?.market) fin0 = fin(j.market); }
       if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.result = 'void'; saveRec2(r); viewDirty = true; } continue; }
       r.result = res; r.won = res === r.side; r.final = fin0 ?? null; saveRec2(r); viewDirty = true; say(`settled ${r.ticker} (second look): ${r.won ? 'won' : 'LOST'}`);
+    }
+    for (const r of rec4.values()) {
+      if (r.result || now < r.close + 60000) continue;
+      const b = rec.get(r.ticker); let res = b?.result, fin0 = b?.final;
+      if (!res) { if (++k > 6) break; const j = await get(`/markets/${r.ticker}`); res = j?.market?.result; if (j?.market) fin0 = fin(j.market); }
+      if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.result = 'void'; saveRec4(r); viewDirty = true; } continue; }
+      r.result = res; r.won = res === r.side; r.final = fin0 ?? null; saveRec4(r); viewDirty = true; say(`settled ${r.ticker} (later watched): ${r.won ? 'won' : 'LOST'}`);
     }
   }
 
@@ -1687,7 +1723,7 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-10 second-look entries join the paper book only while "Margin vs volatility + second look" is the playbook, in
     // time order with the mark trades. They never count toward the window tallies, the cold-coin history, Kelly or the rule's
     // own analytics, and one whose market the mark trade already holds is dropped.
-    const lates = [...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker));
+    const lates = [...[...rec2.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'look2' && !baseTaken(r.ticker)), ...[...rec4.values()].filter(r => r.result !== 'void' && stratAt(K.strat, r.at) === 'cpl' && !cpkTaken(r.ticker))];
     const hands = [...loadH().values()].filter(r => r.result !== 'void');
     const rowsAll = lates.length || hands.length ? [...rows, ...lates, ...hands].sort(byClear) : rows, lockRem = {}, wSnap = {}, tookW = {}, ifW = {}, wCap = K.winCap ?? 9;
     for (const r of rowsAll) {
@@ -1741,7 +1777,7 @@ export function createKalshi(state, env, keep) {
       const stopSk = !late && (halted || lockCut) && !strat && !off && !cold && !(perWin[w] > K.maxPerWindow) && (tookW[w] || 0) + (ifW[w] || 0) < wCap; if (stopSk) ifW[w] = (ifW[w] || 0) + 1;
       const capped = capped0 || lockCut || wcap, n = hand && r.n ? r.n : Math.floor(szUse / px), cost = +(n * px + fee(px, n)).toFixed(2);
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
-      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, why: strat ? labWhy(sid, { px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: ko.kf, pl: r.lp ?? null }, K) : null, book: sid,
+      const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, lw: r.lw ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, why: strat ? labWhy(sid, { px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: ko.kf, pl: r.lp ?? null }, K) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
         title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null,
         // MC 2026-11-16 the chart readings went on the trade record but not on this copy, so the Labs lines for the playbooks that
@@ -1893,10 +1929,10 @@ export function createKalshi(state, env, keep) {
     return LABS.map(lab => {
       const trades = lab.ls ? lsT : lab.ep ? epT : lab.x ? xT.filter(t => t.x === lab.x) : lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
-      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || lab.x), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
+      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || (lab.x && !lab.run)), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || lab.x), since: first.close, ...both(false), cx: both(true) };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || (lab.x && !lab.run)), since: first.close, ...both(false), cx: both(true) };
     });
   }
 
@@ -1914,7 +1950,7 @@ export function createKalshi(state, env, keep) {
       if (isL && who.locked) return { ok: false, msg: 'Live settings need an unlocked device.' };
       if (isL && !bk && a.copyFrom === 'paper') { const nx = pickL(cfgP); if (JSON.stringify(nx) === JSON.stringify(pickL(cfgL))) return { ok: false, msg: 'Live already matches paper.' }; cfgL = nx; await kv.put('kcfgL', cfgL); viewDirty = true; await publish(true); say('LIVE settings copied from paper'); return { ok: true, msg: 'Live settings now match paper. They apply from the next trade check.' }; }
       // MC 2026-11-13 the minimum and maximum price keep a tenth of a cent (request 10); the other prices stay whole cents
-      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (!isL && (k === 'slipC' || k === 'capPb')) continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
+      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (!isL && (k === 'slipC' || k === 'capPb' || k === 'lateBuy')) continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' ? Math.round(v * 100) / 100 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
       if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, was = cur.coins || null; if (JSON.stringify(v) !== JSON.stringify(was)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
       if (out.minAsk != null || out.maxAsk != null) { const lo = out.minAsk ?? cur.minAsk, hi = out.maxAsk ?? cur.maxAsk ?? 0.99; if (lo > hi) return { ok: false, msg: 'The maximum price can\'t be below the minimum price.' }; }
       if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cur.mixSame ?? 3, hi = out.mixSameMax ?? cur.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }
@@ -2087,14 +2123,14 @@ export function createKalshi(state, env, keep) {
     if (type === 'kalshiBook') {
       if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
       if (a?.op === 'match') { const c = ctl(); a.main = { strat: stratAt(c.strat, Date.now()), size: c.sizeUsd, loss: c.dailyLossUsd, floor: c.minBank ?? HARD.minBank }; }
-      const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep && !l.x; })); viewDirty = true; await publish(true); return r;
+      const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep && !(l.x && !l.run); })); viewDirty = true; await publish(true); return r;
     }
     if (type === 'kalshiStrat') {
       // MC 2026-11-08 switch the paper book or the live gate to a lab (or back to the rule), logged with a timestamp so the
       // books apply it from now on and the history before it stays as it was.
       const id = String(a.id || 'rule'), book = a.book === 'live' ? 'live' : 'paper';
       if (!LAB_IDS.includes(id)) return { ok: false, msg: 'Unknown playbook.' };
-      { const l = labDefs(cfgP).find(l => l.id === id); if (l.m10Only || l.ep || l.x) return { ok: false, msg: `${l.name} runs in Labs only for now.` }; }
+      { const l = labDefs(cfgP).find(l => l.id === id); if (l.m10Only || l.ep || (l.x && !l.run)) return { ok: false, msg: `${l.name} runs in Labs only for now.` }; }
       const name = labDefs(cfgP).find(l => l.id === id).name, now = Date.now();
       if (book === 'paper') {
         if (stratAt(cfgP.strat, now) === id) return { ok: false, msg: `Paper already runs ${name}.` };

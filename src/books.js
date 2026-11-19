@@ -232,6 +232,22 @@ export function createBooks(D) {
       } finally { S[b.id].resv = 0; }
     }));
   }
+  // MC 2026-11-18 a later-watched buy (kalshi-cloud.js lateLive) for the books. Only a book that is on, runs Claude's pick, later
+  // watched, and has "Buy later-watched coins" on in the rules it follows (its own, or Main's). ok(cfg) is that setting plus the
+  // price band, coins and off hours, read with the book's rules. The order goes through buy(), so the book's own size, loss cap,
+  // floor, window cap and order limit hold. A market the book only has a skip note for can be bought; one where an order was
+  // already sent is left alone.
+  async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null) {
+    await load();
+    await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === 'cpl').map(async b => {
+      const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
+      const prev = Lb.get(r.ticker); if (prev && !prev.skipped) return; if (prev) Lb.delete(r.ticker);
+      try { await buy(b, r, lab, cfgP, benchOf(cfgP), sends, missed);
+        const x = Lb.get(r.ticker); if (!x) { if (prev) Lb.set(r.ticker, prev); } else { x.late = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveRow(b, x); }
+        await Promise.all(sends.map(f => f().catch(e => fail(b, 'order error: ' + e.message))));
+      } catch (e) { fail(b, 'order error: ' + e.message); } finally { S[b.id].resv = 0; }
+    }));
+  }
   // read every live book's balance ahead of the orders (called while the coins are being scanned)
   async function warm() { await load(); await Promise.all(list.filter(b => b.on).map(b => balance(b, true).catch(() => { }))); }
   // MC 2026-11-14 live cash out at minute 10, each book on its own key, same terms as the main book (kalshi-cloud.js cashLive)
@@ -344,7 +360,7 @@ export function createBooks(D) {
         total: { n: all.filter(x => x.result && x.fill > 0).length, won: all.filter(x => x.won && x.fill > 0).length, net: +realized(all.filter(x => x.fill > 0)).toFixed(2) },
         open: all.filter(x => x.fill > 0 && !x.result).map(x => ({ tk: x.tk, coin: x.coin, side: x.side, fill: x.fill, px: x.px, cost: x.cost, close: x.close })),
         hist: all.filter(x => x.fill > 0 && x.result).slice(0, 1500).map(x => [x.close, x.coin, x.side, x.px, x.fill, x.pnl, x.won ? 1 : 0, 1, x.hand ? 1 : 0]),
-        recent: all.slice(0, 80).map(x => ({ mres: D.resOf ? D.resOf(x.tk) : null, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, hand: x.hand || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null })) }; });
+        recent: all.slice(0, 80).map(x => ({ mres: D.resOf ? D.resOf(x.tk) : null, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, ask: x.ask ?? null, limit: x.limit ?? null, sent: x.sent ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, hand: x.hand || null, late: x.late || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null })) }; });
   }
 
   // ---------- commands from the dashboard (signed-in, unlocked device only; the engine checks that) ----------
@@ -488,5 +504,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
+  return { load, onMark, onLate, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
 }

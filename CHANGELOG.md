@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.2 (Nov 18, 2026): Claude's pick, later watched can run on paper and live
+- [new] "Claude's pick, later watched" can be picked as the paper or live playbook, for Main and for sub accounts. At the trade check it trades exactly like Claude's pick.
+- [new] Paper: while it is the paper playbook, coins the trade check passed on are bought the first minute they pass the same test afterwards, from 8 minutes left down to 4.
+- [new] Live: a new Live setting, "Buy later-watched coins", off unless you turn it on. With it on, and only while the account's playbook is Claude's pick, later watched, those later buys are made with real money. Size, daily stops, cash floor, window cap and price limits apply as at the trade check, and pausing automatic buying pauses these too.
+- [improved] Live and paper rows bought this way are marked "later watched".
+
 ## 1.3.1 (Nov 18, 2026): Five playbooks retired from Labs
 - [improved] Size follows the bank, Margin vs volatility under 96¢, Margin vs volatility + Learned, Margin vs volatility (AI checked) and Margin vs volatility, no late swing are archived. They no longer show in Labs, the Backtest or the playbook pickers. One that an account is still running stays visible until you switch it.
 
