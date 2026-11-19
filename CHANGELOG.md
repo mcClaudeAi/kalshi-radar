@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.16 (Nov 18, 2026): The later-buy cushion setting sits with its switch
+- [fixed] In Live settings, "Later buys need a cushion of at least" was further down the page among the rule settings and easy to miss. It is now directly under "Buy later-watched coins". In Paper settings it stays with the other rules.
+
 ## 1.3.15 (Nov 18, 2026): "Too close to call" comes first
 - [fixed] A card still said "Settling · looks won" on a trade that finished 0.007% from its target and then settled lost. When Coinbase's last-minute average is within 0.1% of the target the card now always says "too close to call". Kalshi's price is only used to overrule a clear Coinbase result, because the price shown can be up to a minute old.
 
