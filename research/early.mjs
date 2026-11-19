@@ -1,7 +1,7 @@
 // Kalshi 15-minute crypto: the leader and Claude's pick's three readings at each of the first five minutes of every market
 // (minute 5 is the trade check), to test buying as soon as the playbook would, not only at the trade check.
 // Public market data only, no keys. Usage: node early.mjs COIN DAYS [FIRST-LAST minute after the open, default 1-5; 6-11 is after the trade check]
-// ER: [close minute, 1 if YES won, [for minutes 1..5: 0 if no usable quote, else [1 if the leader is YES, ask in tenths of a cent,
+// ER: [close minute, 1 if YES won, ticker last (added Nov 19), [for minutes 1..5: 0 if no usable quote, else [1 if the leader is YES, ask in tenths of a cent,
 //      cushion x100, worst dip x100, straightness x100]]]   (same formulas as the tracker's volCalc)
 const B = 'https://api.elections.kalshi.com/trade-api/v2', CB = 'https://api.exchange.coinbase.com', [COIN, DAYS = '123', FLOOR = '0.85'] = process.argv.slice(2), S = `KX${COIN}15M`, PID = `${COIN}-USD`;
 const END = Math.floor(Date.now() / 1000), START = END - +DAYS * 86400, sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -26,5 +26,5 @@ let i = 0, n = 0; await Promise.all(Array.from({ length: 6 }, async () => { whil
     const rets = []; for (let a = 1; a < rows.length; a++) rets.push(Math.log(rows[a] / rows[a - 1])); const mu = rets.reduce((a, b) => a + b, 0) / rets.length, sg = Math.sqrt(rets.reduce((a, b) => a + (b - mu) ** 2, 0) / rets.length), u10 = sg * Math.sqrt(10); if (!(u10 > 0)) { mins.push(0); continue; }
     const P = rows.slice(-31).map(v => (yes ? v - k : k - v) / k / u10), z = P.at(-1), dp = Math.min(0, ...P), Y = P.slice(-15), nn = Y.length, mx = (nn - 1) / 2, my = Y.reduce((a, b) => a + b, 0) / nn; let sxy = 0, sxx = 0, syy = 0; Y.forEach((y, a) => { sxy += (a - mx) * (y - my); sxx += (a - mx) ** 2; syy += (y - my) ** 2; });
     mins.push([yes ? 1 : 0, Math.round(ask * 1000), Math.round(z * 100), Math.round(dp * 100), Math.round((syy > 0 ? sxy * sxy / (sxx * syy) : 0) * 100)]); if (ask >= 0.85) any = true; }
-  if (!any) continue; n++; console.log('ER ' + JSON.stringify([Math.round(c / 60), m.result === 'yes' ? 1 : 0, mins])); } }));
+  if (!any) continue; n++; console.log('ER ' + JSON.stringify([Math.round(c / 60), m.result === 'yes' ? 1 : 0, mins, m.ticker])); } }));
 console.log(`RESULT mins=${QA}-${QB} ${S} markets=${ms.length} rows=${n}`);
