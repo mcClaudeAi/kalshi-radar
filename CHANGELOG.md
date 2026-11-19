@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.18 (Nov 18, 2026): Later buys skip the stragglers of a crowded move
+- [new] New setting, on by default for paper, live and every sub account: "Skip later buys that trail a crowded move". A later buy is passed when the other coins leaning the same way are already far past their targets (over 1.5 usual moves clear on average). In 90 days of quoted prices those buys won 91.7% and lost about 81¢ each; skipping them kept 88% of the later buys and made more in total. It only ever skips a trade.
+- [new] Backtest and Labs: "Claude's pick, later watched, no stragglers" sits beside the plain version so the two can be compared.
+- [improved] On the scanner, a row that is skipped for this reason no longer shows the green "buy now" and says why.
+
 ## 1.3.17 (Nov 18, 2026): "Buy now" goes out when the price leaves the band
 - [fixed] A row could keep its green "buy now" (or blue "would buy") after the price had run past what the playbook pays, for example 99¢ against a limit under 95¢. The tag now also checks the current price against the running playbook's price band, so it drops the moment the price is out of range.
 
