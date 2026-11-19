@@ -238,10 +238,10 @@ export function createBooks(D) {
   // floor, window cap and order limit hold. A market the book only has a skip note for can be bought; one where an order was
   // already sent is left alone.
   // a book that runs later watched with the setting on and has no order in this market yet (kalshi-cloud.js lateWants)
-  const lateOpen = (tk, now, cfg0) => (list || []).some(b => { if (!b.on || D.stratAt(b.strat, now) !== 'cpl' || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
-  async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null) {
+  const lateOpen = (tk, now, cfg0, pb = 'cpl') => (list || []).some(b => { if (!b.on || D.stratAt(b.strat, now) !== pb || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
+  async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null, pb = 'cpl') {
     await load();
-    await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === 'cpl' && D.stratAt(b.strat, r.close - 600000) === 'cpl').map(async b => {
+    await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb).map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
       const prev = Lb.get(r.ticker); if (prev && !prev.skipped) return; if (prev) Lb.delete(r.ticker);
       try { await buy(b, r, lab, cfgP, benchOf(cfgP), sends, missed);

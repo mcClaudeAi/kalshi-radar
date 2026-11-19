@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.25 (Nov 19, 2026): Claude's pick, high confidence; read the Backtest chart by pointing at it
+- [new] New playbook, "Claude's pick, high confidence", for paper, live and sub accounts. It buys only coins at least 1.75 usual moves clear of their target, at the trade check and from 8 to 4 minutes left (later buys also need room inside every line and are never the straggler of a crowded move). About 7 trades a day in 90 days of quoted prices, 97% won. Live takes its later buys only with "Buy later-watched coins" on.
+- [new] Labs: high confidence goes back to Nov 12 like the others, with its later buys before today rebuilt from Kalshi's one-minute history.
+- [new] Backtest: a "Claude's pick, high confidence" row.
+- [new] Backtest chart: point at it (or tap and drag on a phone) to see every playbook's amount at that moment, best first, with a dot on each line.
+
 ## 1.3.24 (Nov 19, 2026): Safer later buys: a margin inside every line
 - [new] New setting for Claude's pick, later watched: "Later buys: margin inside every line", set to 0.2 for paper, live and every sub account. A buy after the trade check now has to clear Claude's pick's lines with room to spare: cushion 1.2 or more, worst dip above -1.8, straightness under 0.5. Coins right on a line are skipped and checked again the next minute. Trade-check buys are not affected. Set it to none to go back to the plain test.
 - [new] Backtest: "Claude's pick, later watched, safe" shows later watched with this margin and the crowd rule.
