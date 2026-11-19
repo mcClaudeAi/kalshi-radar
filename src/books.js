@@ -237,6 +237,8 @@ export function createBooks(D) {
   // price band, coins and off hours, read with the book's rules. The order goes through buy(), so the book's own size, loss cap,
   // floor, window cap and order limit hold. A market the book only has a skip note for can be bought; one where an order was
   // already sent is left alone.
+  // a book that runs later watched with the setting on and has no order in this market yet (kalshi-cloud.js lateWants)
+  const lateOpen = (tk, now, cfg0) => (list || []).some(b => { if (!b.on || D.stratAt(b.strat, now) !== 'cpl' || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
   async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null) {
     await load();
     await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === 'cpl' && D.stratAt(b.strat, r.close - 600000) === 'cpl').map(async b => {
@@ -504,5 +506,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
+  return { load, onMark, onLate, lateOpen, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
 }
