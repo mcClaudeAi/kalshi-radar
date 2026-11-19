@@ -1,0 +1,20 @@
+# Research: full price path and both sides' prices for every market, for the reversal tests (public market data only).
+name: Reversal readings
+on:
+  workflow_dispatch:
+    inputs:
+      coins: { description: 'Coins as a JSON list', default: '["BTC","ETH","SOL","XRP","DOGE","BNB","HYPE","ZEC","NEAR"]' }
+      days: { description: 'Days back', default: '90' }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        coin: ${{ fromJSON(github.event.inputs.coins) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node research/rev.mjs ${{ matrix.coin }} ${{ github.event.inputs.days }}
