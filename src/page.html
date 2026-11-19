@@ -3138,11 +3138,16 @@ const KXFIN={};
 // average, which finished 0.08% on the winning side; Kalshi settles on its own index across several exchanges, and Kalshi's
 // own price for our side was already 3 cents. The call now puts Kalshi's price first when it is decisive (85c and up, or 15c
 // and under), and says too close to call when the Coinbase average is within a tenth of a percent of the target.
+// (Reordered the same night, see inside.)
 function kxCall(o,a60,tgt){if(a60==null||tgt==null)return {cls:'',txt:'SETTLING',v:null,why:''};
   const cb=o.side==='yes'?a60>=tgt:a60<tgt,gap=Math.abs(a60-tgt)/tgt,kp=o.side==='yes'?(o.ya??null):(o.yb!=null?1-o.yb:null);
-  if(kp!=null&&kp>=.85)return {cls:'win',txt:cb?'SETTLING · LOOKS WON':'SETTLING · KALSHI HAS IT WON',v:1,why:cb?'':'Kalshi prices it as won; Coinbase alone had it the other way'};
-  if(kp!=null&&kp<=.15)return {cls:'lose',txt:cb?'SETTLING · KALSHI HAS IT LOST':'SETTLING · LOOKS LOST',v:0,why:cb?'Kalshi prices it as lost; Coinbase alone had it the other way':''};
-  if(gap<.001)return {cls:'',txt:'SETTLING · TOO CLOSE TO CALL',v:null,why:'Coinbase finished within 0.1% of the target; Kalshi\'s index decides'};
+  // MC 2026-11-18 later the same night: SOL finished 0.007% on the winning side on Coinbase, 29 of 60 seconds, the card said
+  // looks won because Kalshi's price read 87c, and Kalshi settled it lost. The Kalshi price on a card can be up to a minute
+  // old, so it says nothing about a swing in the last seconds. Inside a tenth of a percent it is too close to call, whatever
+  // Kalshi's price says; Kalshi's price only overrules Coinbase when Coinbase is clear and Kalshi firmly disagrees.
+  if(gap<.001)return {cls:'',txt:'SETTLING · TOO CLOSE TO CALL',v:null,why:'Coinbase finished within 0.1% of the target; Kalshi\'s own index decides, and it can land either side'};
+  if(kp!=null&&kp<=.15&&cb)return {cls:'lose',txt:'SETTLING · KALSHI HAS IT LOST',v:0,why:'Kalshi prices it as lost; Coinbase alone had it the other way'};
+  if(kp!=null&&kp>=.85&&!cb)return {cls:'win',txt:'SETTLING · KALSHI HAS IT WON',v:1,why:'Kalshi prices it as won; Coinbase alone had it the other way'};
   return cb?{cls:'win',txt:'SETTLING · LOOKS WON',v:1,why:''}:{cls:'lose',txt:'SETTLING · LOOKS LOST',v:0,why:''}}
 function kxDrawFin(cv,o,F0){const c=o.coin,W=cv.clientWidth||600,H=cv.clientHeight||200,dpr=window.devicePixelRatio||1;if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
@@ -5319,7 +5324,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.14',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.3.15',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

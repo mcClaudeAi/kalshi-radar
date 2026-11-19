@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.15 (Nov 18, 2026): "Too close to call" comes first
+- [fixed] A card still said "Settling · looks won" on a trade that finished 0.007% from its target and then settled lost. When Coinbase's last-minute average is within 0.1% of the target the card now always says "too close to call". Kalshi's price is only used to overrule a clear Coinbase result, because the price shown can be up to a minute old.
+
 ## 1.3.14 (Nov 18, 2026): Labs and Backtest as several accounts buying at once
 - [new] Labs: "Accounts buying at once" (1 to 4). Every playbook is priced as that many accounts buying the same coin in the same second, at the average price across all of them, worked out from the order book saved with each trade. Figures stay per account. Your paper book is not changed.
 - [new] Backtest: the same control. Each trade's price is raised by what the extra contracts cost, from this tracker's own order book measurements by coin.
