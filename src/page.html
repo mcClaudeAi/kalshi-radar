@@ -1067,7 +1067,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-sb.qy{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));box-shadow:inset 3px 0 0 var(--warn),0 0 28px -10px color-mix(in srgb,var(--warn) 70%,transparent)}
 .kx-sb.own{border-color:color-mix(in srgb,var(--good) 45%,var(--line));box-shadow:inset 3px 0 0 var(--good)}
 .kx-sb.past{opacity:.72}
-.kx-sbw.hidep .kx-sb.past:not(.qg):not(.tkn){display:none}.kx-hidep{font:inherit;font-size:12px;color:var(--ink2);background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-left:8px;cursor:pointer}.kx-hidep.on{color:var(--acc);border-color:var(--acc)}.kx-hidep[hidden]{display:none}
+.kx-sbw.hidep .kx-sb.past:not(.qg):not(.tkn){display:none}#kxboard.hidep .kx-pos[data-r="2"]{display:none}.kx-bdiv .kx-hidep{margin-left:0;letter-spacing:0;text-transform:none;font-weight:600}.kx-hidep{font:inherit;font-size:12px;color:var(--ink2);background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-left:8px;cursor:pointer}.kx-hidep.on{color:var(--acc);border-color:var(--acc)}.kx-hidep[hidden]{display:none}
 /* MC 2026-11-18 the "strong setup" row: a green frame that breathes and a band of light that crosses it. Both are drawn on the
    row's own two extra layers and only their opacity and position move, so the rest of the page is not redrawn (the blurs
    that made scrolling stutter were taken out this morning; this must not bring that back). Still for reduced motion. */
@@ -3524,11 +3524,11 @@ async function kxSellOne(tk,paper){if(!paper&&!ST.me.control){unlockFlow();retur
 // then paper's own trades, then the ones passed on, each group in the tracker's order. A card that moves group (a live fill
 // lands, say) redraws the board, and a divider names the passed group with its count.
 const kxRank=o=>kxLvOf(o)?.cls==='lv'?0:kxPbOf(o)?.cls==='in'?1:2;
-function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{};const now=Date.now();
+function kxBoard(){const el=$('#kxboard');if(!el)return;el.classList.toggle('hidep',!!KX.hideP);const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{};const now=Date.now();
   const open=kxOpen().map((o,i)=>({o,i,r:kxRank(o)})).sort((a,b)=>a.r-b.r||a.i-b.i).map(x=>(x.o._r=x.r,x.o)),nOut=open.filter(o=>o._r===2).length,first2=open.findIndex(o=>o._r===2);
   const sig=open.map(o=>o.tk+':'+o._r).join(',');
   if(el.dataset.sig!==sig){el.dataset.sig=sig;
-    el.innerHTML=open.length?open.map((o,i)=>`${i===first2&&i>0?`<div class="kx-bdiv"><span>Passed on · ${nOut}</span></div>`:''}<div class="kx-pos ${kxPbOf(o)?.cls==='out'&&kxLvOf(o)?.cls!=='lv'?'kx-passed':''}" data-tk="${esc(o.tk)}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span><span data-k="pb">${kxPbTag(o)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
+    el.innerHTML=open.length?open.map((o,i)=>`${i===first2?`<div class="kx-bdiv"><span>Passed on · ${nOut}</span><button type="button" class="kx-hidep${KX.hideP?' on':''}" data-k="hpb" onclick="kxHideP()" title="Hide or show the trades the playbook passed on this window">${KX.hideP?'Show':'Hide'}</button></div>`:''}<div class="kx-pos ${kxPbOf(o)?.cls==='out'&&kxLvOf(o)?.cls!=='lv'?'kx-passed':''}" data-tk="${esc(o.tk)}" data-r="${o._r}"><div class="kx-ph"><div class="kx-coin"><b>${esc(o.coin)}</b><span class="kx-side ${o.side}">${o.side.toUpperCase()}</span><span class="kx-pq">${o.n} × ${(o.px*100).toFixed(1)}¢ · $${Number(o.cost).toFixed(2)}</span><span data-k="pb">${kxPbTag(o)}</span></div><div class="kx-stat" data-k="st">…</div><div class="kx-cd"><b data-k="cd">–:––</b><small>to settle</small></div></div>
       <div class="kx-pm"><span>Target<b>${kxFmt(o.strike,o.strike)}</b></span><span>Now<b data-k="px">–</b></span><span>Margin<b data-k="mg">–</b></span><span>60s avg<b data-k="avg">–</b></span><span class="kx-wp">Win chance<b data-k="wp">–</b><small data-k="wpk"></small></span></div>${o.z!=null?`<div class="kx-atchk">${o.late?'When it was bought':'At the trade check'}: <b>${Number(o.z).toFixed(2)} moves</b> past the target, win chance <b>${(kxWinZ(Number(o.z))*100).toFixed(0)}%</b>${o.z2!=null&&o.z2!==o.z?` (v2 <b>${(kxWinZ(Number(o.z2))*100).toFixed(0)}%</b>)`:''}${o.z10!=null?`; 10-min measure <b>${Number(o.z10).toFixed(2)} moves</b>`:''} against ${kxC(o.px)} paid</div>`:''}
       <div class="kx-cvw"><canvas class="kx-cv"></canvas></div>
       <div class="kx-pf"><span>Kalshi now <b data-k="kp">${o.ya!=null?(o.side==='yes'?'YES '+Math.round(o.ya*100):'NO '+Math.round((1-o.yb)*100))+'¢':'–'}</b></span><span class="kx-spw" data-k="sp">${kxSpark((o.path||[]).map(p=>[p[0],o.side==='yes'?p[2]:1-p[1]]))}</span></div><div class="kx-payw" data-k="pay">${kxPayH(o)}</div><div data-k="sell">${kxSellRow(o)}</div></div>`).join('')
@@ -3538,7 +3538,8 @@ function kxBoard(){const el=$('#kxboard');if(!el)return;const L=KX.live,K=ST.D?.
 // MC 2026-11-19 asked: once the trade check has passed, a switch to hide the coins it passed on or skipped so the ones taken
 // (and any green "buy now" row, which can still be acted on) are all that is left. Remembered on this device.
 try{KX.hideP=localStorage.getItem('kx-hidep')==='1'}catch{}
-function kxHideP(){KX.hideP=!KX.hideP;try{localStorage.setItem('kx-hidep',KX.hideP?'1':'0')}catch{}kxScan()}
+// MC 2026-11-19 he meant the board too: the "Passed on" group under the trades we are in. One switch for both, on the divider.
+function kxHideP(){KX.hideP=!KX.hideP;try{localStorage.setItem('kx-hidep',KX.hideP?'1':'0')}catch{}kxScan();const bd=$('#kxboard');if(bd){bd.classList.toggle('hidep',KX.hideP);const b=bd.querySelector('[data-k=hpb]');if(b){b.textContent=KX.hideP?'Show':'Hide';b.classList.toggle('on',KX.hideP)}}}
 function kxHidePBtn(el){const b=$('#kxhidep');if(!b)return;const n=el.querySelectorAll('.kx-sb.past:not(.qg):not(.tkn)').length;el.classList.toggle('hidep',!!KX.hideP);b.hidden=!n;b.classList.toggle('on',!!KX.hideP);const t=KX.hideP?`Show ${n} passed`:'Hide passed';if(b.textContent!==t)b.textContent=t;b.title=KX.hideP?'Show the coins the trade check passed on or skipped this window':'Hide the coins the trade check passed on or skipped this window'}
 function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{},minAsk=c.minAsk||.9;
   // MC 2026-11-09 board rows sorted by leader price so what is about to qualify floats to the top; alphabetical was the old order
@@ -5367,7 +5368,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.30',KR_DATE='Nov 19, 2026';
+const KR_VERSION='1.3.31',KR_DATE='Nov 19, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

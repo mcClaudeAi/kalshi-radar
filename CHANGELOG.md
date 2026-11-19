@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.31 (Nov 19, 2026): Hide the passed-on trades on the board too
+- [improved] The "Passed on" divider under your open trades now has a Hide button. It hides the cards the playbook passed on and shares one switch with the Scanner's "Hide passed", remembered on this device.
+
 ## 1.3.30 (Nov 19, 2026): A cushion bar for Claude's pick at the trade check
 - [new] Settings: "Trade check: least cushion (moves)", 1 to 3, set per account. Claude's pick only buys at the trade check when a coin is at least this far clear of its target. It defaults to 1, the playbook's own bar, so nothing changes until you raise it.
 - [improved] Backtest: "Claude's pick, later watched (your settings)" now uses the trade-check cushion from Paper settings too.
