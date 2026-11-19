@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.22 (Nov 19, 2026): The three new Claude's pick labs go back to Nov 12
+- [improved] Labs: "Claude's pick, early buy", "Claude's pick, later watched" and "Claude's pick, later watched, no stragglers" now start on Nov 12 like the others. Their early and later buys before the evening of Nov 18 are rebuilt from Kalshi's one-minute price history using the same tests; from then on they are the buys the tracker recorded itself at real order book prices.
+
 ## 1.3.21 (Nov 19, 2026): Account rows show the full playbook name on a phone
 - [fixed] On a phone, a long playbook name under an account was cut off ("Claude's pick, later w…"). The line now wraps so the whole name and trade size show.
 
