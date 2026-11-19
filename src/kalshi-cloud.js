@@ -36,6 +36,7 @@ const KEEP_LO = 0.6, EP_LO = 0.6, EP_HI = 0.9;
 // rows held just the 85c to 90c slice and undercounted the pack; its Labs line showed -$395 for 7 days on a rule it wasn't running.
 const EP_FROM = Date.parse('2026-11-16T17:50:00Z');
 const LS_LO = 0.905, LS_HI = 0.945, LS_KEEP_LO = 0.88, LS_KEEP_HI = 0.97;   // Last 30 seconds: the band it buys in, and the wider band of readings kept for study
+const XB_Z = 1.5, XB_LO = 0.8999, XB_HI = 0.9499, XL_FROM = 8.5;   // early buy: cushion bar; both: ask band; later watched: first minutes left it may buy
 const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price band and the last minute it may buy
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
@@ -202,6 +203,16 @@ function labDefs(K) {
     // answers that with its own read of every order book at 30 seconds left (lastLook) and a paper buy when $50 fits.
     // Labs only; ep keeps it out of the paper and live pickers the same way Early pack is kept out.
     { id: 'ls30', name: 'Last 30 seconds', ep: true, ls: true, desc: 'Reads every coin\'s order book 30 seconds before the close and buys the leader when $50 of it can be had at 90.5¢ to 94.5¢, a price that pays about $3 to $5. Kalshi\'s trade records say those leaders won more often than the price implies in the last three months, but not in older records, so this runs in Labs only to see what was really on offer.', color: '#00B4D8', filter: t => t.px >= LS_LO && t.px <= LS_HI },
+    // MC 2026-11-18 asked for both after two 90-day pulls on the public repo (research/early.mjs, every market's leader and
+    // Claude's pick's readings minute by minute, quoted prices, $50, fees in). Early buy: buying the first minute Claude's pick
+    // passed did worse than waiting (5,981 trades, +$0.52 each, against 3,579 at +$0.95 at the check), because coins that
+    // passed early with a thin cushion fell out by the check. Holding early buys to a cushion of 1.5 at minute 3 or 4 made
+    // the most (4,536 trades, +$4,453, ahead in both halves of the stretch); 2 and 2.5 won more often on far fewer trades.
+    // Later watched: coins the check passed on that pass afterwards made +$0.47 each over 9,826 buys, and the first minute
+    // after the check lost money, so it starts at 8 minutes left. Both are Labs only: these rows are what the order book
+    // really offered for $50 at that moment (scanPbRead), kept in kxr.
+    { id: 'cpe', name: "Claude's pick, early buy", x: 'e', desc: "Claude's pick with one change: at minute 3 or 4 of the window it buys a coin that already passes and is at least 1.5 usual moves clear of its target, at the price the order book gives for $50. Any coin not bought early gets the normal test at the trade check. In 90 days of quoted prices this made about 30% more than waiting. Labs only for now, to see what the real order book offers.", color: '#64DFDF', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
+    { id: 'cpl', name: "Claude's pick, later watched", x: 'l', desc: "Claude's pick at the trade check, plus coins it passed on: from 8 minutes left down to 4 it buys one the first minute it passes the same test, at the price the order book gives for $50. In 90 days of quoted prices the extra buys won 94% and made about half as much per trade as a trade-check buy. Labs only for now.", color: '#B8F2A0', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
     { id: 'epk', name: 'Early pack', ep: true, desc: 'Buys the leader early and cheaper: 60¢ to 90¢ at the trade check (10 minutes left), only when at least 3 coins are leading the same way, before 9 PM ET, and never HYPE. Built from your own winning hand buys. Labs only for now; the paper and live price bands start higher.', color: '#F15BB5', filter: t => t.hr == null ? null : t.px >= EP_LO && t.px < EP_HI && t.same >= 3 && t.hr < 21 && t.coin !== 'HYPE' },
     { id: 'mv15', name: 'Margin vs volatility, 1.5 moves', desc: 'Margin vs volatility under 95¢ with a higher bar: the coin must be at least 1.5 normal 10-minute moves past its target, not 1. About 40% of the trades and half the profit in the history, but the worst day and the worst drop were both about half as deep, and the win rate went from 94.2% to 95.2%.', color: '#80FFDB', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
@@ -391,7 +402,7 @@ export function createKalshi(state, env, keep) {
   sql.exec('CREATE TABLE IF NOT EXISTS ko (tk TEXT PRIMARY KEY, at INTEGER, j TEXT)');
   sql.exec('CREATE TABLE IF NOT EXISTS k2 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // second-look entries, kept apart from the mark records so nothing else counts them
   sql.exec('CREATE TABLE IF NOT EXISTS k3 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // every coin's price and trend at minute 10, for the Wait for the trend lab
-  let rec2 = new Map(), rec3 = new Map(), lsRows = [], lsDone = 0;
+  let rec2 = new Map(), rec3 = new Map(), lsRows = [], lsDone = 0, xRows = [];
   let cfgL = null;   // live rules (LIVE_KEYS), seeded from paper the first time
   let rec = null, L = null, cfgP = null, ctlL = null, scan = [], scanAt = 0, view = null, viewDirty = true, viewAt = 0;
   const st = { bal: null, balAt: 0, lastErr: null, errAt: 0, host: 0, sellAllDone: 0, stopped: null, keyOk: null, shard: {}, xferAt: 0, lastXfer: null, lastMark: 0 };
@@ -402,6 +413,7 @@ export function createKalshi(state, env, keep) {
     if (rec) return;
     rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3');
     lsRows = []; for (const row of sql.exec('SELECT j FROM kls WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { lsRows.push(...JSON.parse(row.j)); } catch { } }
+    xRows = []; for (const row of sql.exec('SELECT j FROM kxr WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { xRows.push(...JSON.parse(row.j)); } catch { } }
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     { const l = await kv.get('kcfgL'); if (l) cfgL = { ...pickL(PAPER_DEF), ...l }; else { cfgL = pickL(cfgP); await kv.put('kcfgL', cfgL); } }
@@ -423,6 +435,9 @@ export function createKalshi(state, env, keep) {
   // the last-30-seconds readings, one row a day so a cold start reads a few dozen rows however long the log gets
   sql.exec('CREATE TABLE IF NOT EXISTS kls (d TEXT PRIMARY KEY, j TEXT)');
   const lsSave = d => sql.exec('INSERT OR REPLACE INTO kls (d, j) VALUES (?, ?)', d, JSON.stringify(lsRows.filter(r => etDay(r.close) === d)));
+  // the early and later-watched paper buys of the two Claude's pick labs, kept the same way
+  sql.exec('CREATE TABLE IF NOT EXISTS kxr (d TEXT PRIMARY KEY, j TEXT)');
+  const xSave = d => sql.exec('INSERT OR REPLACE INTO kxr (d, j) VALUES (?, ?)', d, JSON.stringify(xRows.filter(r => etDay(r.close) === d)));
   const H6 = 6 * 3600000, DAY = 86400000, TBL = ['kt', 'k2', 'k3'];
   const where = { kt: new Map(), k2: new Map(), k3: new Map() }, packs = { kt: new Map(), k2: new Map(), k3: new Map() };   // ticker -> pack id, pack id -> tickers
   const mapOf = t => t === 'kt' ? rec : t === 'k2' ? rec2 : rec3;
@@ -895,7 +910,7 @@ export function createKalshi(state, env, keep) {
     // the playbook check for one hit, shared by the main live book and the subaccount books
     // MC 2026-11-15 the check is built from a set of live rules and that set's trades, so a book with its own rules gets its own
     const mkGate = (cfg, H) => { let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfg.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
-      return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep) return { ok: false, why: 'playbook not available live' };
+      return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep || lab.x) return { ok: false, why: 'playbook not available live' };
         if (sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = H.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) return { ok: true, lab }; const tt = { px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null };
@@ -943,13 +958,43 @@ export function createKalshi(state, env, keep) {
     const isLate = s => { const left = s.close - now; return left <= 530000 && left >= L2_MIN_LEFT * 60000 && s.taken !== 'rule' && ++lateN <= 4; };
     const H = out.filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
     if (!H.length) return;
-    if (sid === 'rule') { for (const s of H) { s.pb = 1; s.pbSide = s.leader; } return; }
-    if (!lab || lab.m10Only || lab.ep || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) return;
+    if (sid === 'rule') for (const s of H) { s.pb = 1; s.pbSide = s.leader; }
+    // MC 2026-11-18 the readings are taken whichever playbook runs, so the two Claude's pick labs below can record. Only the
+    // would-buy answer on the row depends on the running playbook.
+    const mark = !(sid === 'rule' || !lab || lab.m10Only || lab.ep || lab.x || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly'));
     const carry = H.some(s => !s.pbLate && s.close - now - 600000 < 50000), old = new Map(scan.map(z => [z.tk + z.leader, z]));
     const V = await Promise.all(H.map(s => { const o = old.get(s.tk + s.leader); return carry ? (o?.pbV || null) : s.strike > 0 ? volAt(s.coin, s.strike, s.leader).catch(() => null) : null; }));
-    H.forEach((s, i) => { const v = V[i]; if (!v || (s.pbLate && v.src === 'stale')) return; s.pbV = v; s.pbSide = s.leader;
+    try { await xNote(H, V, now); } catch (e) { say('early/late lab error: ' + e.message); }
+    if (mark) H.forEach((s, i) => { const v = V[i]; if (!v || (s.pbLate && v.src === 'stale')) return; s.pbV = v; s.pbSide = s.leader;
       const t = { px: s.lask, win: H.length, same: H.filter(h => h.leader === s.leader).length, z: v.z ?? null, z2: v.z2 ?? null, z10: v.z10 ?? null, tl: v.tl ?? null, lk: v.lk ?? null, sw: v.sw ?? null, dp: v.dp ?? null, r2: v.r2 ?? null, kf: null, pl: null };
       let f = false; try { f = lab.filter(t); } catch { return; } s.pb = f === true ? 1 : 0; if (f !== true) s.pbWhy = labWhy(sid, t, cfg) || null; });
+  }
+  // MC 2026-11-18 the paper buys behind "Claude's pick, early buy" and "Claude's pick, later watched" (Labs). One row a market at
+  // most. Early: minute 3 or 4 of the window, Claude's pick passes on this minute's reading and the cushion is XB_Z or more.
+  // Late: from 8 minutes left down to 4, Claude's pick passes and its own trade-check buy did not happen. Either way the order
+  // book is read and the row keeps what $50 would really have paid, so the lab is scored on prices that were there. Four order
+  // books a minute at most. Nothing is sent to Kalshi but the read.
+  const cpkOk = t => t.z != null && t.dp != null && t.r2 != null && t.z >= 1 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7;
+  async function xNote(H, V, now) {
+    let n = 0; const days = new Set();
+    for (let i = 0; i < H.length; i++) { const s = H[i], v = V[i]; if (!v || v.src === 'stale' || !(s.lask >= XB_LO && s.lask <= XB_HI) || xRows.some(r => r.tk === s.tk)) continue;
+      const left = (s.close - now) / 60000, el = (now - s.open) / 1000, k = !s.pbLate && el >= 170 && el <= 290 ? 'e' : s.pbLate && left <= XL_FROM && left >= L2_MIN_LEFT ? 'l' : null; if (!k) continue;
+      if (!cpkOk({ px: s.lask, z: v.z, dp: v.dp, r2: v.r2 }) || (k === 'e' && !(v.z >= XB_Z))) continue;
+      if (k === 'l') { const b = rec.get(s.tk); if (b && b.side && b.ask >= XB_LO && cpkOk({ px: b.avgN || b.ask, z: b.vol?.z, dp: b.vol?.dp, r2: b.vol?.r2 })) continue; }
+      if (++n > 4) break;
+      const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null || !(ask >= XB_LO && ask <= XB_HI)) continue;
+      const q = Math.floor(50 / ask), a = walk(asks, q), series = activeSeries().find(x => coin(x) === s.coin) || null;
+      xRows.push({ tk: s.tk, s: series, c: s.coin, k, at: now, close: s.close, side: s.leader, ask, px: a == null ? null : +a.toFixed(4), z: v.z, left: +left.toFixed(1) }); days.add(etDay(s.close));
+      say(`${s.tk} ${s.leader.toUpperCase()} at ${Math.round(ask * 100)}c <- Claude's pick ${k === 'e' ? 'early buy' : 'later watched'} (Labs), ${v.z} moves clear, ${left.toFixed(1)} min left`); }
+    for (const d of days) xSave(d); if (days.size) viewDirty = true;
+  }
+  async function xSettle(now) {
+    let k = 0; const days = new Set();
+    for (const r of xRows) { if (r.res || now < r.close + 30000) continue;
+      let res = rec.get(r.tk)?.result; if (!res) { if (++k > (PAID ? 9 : 3)) break; try { res = (await get(`/markets/${r.tk}`))?.market?.result; } catch { continue; } }
+      if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.res = 'void'; days.add(etDay(r.close)); } continue; }
+      r.res = res; r.won = res === r.side ? 1 : 0; days.add(etDay(r.close)); }
+    for (const d of days) xSave(d); if (days.size) viewDirty = true;
   }
   // ---------- every minute: scanner, price paths, settlement ----------
   async function tick() {
@@ -993,6 +1038,7 @@ export function createKalshi(state, env, keep) {
       if (cbOk) try { await volRepair(now, PAID ? 400 : 40); } catch (e) { say('repair error: ' + e.message); } }
     await settleSome(now, false);
     try { await lsSettle(now); } catch (e) { say('last look settle error: ' + e.message); }
+    try { await xSettle(now); } catch (e) { say('early/late lab settle error: ' + e.message); }
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
     try { await keepFill(now); } catch (e) { say('share fill error: ' + e.message); }
@@ -1730,7 +1776,8 @@ export function createKalshi(state, env, keep) {
     const epN = {}; for (const r of rows) if (r.ask >= KEEP_LO && r.result !== 'void') epN[r.close + r.side] = (epN[r.close + r.side] || 0) + 1;
     const epT = rows.filter(r => r.at >= EP_FROM && r.ask >= EP_LO && r.ask < EP_HI && r.result !== 'void').map(r => ({ ep: 1, tk: r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +(r.avgN || r.ask).toFixed(3), done: !!r.result, won: !!r.won, z: r.vol?.z ?? null, win: 1, same: epN[r.close + r.side] || 1, hr: etHour(r.at), off: (K.skipHours || []).includes(etHour(r.at)) }));
     const lsT = lsRows.filter(r => r.res !== 'void' && r.px != null).map(r => ({ ls: 1, ep: 1, tk: r.tk, t: r.at, close: r.close, coin: coin(r.s), side: r.side, px: +r.px.toFixed(3), done: !!r.res, won: !!r.won, z: null, win: 1, same: 1, hr: etHour(r.at), off: false })).sort((a, b) => a.t - b.t);
-    const labs = runLabs(trades, K, lateT, m10T, epT, lsT);
+    const xT = xRows.filter(r => r.res !== 'void' && r.px != null).map(r => ({ x: r.k, tk: r.tk, t: r.at, close: r.close, coin: r.c, side: r.side, px: +r.px.toFixed(3), done: !!r.res, won: !!r.won, z: r.z ?? null, win: 1, same: 1, off: (K.skipHours || []).includes(etHour(r.at)) }));
+    const labs = runLabs(trades, K, lateT, m10T, epT, lsT, xT);
     pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
     // MC 2026-11-12 today's taken paper trades in the worker log every 10 minutes, so a day's total can be checked from the tail
@@ -1802,9 +1849,11 @@ export function createKalshi(state, env, keep) {
     return Object.values(by).map(b => { b.d.sort((x, y) => x - y); const o = { coin: b.coin, n: b.d.length, med: b.d.length ? Math.round(b.d[b.d.length >> 1]) : null };
       for (const n of [100, 250, 500, 1000]) { const x = b.s[n]; o['n' + n] = x[0]; o['ok' + n] = x[0] ? +(x[1] / x[0]).toFixed(3) : null; o['c' + n] = x[1] ? +(x[2] / x[1]).toFixed(2) : null; } return o; }).sort((a, b) => (b.med ?? 0) - (a.med ?? 0));
   }
-  function runLabs(tradesIn, K, lateT = [], m10T = [], epT = [], lsT = []) {
+  function runLabs(tradesIn, K, lateT = [], m10T = [], epT = [], lsT = [], xT = []) {
     labRowsMem = {};
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
+    // the two Claude's pick labs: the trade-check trades plus their own rows; a coin bought early is not bought again at the check
+    const xMix = {}; for (const k of ['e', 'l']) { const own = xT.filter(t => t.x === k), got = new Set(k === 'e' ? own.map(t => t.tk) : []); xMix[k] = [...plain.filter(t => !got.has(t.tk)), ...own].sort((a, b) => a.t - b.t); }
     const todayK = etDay(Date.now());
     // MC 2026-11-11 cash, when set, sells every trade whose trend turned against it at the minute-10 bid (the Cash out when the
     // trend turns setting) and holds the rest; unset, every trade is held to settlement. Either way the result does not depend on
@@ -1814,7 +1863,7 @@ export function createKalshi(state, env, keep) {
     const sim = (lab, from, baseline, cash = false, keep = false) => {
       const rows = keep ? [] : null;
       let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}, tw = {}, wCap = K.winCap ?? 9; let ddRef = bank, ddLast = null;
-      const trades = lab.ls ? lsT : lab.ep ? epT : lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
+      const trades = lab.ls ? lsT : lab.ep ? epT : lab.x && !baseline ? xMix[lab.x] : lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         const cx = cash && !t.late && t.xPx != null, held = t.hw ?? t.won;
         if (!(cx || (t.fin ?? t.done)) || t.close < from) continue;
@@ -1841,12 +1890,12 @@ export function createKalshi(state, env, keep) {
       return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), rows };
     };
     return LABS.map(lab => {
-      const trades = lab.ls ? lsT : lab.ep ? epT : lab.m10Only ? m10T : plain;
+      const trades = lab.ls ? lsT : lab.ep ? epT : lab.x ? xT.filter(t => t.x === lab.x) : lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
-      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
+      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || lab.x), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep), since: first.close, ...both(false), cx: both(true) };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || lab.x), since: first.close, ...both(false), cx: both(true) };
     });
   }
 
@@ -2037,14 +2086,14 @@ export function createKalshi(state, env, keep) {
     if (type === 'kalshiBook') {
       if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
       if (a?.op === 'match') { const c = ctl(); a.main = { strat: stratAt(c.strat, Date.now()), size: c.sizeUsd, loss: c.dailyLossUsd, floor: c.minBank ?? HARD.minBank }; }
-      const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep; })); viewDirty = true; await publish(true); return r;
+      const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep && !l.x; })); viewDirty = true; await publish(true); return r;
     }
     if (type === 'kalshiStrat') {
       // MC 2026-11-08 switch the paper book or the live gate to a lab (or back to the rule), logged with a timestamp so the
       // books apply it from now on and the history before it stays as it was.
       const id = String(a.id || 'rule'), book = a.book === 'live' ? 'live' : 'paper';
       if (!LAB_IDS.includes(id)) return { ok: false, msg: 'Unknown playbook.' };
-      { const l = labDefs(cfgP).find(l => l.id === id); if (l.m10Only || l.ep) return { ok: false, msg: `${l.name} runs in Labs only for now.` }; }
+      { const l = labDefs(cfgP).find(l => l.id === id); if (l.m10Only || l.ep || l.x) return { ok: false, msg: `${l.name} runs in Labs only for now.` }; }
       const name = labDefs(cfgP).find(l => l.id === id).name, now = Date.now();
       if (book === 'paper') {
         if (stratAt(cfgP.strat, now) === id) return { ok: false, msg: `Paper already runs ${name}.` };
@@ -2099,5 +2148,5 @@ export function createKalshi(state, env, keep) {
     return out.sort((a, b) => a.close - b.close); };
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, logoSet, logoOf, lastLook, lsRows: () => lsRows, nextAlarmAt: now => nextAlarm(now), paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, logoSet, logoOf, lastLook, lsRows: () => lsRows, xRows: () => xRows, nextAlarmAt: now => nextAlarm(now), paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }

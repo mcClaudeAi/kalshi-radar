@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.0 (Nov 18, 2026): Two new Claude's pick playbooks to test: early buy and later watched
+- [new] Backtest: "Claude's pick, early buy" buys at minute 3 or 4 of the window when a coin already passes with a wide enough cushion, and otherwise waits for the trade check. A new "Early buy cushion" control lets you compare bars from 1 to 3 moves.
+- [new] Backtest: "Claude's pick, later watched" adds the coins the trade check passed on that pass the same test afterwards, from 8 minutes left down to 4.
+- [new] Labs: both playbooks now record on paper at the price the order book really gives for $50, so their live record can be held against the backtest. Labs only for now; they cannot be set as the running playbook yet.
+- [new] The window bar marks the two early looks (minutes 3 and 4) with lit ticks and a line under the bar.
+- [improved] The scanner's chart readings are taken whichever playbook is running.
+- Both new backtests cover Aug 21 on and use quoted prices in whole cents, not fills.
+
 ## 1.2.99 (Nov 18, 2026): The window bar stays up while a trade is open
 - [improved] The window bar (watching, holding, final minute, with the countdown) now stays at the top of the Live board all the time. It used to disappear as soon as a trade was open.
 
