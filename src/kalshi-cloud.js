@@ -957,7 +957,13 @@ export function createKalshi(state, env, keep) {
     // same test, each minute from about 9 minutes left down to 4 (the second look's own hours), on coins the check did not
     // take, four a minute at most. Marked pbLate so the page can tell it from the reading before the check. Nothing is bought.
     let lateN = 0; const band = s => s.lask != null && s.leader && s.lask >= cfg.minAsk && s.lask <= (cfg.maxAsk ?? 0.99) + 1e-9 && (!cfg.coins?.length || cfg.coins.includes(s.coin));
-    const isLate = s => { const left = s.close - now; return left <= 530000 && left >= L2_MIN_LEFT * 60000 && s.taken !== 'rule' && ++lateN <= 4; };
+    // MC 2026-11-18 a coin that was 90c or more at the check but failed the playbook there (NEAR at 93c, skipped for a straight
+    // run) was never read again: it counted as taken because the plain rule took it. Only a coin the running playbook itself
+    // passed at the check is left out now, so one it skipped on a reading is watched like the ones that were under the price.
+    const tookIt = s => { if (s.taken !== 'rule') return false; if (sid === 'rule' || !lab) return true; const b = rec.get(s.tk); if (!b) return true;
+      const same = [...rec.values()].filter(x => x.close === b.close && x.ask >= cfg.minAsk), t = { px: b.avgN || b.ask, win: same.length, same: same.filter(x => x.side === b.side).length, z: b.vol?.z ?? null, z2: b.vol?.z2 ?? null, z10: b.vol?.z10 ?? null, tl: b.vol?.tl ?? null, lk: b.vol?.lk ?? null, sw: b.vol?.sw ?? null, dp: b.vol?.dp ?? null, r2: b.vol?.r2 ?? null, kf: null, pl: b.lp ?? null };
+      try { return lab.filter(t) !== false; } catch { return true; } };
+    const isLate = s => { const left = s.close - now; return left <= 530000 && left >= L2_MIN_LEFT * 60000 && !tookIt(s) && ++lateN <= 4; };
     const H = out.filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
     if (!H.length) return;
     if (sid === 'rule') for (const s of H) { s.pb = 1; s.pbSide = s.leader; }

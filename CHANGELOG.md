@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.7 (Nov 18, 2026): Coins skipped on a reading are watched after the trade check too
+- [fixed] A coin priced 90¢ or more at the trade check that the playbook skipped on a chart reading was not read again afterwards, so it could never turn green or be bought later. Only a coin the running playbook actually passed at the check is left out now.
+
 ## 1.3.6 (Nov 18, 2026): Later-watched buys wait for the next trade check after a switch
 - [fixed] After switching to Claude's pick, later watched, a later buy could be taken minutes afterwards in the window already running, though a playbook change is meant to apply from the next trade check. Later buys now start with the first window whose trade check ran on that playbook, on paper and live.
 - [fixed] A later-watched card said "At the trade check" over readings taken when it was bought. It now says "When it was bought".
