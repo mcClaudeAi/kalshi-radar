@@ -188,6 +188,7 @@ export class Store {
     if (p === '/api/klogo') { if (post) return J(await this.K.logoSet(body.id, body.data));
       { const x = await this.K.logoOf(u.searchParams.get('id') || ''); return x ? new Response(Uint8Array.from(atob(x.b64), c => c.charCodeAt(0)), { headers: { 'content-type': x.type, 'cache-control': 'private, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' } }) : new Response('', { status: 404 }); } }
     if (p === '/api/kbt') return new Response(JSON.stringify(await this.K.btRows()), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    if (p === '/api/kxr') { await this.K.load(); const from = +u.searchParams.get('from') || 0; return new Response(JSON.stringify(this.K.xRows().filter(r => r.at >= from)), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); }
     if (p === '/api/kpaths') return new Response(JSON.stringify(await this.K.pathsOf(+u.searchParams.get('from') || 0, +u.searchParams.get('to') || 0)), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
     if (p === '/api/klab') return etagged(req, JSON.stringify(await this.K.labRows(u.searchParams.get('id') || '')), { 'content-type': 'application/json' });
     if (p === '/api/klive') { if (u.searchParams.get('all')) return new Response(JSON.stringify(await this.K.liveAll()), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });

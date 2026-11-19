@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.19 (Nov 18, 2026): More is saved with every early and later buy
+- [new] With each early and later buy the tracker now also saves the bids on Kalshi, Kalshi's trades in the last minute, Coinbase's last minute in 10-second steps, and the same coin's price on Kraken and Bitstamp. Nothing about what gets bought changes; this is so there is more to learn from once enough of these buys have settled.
+- [new] "Export later buys" beside the other exports downloads all of it as one file.
+
 ## 1.3.18 (Nov 18, 2026): Later buys skip the stragglers of a crowded move
 - [new] New setting, on by default for paper, live and every sub account: "Skip later buys that trail a crowded move". A later buy is passed when the other coins leaning the same way are already far past their targets (over 1.5 usual moves clear on average). In 90 days of quoted prices those buys won 91.7% and lost about 81¢ each; skipping them kept 88% of the later buys and made more in total. It only ever skips a trade.
 - [new] Backtest and Labs: "Claude's pick, later watched, no stragglers" sits beside the plain version so the two can be compared.

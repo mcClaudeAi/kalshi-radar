@@ -1009,7 +1009,7 @@ export function createKalshi(state, env, keep) {
     return zs.length ? +(zs.reduce((a, b) => a + b, 0) / zs.length).toFixed(2) : 0;
   }
   async function xNote(H, V, now, out = H) {
-    let n = 0; const days = new Set();
+    let n = 0; const days = new Set(), more = [];
     for (let i = 0; i < H.length; i++) { const s = H[i], v = V[i]; if (!v || v.src === 'stale' || !(s.lask >= XB_LO && s.lask <= XB_HI)) continue;
       const left = (s.close - now) / 60000, el = (now - s.open) / 1000, k = !s.pbLate && el >= 170 && el <= 290 ? 'e' : s.pbLate && left <= XL_FROM && left >= L2_MIN_LEFT ? 'l' : null; if (!k) continue;
       if (!cpkOk({ px: s.lask, z: v.z, dp: v.dp, r2: v.r2 }) || (k === 'e' && !(v.z >= XB_Z))) continue;
@@ -1028,14 +1028,41 @@ export function createKalshi(state, env, keep) {
       if (++n > (PAID ? 9 : 4)) break;
       const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null || !(ask >= XB_LO && ask <= XB_HI)) continue;
       const q = Math.floor(50 / ask), a = walk(asks, q), series = activeSeries().find(x => coin(x) === s.coin) || null;
-      xRows.push({ tk: s.tk, s: series, c: s.coin, k, at: now, close: s.close, side: s.leader, ask, px: a == null ? null : +a.toFixed(4), z: v.z, cz, left: +left.toFixed(1), lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]) }); days.add(etDay(s.close));
+      const row = { tk: s.tk, s: series, c: s.coin, k, at: now, close: s.close, side: s.leader, strike: s.strike, ask, px: a == null ? null : +a.toFixed(4), z: v.z, dp: v.dp, r2: v.r2, cz, left: +left.toFixed(1), lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]) };
+      xRows.push(row); days.add(etDay(s.close)); more.push([row, s, b, v]);
       // MC 2026-11-18 asked to run later watched on paper and live. The same buy as a full record (the second look's shape), kept
       // in k4: the paper book takes it while this is the paper playbook, and live may buy it (lateLive has the conditions).
       if (k === 'l' && series && !rec4.has(s.tk)) { const avgN = walk(asks, BOOK_N), ya = b.yesAsks[0]?.[0] ?? null, na = b.noAsks[0]?.[0] ?? null;
         const r = { lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]), ticker: s.tk, late: 1, lw: 1, lz: cfgP.lateZ ?? 1, cz, crowd: cz > XC_Z ? 1 : 0, lc: cfgP.lateCrowd !== 0 ? 1 : 0, series, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya, na, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };
         rec4.set(s.tk, r); saveRec4(r); try { await lateLive(r, now); } catch (e) { fail('later watched order error: ' + e.message); } }
       say(`${s.tk} ${s.leader.toUpperCase()} at ${Math.round(ask * 100)}c <- Claude's pick ${k === 'e' ? 'early buy' : 'later watched'} (Labs), ${v.z} moves clear, ${left.toFixed(1)} min left`); }
+    // the extra readings are taken after every buy of this minute has gone out, so they never hold an order up
+    for (const [row, s, b, v] of more) { try { row.d = await xDetail(row, s, b, v); } catch (e) { console.log('later buy detail error: ' + e.message); } }
     for (const d of days) xSave(d); if (days.size) viewDirty = true;
+  }
+  // MC 2026-11-18 asked what else separates winning later buys from losing ones. A sweep of 38 readings and 39,621 pairs over
+  // 90 days found nothing past the crowd rule, because the history only has price, cushion, dip and path each minute. What it
+  // cannot see is saved here with every early and later buy from now on, for a later look once there are enough of them:
+  //   ob  the bids for our side on Kalshi, six best, [price in tenths of a cent, contracts] (the offers are already in lad)
+  //   kt  Kalshi's trades in this market over the last 60 seconds: count, contracts where the taker bought our side, contracts
+  //       where the taker sold it, and the average price paid for our side
+  //   cb  Coinbase right now: best bid and ask, trades in the last 60 seconds, and their average price in six 10-second steps
+  //       (oldest first, null where nothing traded)
+  //   xp  the same coin's mid price on Kraken and Bitstamp at the same moment. Kalshi settles on an index across exchanges,
+  //       and both later buys lost on Nov 18 (NEAR, SOL) finished on the winning side on Coinbase alone.
+  // Each source has 2.5 seconds; one that does not answer is left out. Nothing here changes what is bought.
+  const KRPAIR = { BTC: 'XBTUSD', ETH: 'ETHUSD', SOL: 'SOLUSD', XRP: 'XRPUSD', DOGE: 'DOGEUSD', HYPE: 'HYPEUSD', BNB: 'BNBUSD', ZEC: 'ZECUSD', NEAR: 'NEARUSD' };
+  const jget = async url => { try { const r = await fetch(url, { headers: CBH, signal: AbortSignal.timeout(2500) }); return r.ok ? await r.json() : null; } catch { return null; } };
+  async function xDetail(row, s, b, v) {
+    const t0 = Date.now(), yes = s.leader === 'yes', opp = yes ? b.noAsks : b.yesAsks, d = { cbpx: v?.px ?? null };
+    d.ob = opp.slice(0, 6).map(([p0, q0]) => [Math.round((1 - p0) * 1000), Math.round(q0)]);
+    const [kt, cb, kr, bs] = await Promise.all([get(`/markets/trades?ticker=${s.tk}&limit=100`).catch(() => null), jget(`https://api.coinbase.com/api/v3/brokerage/market/products/${CBPID[s.coin]}/ticker?limit=100`), jget(`https://api.kraken.com/0/public/Ticker?pair=${KRPAIR[s.coin]}`), jget(`https://www.bitstamp.net/api/v2/ticker/${s.coin.toLowerCase()}usd/`)]);
+    { const T = (kt?.trades || []).map(t => { const y = t.yes_price_dollars != null ? +t.yes_price_dollars : t.yes_price != null ? (+t.yes_price > 1 ? +t.yes_price / 100 : +t.yes_price) : null; return { at: Date.parse(t.created_time), y, n: +(t.count_fp ?? t.count ?? 0), ty: t.taker_side === 'yes' }; }).filter(t => t.y != null && t.at > t0 - 60000 && t.n > 0);
+      if (kt) { let nb = 0, ns = 0, cost = 0; for (const t of T) { const ours = t.ty === yes; if (ours) { nb += t.n; cost += t.n * (yes ? t.y : 1 - t.y); } else ns += t.n; } d.kt = [T.length, Math.round(nb), Math.round(ns), nb ? +(cost / nb).toFixed(4) : null]; } }
+    if (cb?.trades) { const T = cb.trades.map(t => [Date.parse(t.time), +t.price]).filter(t => t[1] > 0 && t[0] > t0 - 60000), bk = Array.from({ length: 6 }, () => [0, 0]); for (const [at, p0] of T) { const i = Math.min(5, Math.max(0, 5 - Math.floor((t0 - at) / 10000))); bk[i][0] += p0; bk[i][1]++; }
+      d.cb = { bid: +cb.best_bid || null, ask: +cb.best_ask || null, n: T.length, s: bk.map(x => x[1] ? +(x[0] / x[1]).toPrecision(8) : null) }; }
+    { const k0 = kr?.result && Object.values(kr.result)[0], mid = (a0, b0) => a0 > 0 && b0 > 0 ? +((a0 + b0) / 2).toPrecision(8) : null; d.xp = { kr: k0 ? mid(+k0.a?.[0], +k0.b?.[0]) : null, bs: bs ? mid(+bs.ask, +bs.bid) : null }; }
+    d.ms = Date.now() - t0; return d;
   }
   // the trade check took this market under Claude's pick's own test (so later watched has nothing to add)
   const cpkTaken = tk => { const b = rec.get(tk); return !!(b && b.result !== 'void' && b.ask >= XB_LO && cpkOk({ px: b.avgN || b.ask, z: b.vol?.z, dp: b.vol?.dp, r2: b.vol?.r2 })); };
