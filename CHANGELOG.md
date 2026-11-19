@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.21 (Nov 19, 2026): Account rows show the full playbook name on a phone
+- [fixed] On a phone, a long playbook name under an account was cut off ("Claude's pick, later w…"). The line now wraps so the whole name and trade size show.
+
 ## 1.3.20 (Nov 18, 2026): Price room accepts tenths of a cent
 - [fixed] Price room was rounded to a whole cent when saved, so 1.5 became 2. It now keeps a tenth of a cent, 0 to 3.
 
