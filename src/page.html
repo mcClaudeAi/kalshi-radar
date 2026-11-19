@@ -3312,7 +3312,7 @@ function kxPlain(r){r=String(r||'');let m;
 function kxLvOf(o){const lv=kxLv();if(!lv)return null;const x=(lv.recent||[]).find(r=>r.tk===o.tk);
   if(!x){if(!lv.on||o.late)return null;const c=lv.cfg||{},lo=c.minAsk??.9,hi=c.maxAsk??.99,p=o.ask??o.px;
     return {cls:'lvx',txt:c.coins?.length&&!c.coins.includes(o.coin)?`Live · not taken: ${esc(o.coin)} is not one of live's coins`:p>hi+1e-9?`Live · not taken: ${kxC(p)} is over live's maximum price of ${kxC(hi)}`:p<lo-1e-9?`Live · not taken: ${kxC(p)} is under live's minimum price of ${kxC(lo)}`:'Live · not taken: live was not trading when this market was checked'}}
-  if(x.fill>0)return {cls:'lv',txt:`Live · bought ${x.fill}${x.px!=null?' at '+kxC(x.px):''}${x.sold?' · '+(x.sold.cash?'cashed out':'sold')+(x.sold.fill<x.fill?' '+x.sold.fill:''):''}`};
+  if(x.fill>0)return {cls:'lv',txt:`Live · bought ${x.fill}${x.px!=null?' at '+kxC(x.px):''}${x.late?' · later watched':''}${x.sold?' · '+(x.sold.cash?'cashed out':'sold')+(x.sold.fill<x.fill?' '+x.sold.fill:''):''}`};
   if(x.pend)return {cls:'lv',txt:'Live · sending'};if(x.skipped)return {cls:'lvx',txt:`Live skipped: ${esc(kxPlain(x.skipped))}`};if(x.err)return {cls:'lvx',txt:'Live · Kalshi refused the order (tap the trade in Trades for the reason)'};
   return {cls:'lvx',txt:`Live · no fill: nothing was for sale at ${x.limit!=null?kxC(x.limit):'the top price'} or better when the order arrived${x.missAsk!=null?', the price right after was '+kxC(x.missAsk):''}`}}
 const kxPbTag=o=>{const b=kxPbOf(o),l=kxLvOf(o),lvOn=!!kxLv()?.on;if(b&&lvOn)b.txt=b.txt.replace(/^In your book/,'Paper took it').replace(/^Skipped/,'Paper skipped');
@@ -5278,7 +5278,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.7',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.3.8',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

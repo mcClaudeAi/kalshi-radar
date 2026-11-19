@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.8 (Nov 18, 2026): Live later buys are labelled on the board
+- [improved] A live position bought after the trade check now says "later watched" on its board card too, as it already did on the scanner.
+
 ## 1.3.7 (Nov 18, 2026): Coins skipped on a reading are watched after the trade check too
 - [fixed] A coin priced 90¢ or more at the trade check that the playbook skipped on a chart reading was not read again afterwards, so it could never turn green or be bought later. Only a coin the running playbook actually passed at the check is left out now.
 
