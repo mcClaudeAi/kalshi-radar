@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.28 (Nov 19, 2026): Claude's pick labs start with their first trade of either kind
+- [fixed] A Claude's pick lab started at its first early or later buy, so with a high cushion bar its trade-check buys from the days before were left off. It now starts at its first trade of either kind.
+
 ## 1.3.27 (Nov 19, 2026): The Claude's pick labs go back to Nov 2
 - [improved] Labs: early buy, later watched, no stragglers and high confidence now start on Nov 2 like Claude's pick, instead of Nov 12. Their early and later buys before the evening of Nov 18 are rebuilt from Kalshi's one-minute history.
 

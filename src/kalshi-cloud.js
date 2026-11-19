@@ -2079,7 +2079,9 @@ export function createKalshi(state, env, keep) {
       return { n, won, net: +(bank - K.startUsd).toFixed(2), dd: +dd.toFixed(2), today: { n: td.n, won: td.won, net: +td.net.toFixed(2) }, skipped: { n: sk, net: +skNet.toFixed(2) }, eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), rows };
     };
     return LABS.map(lab => {
-      const trades = lab.ls ? lsT : lab.ep ? epT : lab.x ? xT.filter(t => t.x === lab.x) : lab.m10Only ? m10T : plain;
+      // MC 2026-11-19 a Claude's pick lab starts with its first trade of either kind, not its first early or later buy: with a
+      // cushion bar of 1.75 the first later buy came on Nov 6, which left four days of its trade-check buys off the line
+      const trades = lab.ls ? lsT : lab.ep ? epT : lab.x ? xMix[lab.x] : lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
       if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || (lab.x && !lab.run)), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
