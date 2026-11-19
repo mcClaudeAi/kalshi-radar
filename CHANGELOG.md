@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.12 (Nov 18, 2026): The settling call listens to Kalshi
+- [fixed] A card could say "Settling · looks won" on a trade Kalshi then settled as lost. The guess used only Coinbase's last-minute average; Kalshi settles on its own index across several exchanges. The call now goes with Kalshi's own price when it is decisive ("Kalshi has it lost" or "Kalshi has it won"), and says "too close to call" when Coinbase finished within 0.1% of the target.
+
 ## 1.3.11 (Nov 18, 2026): A cushion bar for later buys
 - [new] New setting in Paper settings and Live settings: "Later buys need a cushion of at least". It only affects buys made after the trade check by Claude's pick, later watched. At 1 (the default) nothing changes. Raise it to skip the later buys that are only just clear of their target. A coin that passes under your bar is checked again each minute and bought if it clears the bar later in the window.
 - [improved] Trade-check buys and the Labs record are not affected by this setting.
