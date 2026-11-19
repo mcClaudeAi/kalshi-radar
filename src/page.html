@@ -289,6 +289,7 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 /* toasts */
 .toasts{position:fixed;right:18px;bottom:18px;z-index:90;display:grid;gap:8px;width:min(380px,calc(100% - 32px))}
 @media (max-width:1099px){.toasts{right:16px;bottom:calc(76px + env(safe-area-inset-bottom))}}
+.toasts{pointer-events:none}.tst{pointer-events:auto;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none;position:relative;padding-right:34px!important}.tst .tx{position:absolute;top:4px;right:4px;width:28px;height:28px;border:0;background:transparent;color:var(--faint);font-size:18px;line-height:1;cursor:pointer;border-radius:8px}.tst .tx:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent)}
 .tst{display:flex;gap:10px;align-items:flex-start;background:var(--s1);border:1px solid var(--line2);border-radius:12px;padding:11px 12px;box-shadow:var(--sh2);font-size:13px;animation:pop .16s ease-out}
 .tst .ic{width:18px;height:18px;flex:none;margin-top:1px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800}
 .tst.t-pend .ic{border:2px solid var(--line2);border-top-color:var(--accent);animation:spin .8s linear infinite}
@@ -2304,10 +2305,18 @@ async function api(p,body){try{const r=await fetch(p,{method:'POST',credentials:
 async function loadMe(){const j=await getJ('/api/me');if(j){const was=ST.me.control;ST.me=j;if(was!==j.control)render();paintChrome()}}
 const botAge=()=>ST.me.botPoll?(Date.now()-ST.me.botPoll)/1000:Infinity;
 // toasts
-function toastP(title,sub){const box=document.createElement('div');box.className='tst t-pend';box.innerHTML=`<span class="ic"></span><div><b class="tt"></b><div class="ts"></div></div>`;
-  const set=(cls,t,s)=>{box.className='tst t-'+cls;box.querySelector('.tt').textContent=t;box.querySelector('.ts').textContent=s||'';box.querySelector('.ic').textContent=cls==='ok'?'✓':cls==='err'?'!':''};
+// MC 2026-11-18 a notice sat over the buttons under it for 6 to 9 seconds with no way to get rid of it. It can now be closed with
+// its x, tapped away, or swiped off to either side, and the empty space around the notices lets taps through. Closing one only
+// hides it; whatever it was reporting on carries on.
+function toastP(title,sub){const box=document.createElement('div');box.className='tst t-pend';box.innerHTML=`<span class="ic"></span><div><b class="tt"></b><div class="ts"></div></div><button class="tx" type="button" aria-label="Dismiss">×</button>`;
+  const gone=dx=>{if(box._g)return;box._g=1;box.style.transition='opacity .18s,transform .18s';box.style.opacity='0';if(dx)box.style.transform=`translateX(${dx>0?120:-120}%)`;setTimeout(()=>box.remove(),200)};
+  let x0=null,dx=0;box.addEventListener('pointerdown',e=>{x0=e.clientX;dx=0;box.style.transition='none'});
+  box.addEventListener('pointermove',e=>{if(x0==null)return;dx=e.clientX-x0;if(Math.abs(dx)>6){box.style.transform=`translateX(${dx}px)`;box.style.opacity=String(Math.max(.25,1-Math.abs(dx)/220))}});
+  const up=()=>{if(x0==null)return;x0=null;if(Math.abs(dx)>70)gone(dx);else if(Math.abs(dx)<8)gone(0);else{box.style.transition='transform .15s,opacity .15s';box.style.transform='';box.style.opacity=''}};
+  box.addEventListener('pointerup',up);box.addEventListener('pointercancel',()=>{x0=null;box.style.transform='';box.style.opacity=''});
+  const set=(cls,t,s)=>{if(!box.isConnected&&box._g)return;box.className='tst t-'+cls;box.querySelector('.tt').textContent=t;box.querySelector('.ts').textContent=s||'';box.querySelector('.ic').textContent=cls==='ok'?'✓':cls==='err'?'!':''};
   set('pend',title,sub);$('#toasts').appendChild(box);
-  const end=ms=>setTimeout(()=>{box.style.opacity='0';box.style.transition='opacity .3s';setTimeout(()=>box.remove(),320)},ms);
+  const end=ms=>setTimeout(()=>{if(box._g)return;box.style.opacity='0';box.style.transition='opacity .3s';setTimeout(()=>box.remove(),320)},ms);
   return {upd:s=>set('pend',title,s),ok:(t,s)=>{set('ok',t,s);end(6000)},err:(t,s)=>{set('err',t,s);end(9000)}}}
 function toast(t){const x=toastP(t,'');x.ok(t,'')}
 // modal
@@ -5258,7 +5267,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.3',KR_DATE='Nov 18, 2026';
+const KR_VERSION='1.3.4',KR_DATE='Nov 18, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.4 (Nov 18, 2026): Notices can be dismissed
+- [fixed] A pop-up notice could not be closed and covered the buttons under it for several seconds. Tap it, swipe it to either side, or use its x to clear it. The empty space around notices no longer blocks taps.
+
 ## 1.3.3 (Nov 18, 2026): Playbook picker sorted by results, one-step setup for later buys
 - [improved] The playbook picker lists the running playbook first, then the rest by profit, best first. A playbook with no settled trades yet sits near the top with a "new" tag so it is easy to find.
 - [new] Choosing Claude's pick, later watched for live now asks, right after it is saved, whether to turn on the later buys for Main and the sub accounts. Hold to confirm; saying no leaves it trading like Claude's pick at the trade check.
