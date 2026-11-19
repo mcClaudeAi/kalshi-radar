@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.10 (Nov 18, 2026): Every coin gets its later check in a busy window
+- [fixed] The later check read at most four coins a minute and always the same four, so with more than four coins in range the rest were never looked at. Coins not yet bought go first, and on the paid plan all nine are read each minute.
+
 ## 1.3.9 (Nov 18, 2026): Each account's stake on every board card
 - [new] The "pays … if it wins, … if not" line on a board card is now a small table: one line for each account that holds the market (paper, Main, each sub account) with its own contracts, price, win and loss, and a total across the live accounts. It fills in as each account's order lands.
 

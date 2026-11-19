@@ -963,8 +963,11 @@ export function createKalshi(state, env, keep) {
     const tookIt = s => { if (s.taken !== 'rule') return false; if (sid === 'rule' || !lab) return true; const b = rec.get(s.tk); if (!b) return true;
       const same = [...rec.values()].filter(x => x.close === b.close && x.ask >= cfg.minAsk), t = { px: b.avgN || b.ask, win: same.length, same: same.filter(x => x.side === b.side).length, z: b.vol?.z ?? null, z2: b.vol?.z2 ?? null, z10: b.vol?.z10 ?? null, tl: b.vol?.tl ?? null, lk: b.vol?.lk ?? null, sw: b.vol?.sw ?? null, dp: b.vol?.dp ?? null, r2: b.vol?.r2 ?? null, kf: null, pl: b.lp ?? null };
       try { return lab.filter(t) !== false; } catch { return true; } };
-    const isLate = s => { const left = s.close - now; return left <= 530000 && left >= L2_MIN_LEFT * 60000 && !tookIt(s) && ++lateN <= 4; };
-    const H = out.filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
+    // MC 2026-11-18 the cap of four late reads a minute went to the first four coins in the list every minute, including ones
+    // already bought, so in a busy window the other five were never looked at (found counting requests with all nine in
+    // range). Coins with no later-watched row yet go first, and the paid plan reads all nine.
+    const lateCap = PAID ? 9 : 4, isLate = s => { const left = s.close - now; return left <= 530000 && left >= L2_MIN_LEFT * 60000 && !tookIt(s) && ++lateN <= lateCap; };
+    const H = [...out].sort((a, b) => xRows.some(r => r.tk === a.tk) - xRows.some(r => r.tk === b.tk)).filter(s => { if (!band(s)) return false; if (!s.taken && s.close - now > 600000) return true; if (isLate(s)) { s.pbLate = 1; return true; } return false; });
     if (!H.length) return;
     if (sid === 'rule') for (const s of H) { s.pb = 1; s.pbSide = s.leader; }
     // MC 2026-11-18 the readings are taken whichever playbook runs, so the two Claude's pick labs below can record. Only the
@@ -989,7 +992,7 @@ export function createKalshi(state, env, keep) {
       const left = (s.close - now) / 60000, el = (now - s.open) / 1000, k = !s.pbLate && el >= 170 && el <= 290 ? 'e' : s.pbLate && left <= XL_FROM && left >= L2_MIN_LEFT ? 'l' : null; if (!k) continue;
       if (!cpkOk({ px: s.lask, z: v.z, dp: v.dp, r2: v.r2 }) || (k === 'e' && !(v.z >= XB_Z))) continue;
       if (k === 'l') { const b = rec.get(s.tk); if (b && b.side && b.ask >= XB_LO && cpkOk({ px: b.avgN || b.ask, z: b.vol?.z, dp: b.vol?.dp, r2: b.vol?.r2 })) continue; }
-      if (++n > 4) break;
+      if (++n > (PAID ? 9 : 4)) break;
       const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null || !(ask >= XB_LO && ask <= XB_HI)) continue;
       const q = Math.floor(50 / ask), a = walk(asks, q), series = activeSeries().find(x => coin(x) === s.coin) || null;
       xRows.push({ tk: s.tk, s: series, c: s.coin, k, at: now, close: s.close, side: s.leader, ask, px: a == null ? null : +a.toFixed(4), z: v.z, left: +left.toFixed(1) }); days.add(etDay(s.close));
