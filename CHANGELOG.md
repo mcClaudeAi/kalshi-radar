@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.9 (Nov 18, 2026): Each account's stake on every board card
+- [new] The "pays … if it wins, … if not" line on a board card is now a small table: one line for each account that holds the market (paper, Main, each sub account) with its own contracts, price, win and loss, and a total across the live accounts. It fills in as each account's order lands.
+
 ## 1.3.8 (Nov 18, 2026): Live later buys are labelled on the board
 - [improved] A live position bought after the trade check now says "later watched" on its board card too, as it already did on the scanner.
 
