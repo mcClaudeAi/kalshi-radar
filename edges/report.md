@@ -1,4 +1,4 @@
-# Edge search, daily, 2026-11-20 12:39 UTC
+# Edge search, daily, 2026-11-20 16:17 UTC
 
 74,989 markets, 2026-08-22 to 2026-11-19. Picked on the first 60 days, judged on the last 30 (from 2026-10-21). 840 rules tried.
 
@@ -13,8 +13,8 @@ Reference rule: Claude's pick at the trade check: 90¢ to under 95¢, cushion 1.
 
 ## Closest that did not pass
 
-- Claude's pick at the trade check: 90¢ to under 97¢, cushion 1+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0.2, crowd rule on: holdout gain could be luck (p 0.62); worse worst day.
+- Claude's pick at the trade check: 90¢ to under 97¢, cushion 1+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0.2, crowd rule on: holdout gain could be luck (p 0.41); worse worst day.
+- Claude's pick at the trade check: 88¢ to under 97¢, cushion 1.5+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0, crowd rule on: holdout result could be luck (p 0.65).
+- Claude's pick at the trade check: 90¢ to under 97¢, cushion 1+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0.2, crowd rule on: holdout result could be luck (p 0.95).
+- Claude's pick at the trade check: 88¢ to under 95¢, cushion 1+, dip above -1.5, straightness under 0.5; later buys at cushion 1.5+, margin 0.2, crowd rule on: holdout result could be luck (p 0.99).
 - Claude's pick at the trade check: 88¢ to under 97¢, cushion 1+, dip above -1.5, straightness under 0.7; later buys at cushion 1.5+, margin 0, crowd rule on: holdout gain could be luck (p 1.00); worse worst day.
-- Claude's pick at the trade check: 90¢ to under 97¢, cushion 1+, dip above -1.5, straightness under 0.7; later buys at cushion 1.5+, margin 0, crowd rule on: holdout gain could be luck (p 1.00); worse worst day.
-- Claude's pick at the trade check: 88¢ to under 95¢, cushion 1+, dip above -1.5, straightness under 0.7; later buys at cushion 1.5+, margin 0.2, crowd rule on: holdout gain could be luck (p 1.00); holdout gain $-0.38 a day is too small; worse worst day.
-- Claude's pick at the trade check: 88¢ to under 97¢, cushion 1+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0.2, crowd rule on: holdout gain could be luck (p 1.00); worse worst day.

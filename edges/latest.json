@@ -1,6 +1,6 @@
 {
  "v": 1,
- "at": "2026-11-20T12:39:09+00:00",
+ "at": "2026-11-20T16:17:35+00:00",
  "mode": "daily",
  "days": [
   "2026-08-22",
@@ -126,15 +126,15 @@
      "crowd": true
     }
    },
-   "p": 0.621,
+   "p": 0.405,
    "hold": {
     "days": 30,
-    "n": 1333,
+    "n": 1332,
     "perDay": 44.4,
-    "won": 95.4,
+    "won": 95.5,
     "paid": 92.8,
     "edge": 2.6,
-    "usdDay": 19.77,
+    "usdDay": 20.44,
     "green": 77.0,
     "worst": -67.0,
     "drop": 67.0
@@ -153,33 +153,33 @@
    },
    "all": {
     "days": 90,
-    "n": 4284,
+    "n": 4283,
     "perDay": 47.6,
     "won": 95.2,
     "paid": 92.7,
     "edge": 2.4,
-    "usdDay": 19.52,
+    "usdDay": 19.74,
     "green": 72.0,
     "worst": -195.0,
     "drop": 213.0
    },
-   "gain": 5.47,
+   "gain": 6.14,
    "why": [
-    "holdout gain could be luck (p 0.62)",
+    "holdout gain could be luck (p 0.41)",
     "worse worst day"
    ]
   },
   {
-   "id": "51f59c87f9",
-   "kind": "better",
+   "id": "6c14412a64x",
+   "kind": "new",
    "family": "A",
-   "label": "Claude's pick at the trade check: 88\u00a2 to under 97\u00a2, cushion 1+, dip above -1.5, straightness under 0.7; later buys at cushion 1.5+, margin 0, crowd rule on",
+   "label": "Claude's pick at the trade check: 88\u00a2 to under 97\u00a2, cushion 1.5+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0, crowd rule on",
    "spec": {
     "q": 5,
     "lo": 0.88,
     "hi": 0.97,
-    "z": 1,
-    "dp": -1.5,
+    "z": 1.5,
+    "dp": -2,
     "r2": 0.7,
     "side": "both",
     "late": {
@@ -188,109 +188,83 @@
      "crowd": true
     }
    },
-   "p": 1.0,
+   "p": 0.645,
    "hold": {
     "days": 30,
-    "n": 1529,
-    "perDay": 51.0,
-    "won": 94.1,
-    "paid": 92.1,
-    "edge": 2.0,
-    "usdDay": 16.03,
-    "green": 63.0,
-    "worst": -83.0,
-    "drop": 108.0
-   },
-   "holdBase": {
-    "days": 30,
-    "n": 791,
-    "perDay": 26.4,
-    "won": 95.4,
-    "paid": 92.4,
-    "edge": 3.1,
-    "usdDay": 14.3,
-    "green": 63.0,
-    "worst": -30.0,
-    "drop": 39.0
+    "n": 323,
+    "perDay": 10.8,
+    "won": 96.6,
+    "paid": 94.4,
+    "edge": 2.2,
+    "usdDay": 4.19,
+    "green": 70.0,
+    "worst": -44.0,
+    "drop": 44.0
    },
    "all": {
     "days": 90,
-    "n": 5159,
-    "perDay": 57.3,
-    "won": 94.3,
-    "paid": 92.0,
-    "edge": 2.3,
-    "usdDay": 21.65,
-    "green": 69.0,
-    "worst": -212.0,
-    "drop": 212.0
+    "n": 1210,
+    "perDay": 13.4,
+    "won": 96.7,
+    "paid": 94.0,
+    "edge": 2.7,
+    "usdDay": 6.55,
+    "green": 70.0,
+    "worst": -50.0,
+    "drop": 68.0
    },
-   "gain": 1.73,
+   "overlap": 50.0,
    "why": [
-    "holdout gain could be luck (p 1.00)",
-    "worse worst day"
+    "holdout result could be luck (p 0.65)"
    ]
   },
   {
-   "id": "a236a1ae16",
-   "kind": "better",
+   "id": "11e77f8759x",
+   "kind": "new",
    "family": "A",
-   "label": "Claude's pick at the trade check: 90\u00a2 to under 97\u00a2, cushion 1+, dip above -1.5, straightness under 0.7; later buys at cushion 1.5+, margin 0, crowd rule on",
+   "label": "Claude's pick at the trade check: 90\u00a2 to under 97\u00a2, cushion 1+, dip above -2, straightness under 0.7; later buys at cushion 1.5+, margin 0.2, crowd rule on",
    "spec": {
     "q": 5,
     "lo": 0.9,
     "hi": 0.97,
     "z": 1,
-    "dp": -1.5,
+    "dp": -2,
     "r2": 0.7,
     "side": "both",
     "late": {
      "z": 1.5,
-     "m": 0,
+     "m": 0.2,
      "crowd": true
     }
    },
-   "p": 1.0,
+   "p": 0.949,
    "hold": {
     "days": 30,
-    "n": 1292,
-    "perDay": 43.1,
-    "won": 95.1,
-    "paid": 92.8,
-    "edge": 2.3,
-    "usdDay": 16.49,
-    "green": 73.0,
-    "worst": -66.0,
-    "drop": 75.0
-   },
-   "holdBase": {
-    "days": 30,
-    "n": 791,
-    "perDay": 26.4,
-    "won": 95.4,
-    "paid": 92.4,
-    "edge": 3.1,
-    "usdDay": 14.3,
-    "green": 63.0,
-    "worst": -30.0,
-    "drop": 39.0
+    "n": 579,
+    "perDay": 19.3,
+    "won": 95.2,
+    "paid": 93.5,
+    "edge": 1.7,
+    "usdDay": 5.12,
+    "green": 67.0,
+    "worst": -75.0,
+    "drop": 89.0
    },
    "all": {
     "days": 90,
-    "n": 4292,
-    "perDay": 47.7,
-    "won": 95.3,
-    "paid": 92.8,
-    "edge": 2.5,
-    "usdDay": 20.31,
-    "green": 78.0,
-    "worst": -194.0,
-    "drop": 194.0
+    "n": 1791,
+    "perDay": 19.9,
+    "won": 95.6,
+    "paid": 93.4,
+    "edge": 2.2,
+    "usdDay": 7.29,
+    "green": 71.0,
+    "worst": -75.0,
+    "drop": 89.0
    },
-   "gain": 2.19,
+   "overlap": 58.0,
    "why": [
-    "holdout gain could be luck (p 1.00)",
-    "worse worst day"
+    "holdout result could be luck (p 0.95)"
    ]
   }
  ]
