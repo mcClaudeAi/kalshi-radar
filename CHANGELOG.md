@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.36 (Nov 20, 2026): Trade check and later buys tiles fit at every width
+- [fixed] On a mid-width screen the Trade check amount ran out of its tile. The two tiles now span the full width of the Today box, and the amount moves under the count whenever the tiles are narrow, on phone and web.
+
 ## 1.3.35 (Nov 20, 2026): Tap an account to see its day
 - [new] Home, live: tapping an account under Kalshi cash now loads that account's day into the Today box beside it: its result, automatic and by-hand lines, trade check and later buys, what it passed on, and its own profit target. An "All" chip adds every account together, with the targets of the accounts that are on added up. The pick is remembered on this device.
 - [improved] Subaccounts now send the same split of today's trades as Main (by hand, later buys, passed).
