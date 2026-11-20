@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.37 (Nov 20, 2026): The live tiles up top count every account
+- [improved] The Live trading tile (its line, won, lost and open) and Live today now add up Main and every subaccount, not Main alone. Live today's target is the accounts' targets added together, and on the phone it says how many accounts it covers.
+- [fixed] On narrow phones the cash in the corner of Live today no longer runs into the label.
+
 ## 1.3.36 (Nov 20, 2026): Trade check and later buys tiles fit at every width
 - [fixed] On a mid-width screen the Trade check amount ran out of its tile. The two tiles now span the full width of the Today box, and the amount moves under the count whenever the tiles are narrow, on phone and web.
 
