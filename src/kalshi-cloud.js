@@ -652,7 +652,7 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-16 Steven read "Not trading right now: window is full" as a frozen dash, 7 minutes into the next window. The last
     // skip reason stayed up until the next order went in. A reason about one coin or one window (full window, benched coin, a
     // playbook pass) now ends with that window; only the day-long stops (loss cap, target, give-back, drawdown, order limit) stay.
-    const skip = s => { st.stopped = s; st.stoppedDay = /^(daily |give-back|bank drawdown|cash|protecting)/.test(s); st.stoppedTo = st.stoppedDay ? null : r.close; const x = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: s }; L.set(r.ticker, x); saveL(x); say(`LIVE skip ${r.ticker}: ${s}`); };
+    const skip = s => { st.stopped = s; st.stoppedDay = /^(daily |give-back|bank drawdown|cash)/.test(s) || (/^protecting/.test(s) && !/ riding /.test(s));   // MC 2026-11-20 a protect skip because an open trade was using the room lasts only until that window closes (it was held all day and read as stuck) st.stoppedTo = st.stoppedDay ? null : r.close; const x = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: s }; L.set(r.ticker, x); saveL(x); say(`LIVE skip ${r.ticker}: ${s}`); };
     if (why) return skip(why);
     const bal = await balance(true);
     if (bal == null) { fail(`no order for ${r.ticker}: could not read the balance`); return; }

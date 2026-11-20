@@ -138,7 +138,7 @@ export function createBooks(D) {
     s.lastXfer = { at: Date.now(), amt: +amt.toFixed(2) }; s.balAt = 0; if (/crypto shard/.test(s.err || '')) s.err = null; D.say(`BOOK ${b.name} moved $${amt.toFixed(2)} to the crypto shard`);
   }
 
-  function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; S[b.id].stoppedDay = /^(daily |give-back|bank drawdown|cash|protecting)/.test(why); S[b.id].stoppedTo = S[b.id].stoppedDay ? null : r.close; }   // MC 2026-11-16 a one-window reason ends with its window, as on Main
+  function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; S[b.id].stoppedDay = /^(daily |give-back|bank drawdown|cash)/.test(why) || (/^protecting/.test(why) && !/ riding /.test(why));   // MC 2026-11-20 same as Main: the riding kind clears when its window closes S[b.id].stoppedTo = S[b.id].stoppedDay ? null : r.close; }   // MC 2026-11-16 a one-window reason ends with its window, as on Main
   // the same checks and order as the main live book (kalshi-cloud.js onRule), with this book's size, loss cap and floor
   // MC 2026-11-14 like the main book: each book checks its orders one by one against its own limits (its own window cap, day,
   // loss cap, floor and fills), counting a planned order as if it filled, then sends them all at once. Books run side by side.

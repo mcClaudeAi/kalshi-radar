@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.38 (Nov 20, 2026): "Protecting" clears when the open trade's window closes
+- [fixed] When a coin was skipped because the trade already open that window was using the protected room, the account kept saying "Protecting" with that note for the rest of the day, even after the trade settled and it was trading again. That note now clears when the window closes. "Protecting" stays all day only when today's result is down at the level kept.
+
 ## 1.3.37 (Nov 20, 2026): The live tiles up top count every account
 - [improved] The Live trading tile (its line, won, lost and open) and Live today now add up Main and every subaccount, not Main alone. Live today's target is the accounts' targets added together, and on the phone it says how many accounts it covers.
 - [fixed] On narrow phones the cash in the corner of Live today no longer runs into the label.
