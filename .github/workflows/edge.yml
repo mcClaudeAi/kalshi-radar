@@ -1,0 +1,56 @@
+# Edge search: pulls the last days of 15-minute crypto markets into the research-data branch (one file a day), then looks for a
+# playbook that beats the reference rule or adds money alongside it. Daily at 2:23 AM Eastern; Sundays run the deep search.
+# Results land in research-data/edges (latest.json is what dashboards read). Public market data only, no keys.
+name: Edge search
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+    inputs:
+      days: { description: 'Days of markets to pull (90 to rebuild everything)', default: '2' }
+      deep: { description: 'yes for the deep search, auto for Sundays only', default: 'auto' }
+permissions:
+  contents: write
+concurrency:
+  group: edge-search
+  cancel-in-progress: false
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        coin: [BTC, ETH, SOL, XRP, DOGE, BNB, HYPE, ZEC, NEAR]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          node research/edge/pull.mjs ${{ matrix.coin }} ${{ github.event.inputs.days || '2' }} > pull.log
+          grep '^EG ' pull.log | cut -c4- > eg-${{ matrix.coin }}.jsonl || true
+          tail -3 pull.log
+      - uses: actions/upload-artifact@v4
+        with: { name: 'eg-${{ matrix.coin }}', path: 'eg-${{ matrix.coin }}.jsonl', retention-days: 3 }
+  search:
+    needs: pull
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install numpy
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'eg-*', path: pulled, merge-multiple: true }
+      - name: Merge into the data branch and search
+        run: |
+          git worktree add rd origin/research-data
+          cd rd && git checkout -B research-data && cd ..
+          python3 research/edge/merge.py pulled rd/data
+          MODE=daily; if [ "${{ github.event.inputs.deep }}" = "yes" ] || { [ "${{ github.event.inputs.deep }}" != "no" ] && [ "$(date -u +%u)" = "7" ]; }; then MODE=deep; fi
+          python3 research/edge/search.py rd $MODE
+          cp research/edge/README.md rd/README.md 2>/dev/null || true
+          cd rd && git add -A && git -c user.name="mcClaudeAi" -c user.email="342561743+mcClaudeAi@users.noreply.github.com" commit -qm "Edge search $MODE $(date -u +%F)" && git push origin research-data || echo "nothing to commit"
