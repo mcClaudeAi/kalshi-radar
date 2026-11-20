@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.32 (Nov 19, 2026): Edge check and the nightly edge search
+- [new] Labs: an "Edge check" card at the top. It compares the running rule's last 7 days with the 7 before, as win rate minus the price paid, from Main's live fills (or paper's trades when live took under 40 that week). It reads Holding, Slipping (one week under) or Two weeks under (the warning to pause).
+- [new] Edge search: every night the public repo pulls the newest markets and tries hundreds of versions of Claude's pick (thousands on Sundays, plus other minutes and price bands). Each one is picked on the first 60 of the last 90 days and judged only on the last 30, and it has to beat your rule day by day or add money on its own after a correction for how many were tried. Results show on the Edge check card.
+- [new] A found edge sends one alert, and the ones that run at the trade check get a paper line in Labs ("Found edge 1"). They can't be picked as a playbook, so nothing live changes until one is built on purpose.
+- [new] Notifications: an "Edge alerts" switch for new edges and edge check warnings, on unless turned off.
+
 ## 1.3.31 (Nov 19, 2026): Hide the passed-on trades on the board too
 - [improved] The "Passed on" divider under your open trades now has a Hide button. It hides the cards the playbook passed on and shares one switch with the Scanner's "Hide passed", remembered on this device.
 

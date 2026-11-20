@@ -263,9 +263,16 @@ function labDefs(K) {
     // MC 2026-11-11 buys at minute 10 instead of at the mark, and only when the 5-to-10 trend line is with the bet or flat. Labs
     // only (m10Only): it runs on its own minute-10 prices, never on the mark's trades, and can't be picked for paper or live.
     { id: 'tr10', name: 'Wait for the trend', m10Only: true, desc: `Skips the 10-minutes-left buy. At 5 minutes left it buys the leader if it costs ${cts(K.minAsk ?? 0.9)}¢ to 98¢ and the trend line from minute 5 to minute 10 runs with the bet or is flat. Higher prices than the mark, so smaller wins; the question is whether fewer losses make up for it.`, color: '#E9C46A', filter: t => !!t.m10 && t.px >= K.minAsk && t.px <= 0.98 && t.dir >= 0 },
+    // MC 2026-11-19 edges the daily search found (research-data/edges/latest.json on the public repo), as paper lines in
+    // Labs only. They can't be picked as a playbook here (not in LAB_IDS); a found one that should trade gets built properly.
+    ...EDGE_FOUND.filter(e => e.family === 'A' && e.spec?.q === 5).slice(0, 3).map((e, i) => { const sp = e.spec, lt = sp.late;
+      return { id: 'fd' + i, found: true, name: `Found edge ${i + 1}${e.kind === 'new' ? ', alongside' : ''}`, color: ['#FFD166', '#06D6A0', '#EF476F'][i], x: lt ? 'f' + i : undefined, run: false,
+        desc: `${e.kind === 'new' ? 'Found by the edge search as new trades to run alongside your rule' : 'Found by the edge search as better than your rule'} (${e.at || 'latest search'}): ${e.label}. Paper only, from the tracker's own records, so its line here is the real test.`,
+        filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.px >= sp.lo - 1e-9 && t.px < sp.hi - 1e-9 && t.z >= sp.z - 1e-9 && t.dp > sp.dp && t.r2 < sp.r2 && (sp.side === 'both' || t.side === sp.side)) }; }),
     { id: 'all', name: 'All filters together', desc: 'Skip 95¢+, 6 or more coins, and the volatility check, all at once.', color: '#6C757D', filter: t => t.z == null ? null : (t.px < 0.95 && t.win >= 6 && t.z >= 1) },
   ];
 }
+let EDGE_FOUND = [];   // set from the edge search's latest results (see edgeFetch)
 const LAB_IDS = labDefs(PAPER_DEF).map(l => l.id);
 // normal CDF (Abramowitz and Stegun 7.1.26 on erf) and the win chance from a z of margin over one 10-minute move; the 60-second
 // settlement average trims the effective time to 10 - 2/3 minutes, hence the small scale-up
@@ -447,6 +454,7 @@ export function createKalshi(state, env, keep) {
     xRows = []; for (const row of sql.exec('SELECT j FROM kxr WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { xRows.push(...JSON.parse(row.j)); } catch { } }
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
+    edgeS = (await kv.get('kedge')) || { seen: {}, mon: {} }; EDGE_FOUND = edgeS.latest?.found || [];
     { const l = await kv.get('kcfgL'); if (l) cfgL = { ...pickL(PAPER_DEF), ...l }; else { cfgL = pickL(cfgP); await kv.put('kcfgL', cfgL); } }
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     apiV = (await kv.get('kapi')) || null;
@@ -1154,6 +1162,7 @@ export function createKalshi(state, env, keep) {
     const now = Date.now(), K = cfgP, out = [];
     try { compact(now); } catch (e) { console.log('compact: ' + e.message); }
     try { await gapWatch(now); } catch (e) { console.log('gap watch: ' + e.message); }
+    try { await edgeFetch(now); } catch (e) { console.log('edge search: ' + e.message); }
     // a missed mark (alarm didn't fire) is caught here up to a minute late
     const mk = nextMark(now) - Q; if (now - mk < 60000 && st.lastMark < mk) await entry(now);
     for (const s of activeSeries()) {
@@ -1405,6 +1414,38 @@ export function createKalshi(state, env, keep) {
   // memory does not last between minutes. Nothing older than the lookback is sent, so turning notifications on does not replay
   // the day. The worker decides which devices get which message; this only writes them. Wording is plain and exact on purpose.
   let pnT = null, pnBank = null;
+  let edgeS = { seen: {}, mon: {} };   // edge search results and edge check alert times (kv 'kedge')
+  // ---------- edge check and edge search (asked Nov 19, after two red days in a sell-off) ----------
+  // MC 2026-11-19 two things. The edge check: the running rule's last 7 days against the 7 before, as won % minus the average
+  // price paid (an edge of 0 means it only broke even before fees). Live Main's own fills when it took 40+ trades that week,
+  // paper's otherwise. Under 0 for a week is "slipping"; under 0 two weeks running is the warning to pause. In 90 days of
+  // backtest the rule never had two such weeks in a row (its worst weeks, Aug 17 and Aug 31, came back the week after).
+  // The edge search runs on the public repo every night (research/edge, Sundays deeper) and writes edges/latest.json to the
+  // research-data branch. Read once an hour; a found edge not seen before raises one alert, and the Labs-able ones get a
+  // paper line. Nothing here changes what live trades: a found edge only becomes a playbook when it is built on purpose.
+  const EDGE_URL = 'https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/research-data/edges/latest.json', eq = [];
+  async function edgeFetch(now) {
+    if (now - (edgeS.at || 0) < 3600000) return; edgeS.at = now;
+    const r = await fetch(EDGE_URL + '?t=' + Math.floor(now / 3600000), { headers: { 'user-agent': 'kalshi-radar' } }); if (!r.ok) { await kv.put('kedge', edgeS); return; }
+    const j = await r.json(); if (j?.v !== 1) return;
+    const keep = e => ({ id: e.id, kind: e.kind, family: e.family, label: e.label, spec: e.spec, p: e.p, gain: e.gain ?? null, overlap: e.overlap ?? null, hold: e.hold, holdBase: e.holdBase || null, all: e.all, at: (j.at || '').slice(0, 10) });
+    edgeS.latest = { at: j.at, mode: j.mode, days: j.days, holdFrom: j.holdFrom, markets: j.markets, tested: j.tested, base: j.base, health: j.health, found: (j.found || []).map(keep), near: (j.near || []).slice(0, 3).map(e => ({ label: e.label, why: e.why })) };
+    EDGE_FOUND = edgeS.latest.found; viewDirty = true;
+    for (const e of EDGE_FOUND) { if (edgeS.seen[e.id]) continue; edgeS.seen[e.id] = now; const h = e.hold || {};
+      eq.push({ book: 'live', kind: 'edge', tag: 'kedge-' + e.id, url: '/', title: e.kind === 'better' ? 'New edge found: better than your rule' : 'New edge found: extra trades alongside your rule',
+        body: `${e.label}. On the last 30 days, which it was not picked on: ${h.n} trades, won ${h.won}%, $${(+h.usdDay).toFixed(2)} a day at $20${e.kind === 'better' ? ` ($${(+e.gain).toFixed(2)} a day more than your rule)` : ''}. ${e.family === 'A' ? 'It is on Labs as a paper line now.' : 'It needs a playbook built before it can run.'}` }); }
+    await kv.put('kedge', edgeS);
+  }
+  function edgeMonOf(now) {
+    const W = 7 * 86400000, sum = l => { const n = l.length, w = l.filter(x => x.won).length, ap = n ? l.reduce((a, x) => a + x.px, 0) / n : 0;
+      return { n, won: n ? +(100 * w / n).toFixed(1) : null, paid: n ? +(100 * ap).toFixed(1) : null, edge: n ? +(100 * (w / n - ap)).toFixed(1) : null, net: +l.reduce((a, x) => a + (x.pnl || 0), 0).toFixed(2) }; };
+    const live = [...L.values()].filter(x => x.fill > 0 && x.px != null && x.result && x.result !== 'void').map(x => ({ close: x.close, px: x.px, won: !!x.won, pnl: x.pnl || 0 }));
+    const paper = (pnT || []).filter(t => t.done && !t.capped && t.run).map(t => ({ close: t.close, px: t.px, won: !!t.won, pnl: t.pnl || 0 }));
+    const useLive = live.filter(x => x.close > now - W).length >= 40, src = useLive ? live : paper;
+    const w1 = sum(src.filter(x => x.close > now - W)), w2 = sum(src.filter(x => x.close <= now - W && x.close > now - 2 * W));
+    const st = w1.n < 20 ? 'quiet' : w1.edge >= 0 ? 'ok' : (w2.n >= 20 && w2.edge < 0) ? 'gone' : 'slip';
+    return { src: useLive ? 'live' : 'paper', st, w1, w2, at: now };
+  }
   async function events(now = Date.now()) {
     await load(); if (!pnT) kalshiView();
     const seen = (await kv.get('kpn')) || {}, out = [], K = cfgP; let ch = false;
@@ -1435,6 +1476,12 @@ export function createKalshi(state, env, keep) {
     if (ch) { for (const k of Object.keys(seen)) if (now - seen[k] > 6 * 3600000) delete seen[k]; await kv.put('kpn', seen); }
     // MC 2026-11-13 vault sweeps go out as live win notices
     while (vq.length) { const e = vq.shift(); out.push({ book: 'live', kind: 'settle', win: true, loss: false, title: e.title, body: e.body, tag: 'kvault', url: e.url }); }
+    // MC 2026-11-19 edge check alerts: slipping at most once a day, the two-week warning at most every three days
+    { const m = edgeMonOf(now), S = edgeS.mon || (edgeS.mon = {}), w = x => `won ${x.won}% at ${x.paid}\u00a2 paid (edge ${x.edge > 0 ? '+' : ''}${x.edge} points, ${x.n} ${m.src} trades)`; let put = false;
+      if (m.st === 'slip' && now - (S.slip || 0) > 86400000) { S.slip = now; put = true; out.push({ book: 'live', kind: 'edge', tag: 'kedge-mon', url: '/', title: 'Edge check: slipping this week', body: `Last 7 days: ${w(m.w1)}. One bad week happens; two in a row is the warning.` }); }
+      if (m.st === 'gone' && now - (S.gone || 0) > 3 * 86400000) { S.gone = now; put = true; out.push({ book: 'live', kind: 'edge', tag: 'kedge-mon', url: '/', title: 'Edge check: two weeks under the price paid', body: `This week ${w(m.w1)}. The week before ${w(m.w2)}. Think about pausing live or cutting the trade size until it turns.` }); }
+      while (eq.length) out.push(eq.shift());
+      if (put) await kv.put('kedge', edgeS); }
     return out;
   }
 
@@ -2011,7 +2058,7 @@ export function createKalshi(state, env, keep) {
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
       look2sum: l2sum ? { since: l2sum.since, size: +cfgP.sizeUsd || 50, h: Object.entries(l2sum.h).map(([k, v]) => [+k, ...v]).sort((a, b) => a[0] - b[0]), d: Object.entries(l2sum.d).map(([k, v]) => [k, ...v]).sort((a, b) => a[0] < b[0] ? -1 : 1) } : null,
       look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), chartfill: (() => { const now = Date.now(); let left = 0, oldest = null; for (const r of rec.values()) { if (!r.vol || !(r.strike > 0) || r.at < now - 21 * 86400000 || r.at > now - 120000) continue; if (r.vol.dp === undefined && (r.vol.tlTry || 0) < 2) left++; else if (r.vol.dp != null && (oldest == null || r.at < oldest)) oldest = r.at; } return { left, oldest }; })(),
-      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs,
+      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs, edge: { mon: edgeMonOf(Date.now()), search: edgeS.latest || null },
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 
@@ -2036,7 +2083,13 @@ export function createKalshi(state, env, keep) {
     // later watched as paper runs it: for each market, the first later minute that meets paper's cushion, margin and crowd settings
     { const zb = K.lateZ ?? 1, mb = K.lateM ?? 0.2, cr = K.lateCrowd !== 0, seen = new Set();
       for (const t of xT.filter(t => t.x === 'm').sort((a, b) => a.t - b.t)) { if (seen.has(t.tk) || !(t.z >= zb - 1e-9) || !lateMOk({ z: t.z, dp: t.dp, r2: t.r2 }, mb) || (cr && t.cz > XC_Z)) continue; seen.add(t.tk); t.x = 'y'; } }
-    const xMix = {}; for (const k of ['e', 'l', 'h', 'y']) { const own = xT.filter(t => t.x === k), got = new Set(k === 'e' ? own.map(t => t.tk) : []); xMix[k] = [...plain.filter(t => !got.has(t.tk)), ...own].sort((a, b) => a.t - b.t); }
+    // MC 2026-11-19 found edges with later buys: each takes the first later minute meeting its own cushion, margin and crowd
+    for (const lab of LABS) { if (!lab.found || !lab.x) continue; const e = EDGE_FOUND.filter(e => e.family === 'A' && e.spec?.q === 5)[+lab.id.slice(2)], lt = e?.spec?.late; if (!lt) continue;
+      const seen = new Set(), own = [];
+      for (const t of xT.filter(t => t.x === 'm' || t.x === 'y').sort((a, b) => a.t - b.t)) { if (seen.has(t.tk) || !(t.z >= lt.z - 1e-9) || !lateMOk({ z: t.z, dp: t.dp, r2: t.r2 }, lt.m) || (lt.crowd && t.cz > XC_Z)) continue; seen.add(t.tk); own.push({ ...t, x: lab.x }); }
+      lab._own = own; }
+    const xMix = {}; for (const lab of LABS) if (lab._own) xMix[lab.x] = [...plain, ...lab._own].sort((a, b) => a.t - b.t);
+    for (const k of ['e', 'l', 'h', 'y']) { const own = xT.filter(t => t.x === k), got = new Set(k === 'e' ? own.map(t => t.tk) : []); xMix[k] = [...plain.filter(t => !got.has(t.tk)), ...own].sort((a, b) => a.t - b.t); }
     const todayK = etDay(Date.now());
     // MC 2026-11-18 asked: Labs priced every trade as one $50 buy, but three accounts buy the same coin in the same second and
     // the second and third pay more (HYPE filled at 91.1c, 92.6c and 92.2c). labAccts (1 to 4, a paper setting) prices each
@@ -2088,10 +2141,10 @@ export function createKalshi(state, env, keep) {
       // cushion bar of 1.75 the first later buy came on Nov 6, which left four days of its trade-check buys off the line
       const trades = lab.ls ? lsT : lab.ep ? epT : lab.x ? xMix[lab.x] : lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
-      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || (lab.x && !lab.run)), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
+      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || lab.found || (lab.x && !lab.run)), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || (lab.x && !lab.run)), since: first.close, ...both(false), cx: both(true) };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || lab.found || (lab.x && !lab.run)), found: !!lab.found, since: first.close, ...both(false), cx: both(true) };
     });
   }
 

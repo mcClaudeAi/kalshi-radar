@@ -12,7 +12,7 @@ const HOSTS = [/^web\.push\.apple\.com$/, /(^|\.)push\.apple\.com$/, /^fcm\.goog
 export const PUSH_DEF = { paper: { open: true, win: true, loss: true }, live: { open: true, win: true, loss: true } };
 const okEndpoint = e => { try { const u = new URL(e); return u.protocol === 'https:' && HOSTS.some(h => h.test(u.hostname)); } catch { return false; } };
 // MC 2026-11-11 chat: messages from friends, one switch, on unless turned off
-const cleanPrefs = p => { const o = {}; for (const b of ['paper', 'live']) { o[b] = {}; for (const k of ['open', 'win', 'loss']) o[b][k] = p?.[b]?.[k] === undefined ? PUSH_DEF[b][k] : p[b][k] === true; } o.chat = p?.chat !== false; return o; };
+const cleanPrefs = p => { const o = {}; for (const b of ['paper', 'live']) { o[b] = {}; for (const k of ['open', 'win', 'loss']) o[b][k] = p?.[b]?.[k] === undefined ? PUSH_DEF[b][k] : p[b][k] === true; } o.chat = p?.chat !== false; o.edge = p?.edge !== false; return o; };
 
 async function vapid(storage) {
   let v = await storage.get('pushvapid');
@@ -48,7 +48,7 @@ export async function pushSend(storage, events, contact) {
   const subs = (await storage.get('pushsubs')) || []; if (!subs.length) return 0;
   const v = await vapid(storage); let sent = 0; const dead = new Set();
   for (const s of subs) for (const e of events) {
-    if (e.kind === 'chat') { if (s.prefs?.chat === false) continue; } else { const p = s.prefs?.[e.book] || {}; if (!(e.kind === 'open' ? p.open : ((e.win && p.win) || (e.loss && p.loss)))) continue; }
+    if (e.kind === 'chat') { if (s.prefs?.chat === false) continue; } else if (e.kind === 'edge') { if (s.prefs?.edge === false) continue; } else { const p = s.prefs?.[e.book] || {}; if (!(e.kind === 'open' ? p.open : ((e.win && p.win) || (e.loss && p.loss)))) continue; }
     try { const st = await sendOne(v, s, { title: e.title, body: e.body, tag: e.tag, url: e.url || '/' }, contact); if (st === 404 || st === 410) dead.add(s.endpoint); else if (st >= 200 && st < 300) sent++; else console.log('push ' + st); } catch (x) { console.log('push error ' + x.message); }
   }
   if (dead.size) await storage.put('pushsubs', subs.filter(s => !dead.has(s.endpoint)));
