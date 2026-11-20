@@ -1370,6 +1370,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .lh-cash{display:flex;flex-direction:column;justify-content:center;min-width:0}
 .kx-hero2.lh .kx-bal{font-size:clamp(44px,5.4vw,68px);font-weight:600;letter-spacing:-.04em;line-height:1;margin-top:8px;white-space:nowrap}
 .lh-accs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.lh-accs:empty{display:none}
+.lh-acc.sel{border-color:color-mix(in srgb,var(--kx) 70%,var(--line));background:color-mix(in srgb,var(--kx) 9%,var(--s1));box-shadow:0 0 0 1px color-mix(in srgb,var(--kx) 35%,transparent),0 6px 18px -10px var(--kx)}.lh-acc.all i{background:var(--ink2)!important;box-shadow:none!important}
 .lh-acc{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:auto auto;column-gap:14px;row-gap:1px;align-items:baseline;padding:9px 13px 9px 12px;border-radius:14px;border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 62%,transparent);position:relative;transition:border-color .15s,transform .15s}
 .lh-acc:hover{border-color:color-mix(in srgb,var(--kx) 55%,transparent);transform:translateY(-1px)}.lh-acc:focus-visible{outline:2px solid var(--kx);outline-offset:2px}
 .lh-acc i{position:absolute;left:12px;top:14px;width:6px;height:6px;border-radius:50%;background:var(--faint)}.lh-acc.on i{background:var(--good)}
@@ -4124,8 +4125,20 @@ const kxAccPanel=where=>kbBooks().length?`<section class="kx-acc" data-kxacc="${
 // known cash is kept, so a restart of the tracker (every update is one) doesn't blank the figure for a minute.
 function kxMainBal(){const b=kxLv()?.bal;if(b!=null)KX.balMemo=b;return b??KX.balMemo??null}
 function kxTotH(){const m=kxMainBal(),A=kxAccts();return m==null?'–':'$'+Number(A.reduce((a,x)=>a+(x.bal||0),0)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function kxAllBoxH(){const A=kxAccts();if(A.length<2)return '';
-  return A.map(x=>`<button type="button" class="lh-acc ${x.on?'on':''}" onclick="document.querySelector('.kx-acc')?.scrollIntoView({behavior:'smooth',block:'start'})" aria-label="${esc(x.name)}: ${kxAccM(x.bal)} cash, ${usd(x.today.net||0)} today. Show accounts"><i></i><span>${esc(x.name)}</span><b>${kxAccM(x.bal)}</b><em class="${cls(x.today.net)}">${usd(x.today.net||0)}</em></button>`).join('')}
+// MC 2026-11-20 asked: tapping an account here loads its day into the Today box beside it, with an All option for the accounts
+// together (was: every tap scrolled down to Accounts). The pick is remembered on this device.
+function kxAllBoxH(){const A=kxAccts();if(A.length<2)return '';const sel=kxLhSel(A),tot=A.reduce((a,x)=>a+(x.today.net||0),0),cash=A.reduce((a,x)=>a+(+x.bal||0),0);
+  return `<button type="button" class="lh-acc all ${sel==='all'?'sel':''}" aria-pressed="${sel==='all'}" onclick="kxSegSet('lhAcc','all')" aria-label="All accounts: ${usd(tot)} today. Show in Today"><i></i><span>All</span><b>${kxAccM(cash)}</b><em class="${cls(tot)}">${usd(tot)}</em></button>`+A.map(x=>`<button type="button" class="lh-acc ${x.on?'on':''} ${sel===x.id?'sel':''}" aria-pressed="${sel===x.id}" onclick="kxSegSet('lhAcc','${esc(x.id)}')" aria-label="${esc(x.name)}: ${kxAccM(x.bal)} cash, ${usd(x.today.net||0)} today. Show in Today"><i></i><span>${esc(x.name)}</span><b>${kxAccM(x.bal)}</b><em class="${cls(x.today.net)}">${usd(x.today.net||0)}</em></button>`).join('')}
+function kxLhSel(A=kxAccts()){const v=KXSEG.lhAcc||'main';return v==='all'||A.some(x=>x.id===v)?v:'main'}
+// today for the account picked above, or every account added together
+function kxLhToday(lv){const A=kxAccts(),sel=A.length<2?'main':kxLhSel(A),base=lv?.cfg||{};
+  if(sel==='main')return {name:A.length<2?'':'Main',t:lv?.today||{},cc:null,main:1};
+  if(sel!=='all'){const x=A.find(a=>a.id===sel),b=typeof kbB==='function'?kbB(sel):null;return {name:x.name,t:x.today||{},cc:{...base,...(b?.cfg||x.cfg||{})},stopped:x.stopped}}
+  const add=(o,k,v)=>{o[k]=+((o[k]||0)+(+v||0)).toFixed(2)},t={hand:{},late:{}};let tg=0,anyT=0;
+  for(const x of A){const d=x.today||{};for(const k of ['n','won','net','open','passed','pWon','pLost'])add(t,k,d[k]);for(const g of ['hand','late'])for(const k of ['n','won','net'])add(t[g],k,d[g]?.[k]);
+    if(x.on){const b=x.main?null:(typeof kbB==='function'?kbB(x.id):null),c={...base,...(b?.cfg||x.cfg||{})};tg+=+c.dailyWinUsd||0;anyT||=+c.dailyWinUsd>0}}
+  if(!A.every(x=>x.today?.late))delete t.late;if(!A.every(x=>x.today?.hand))delete t.hand;
+  return {name:'All accounts',t,cc:anyT?{dailyWinUsd:tg}:{dailyWinUsd:0,lockAt:0}}}
 function kxLedgerH(){const lv=kxLv()||{},h=lv.hist||[],n=h.length,won=h.filter(x=>x[6]).length,net=lv.total?.net||0,first=n?Math.min(...h.map(x=>x[0])):null,M=lv.money||[],dep=M.reduce((a,x)=>a+x.usd,0),w=kxWorth(),all=w==null?null:+(w-dep).toFixed(2),can=ST.me?.control&&!ST.fv;
   const dd=x=>new Date(x).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'}),cell=(l,v,sub,c='')=>`<div class="lh-lc ${c}"><span class="kx-ml">${l}</span><b>${v}</b><small>${sub}</small></div>`;
   const log=cell('Trades logged',`<span class="${cls(net)}">${usd(net)}</span>`,n?`${n0(n)} settled${first?` since ${dd(first)}`:''} · ${(won/n*100).toFixed(1)}% won`:'no live trades settled yet','lh-log');
@@ -4252,7 +4265,7 @@ const kxSc=k=>'';   // MC 2026-11-14 paper and live have their own settings page
 // neither set. Below zero the bar is empty; at or past the line it fills and says the day stopped (target) or is protected.
 // MC 2026-11-14 Steven: raising paper's profit target moved the bar on his live numbers too, so live looked active again. The bar
 // takes the book now: live passes true and reads live's own target (the engine already stopped live on live's settings).
-function kxGoal(net,mini,live){const c=live?(kxLv()?.cfg||ST.D?.kalshi?.live?.live?.cfg||{}):(ST.D?.kalshi?.cfg||{}),tg=+c.dailyWinUsd||0,lk=+c.lockAt||0,line=tg||lk;if(!(line>0))return '';
+function kxGoal(net,mini,live,cc){const c=cc||(live?(kxLv()?.cfg||ST.D?.kalshi?.live?.live?.cfg||{}):(ST.D?.kalshi?.cfg||{})),tg=+c.dailyWinUsd||0,lk=+c.lockAt||0,line=tg||lk;if(!(line>0))return '';
   const v=+net||0,f=Math.max(0,Math.min(1,v/line)),hit=v>=line-0.005,pct=Math.round(f*100),left=Math.max(0,line-v);
   // MC 2026-11-13 first version was hard to read over the bank chart (small grey text, the equity line running through it). The
   // full size now sits on its own frosted panel with the target, the % and what is left to go; the tiles keep the slim one.
@@ -4674,8 +4687,8 @@ function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div c
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
    ${warn?`<div class="lh-warn${soft?' soft':''}"><i></i>${warn}</div>`:''}
    <div class="lh-main"><div class="lh-cash"><div class="kx-ml">Kalshi cash${bk.length?` · ${bk.length+1} accounts`:''}</div><div class="kx-bal" data-kxtot>${kxTotH()}</div><div class="lh-accs" data-kxall>${kxAllBoxH()}</div></div>
-    <div class="lh-today"><div class="lh-th"><span class="kx-ml">Today${bk.length?' · Main':''}</span>${stopPct>=1?'<em class="neg">stop hit</em>':t.open?`<em>${t.open} open</em>`:''}</div><b class="${cls(t.net)}">${usd(t.net||0)}</b>
-     ${kxTodayRec(t)}${kxGoal(t.net||0,0,1)}</div></div>
+    ${(()=>{const T=kxLhToday(lv),u=T.t;return `<div class="lh-today"><div class="lh-th"><span class="kx-ml">Today${T.name?' · '+esc(T.name):''}</span>${T.main&&stopPct>=1?'<em class="neg">stop hit</em>':u.open?`<em>${u.open} open</em>`:''}</div><b class="${cls(u.net)}">${usd(u.net||0)}</b>
+     ${kxTodayRec(u)}${kxGoal(u.net||0,0,1,T.cc)}</div>`})()}</div>
    <div class="lh-ledger" data-kxmoney>${kxLedgerH()}</div>
    <div class="kx-st">
     <div><div class="kx-ml">Win rate</div><b class="${n?(wr>=be?'pos':'neg'):''}">${n?(wr*100).toFixed(1)+'%':'–'} <em>need ${(be*100).toFixed(1)}</em></b><small>${n?`${won} won, ${n-won} lost`:'no live trades settled yet'}</small></div>
@@ -5401,7 +5414,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.34',KR_DATE='Nov 20, 2026';
+const KR_VERSION='1.3.35',KR_DATE='Nov 20, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

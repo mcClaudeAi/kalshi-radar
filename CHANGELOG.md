@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.35 (Nov 20, 2026): Tap an account to see its day
+- [new] Home, live: tapping an account under Kalshi cash now loads that account's day into the Today box beside it: its result, automatic and by-hand lines, trade check and later buys, what it passed on, and its own profit target. An "All" chip adds every account together, with the targets of the accounts that are on added up. The pick is remembered on this device.
+- [improved] Subaccounts now send the same split of today's trades as Main (by hand, later buys, passed).
+
 ## 1.3.34 (Nov 20, 2026): Today splits Claude's pick into trade check and later buys
 - [new] Home, Today on the live account: between Automatic and By hand, two tiles show today's automatic trades bought at the trade check and the later buys, each with its count, wins and result, and a bar under them showing the share of each.
 
