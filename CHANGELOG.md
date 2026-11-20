@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.33 (Nov 20, 2026): Equity by day or week, and "Protecting" instead of "Paused"
+- [new] Analytics: the Equity chart has Day, Week and range buttons. Day shows today from midnight Eastern with times along the bottom, Week the last 7 days, and the third follows the page's range as before. The line above the chart gives the result, trades and drawdown for what is shown.
+- [fixed] An account holding today's protected profit said "Paused" even while it was trading inside the room it had. It now says "Protecting", and the note says which case it is: a trade already open this window is using the room (other coins wait until it settles, and a win opens room again), or today's result is down at the level you chose to keep (done for the day).
+
 ## 1.3.32 (Nov 19, 2026): Edge check and the nightly edge search
 - [new] Labs: an "Edge check" card at the top. It compares the running rule's last 7 days with the 7 before, as win rate minus the price paid, from Main's live fills (or paper's trades when live took under 40 that week). It reads Holding, Slipping (one week under) or Two weeks under (the warning to pause).
 - [new] Edge search: every night the public repo pulls the newest markets and tries hundreds of versions of Claude's pick (thousands on Sundays, plus other minutes and price bands). Each one is picked on the first 60 of the last 90 days and judged only on the last 30, and it has to beat your rule day by day or add money on its own after a correction for how many were tried. Results show on the Edge check card.

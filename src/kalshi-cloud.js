@@ -666,7 +666,7 @@ export function createKalshi(state, env, keep) {
     // already has riding. Under the $5 minimum order it skips.
     if (cfgL.lockAt > 0) { const t2 = todayL().filter(x => x.pnl != null).sort((a, b) => a.at - b.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
       if (pk >= cfgL.lockAt) { const riding = [...L.values()].filter(x => x.close === r.close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), room = run - pk * (cfgL.lockKeep || 0) / 100 - riding;
-        if (room < 5) return skip(`protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left`); sizeUsd = Math.min(sizeUsd, room); } }
+        if (room < 5) return skip(`protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left${riding > 0 ? `, $${riding.toFixed(2)} riding on this window` : ''}`); sizeUsd = Math.min(sizeUsd, room); } }
     if ((st.shard[XI] ?? 0) - resv < sizeUsd + 1) { st.xferAt = 0; await fund(c); }
     const lim = orderLimit(r, lab?.id || 'rule', cfgL), maxPx = lim.top;
     if (maxPx < r.ask - 1e-9) return skip(`the ${(r.ask * 100).toFixed(1)}c ask is over your limit (${lim.why})`);
