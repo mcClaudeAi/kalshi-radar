@@ -124,7 +124,7 @@ def holm(ps):
     return adj
 
 def sid(s): return hashlib.sha1(json.dumps(s, sort_keys=True).encode()).hexdigest()[:10]
-def c_(x): return f'{round(x * 100)}c'
+def c_(x): return f'{round(x * 100)}¢'
 def label(s):
     t = (f"Claude's pick at the trade check" if s['q'] == 5 else f"Claude's pick's test at minute {s['q']} ({15 - s['q']} min left)")
     t += f": {c_(s['lo'])} to under {c_(s['hi'])}, cushion {s['z']:g}+"
