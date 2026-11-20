@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.34 (Nov 20, 2026): Today splits Claude's pick into trade check and later buys
+- [new] Home, Today on the live account: between Automatic and By hand, two tiles show today's automatic trades bought at the trade check and the later buys, each with its count, wins and result, and a bar under them showing the share of each.
+
 ## 1.3.33 (Nov 20, 2026): Equity by day or week, and "Protecting" instead of "Paused"
 - [new] Analytics: the Equity chart has Day, Week and range buttons. Day shows today from midnight Eastern with times along the bottom, Week the last 7 days, and the third follows the page's range as before. The line above the chart gives the result, trades and drawdown for what is shown.
 - [fixed] An account holding today's protected profit said "Paused" even while it was trading inside the room it had. It now says "Protecting", and the note says which case it is: a trade already open this window is using the room (other coins wait until it settles, and a win opens room again), or today's result is down at the level you chose to keep (done for the day).
