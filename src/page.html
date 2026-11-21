@@ -1322,7 +1322,21 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .pn-row{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:12px 14px;cursor:pointer;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)}.pn-ch+.pn-row{border-top:0}
 .pn-row b{display:block;font-size:13.5px;font-weight:600;color:var(--ink)}.pn-row small{display:block;font-size:11.5px;color:var(--faint);margin-top:2px;line-height:1.4}
 .pn-row i{flex:none;position:relative;width:42px;height:25px;border-radius:99px;background:color-mix(in srgb,var(--ink) 16%,transparent);transition:background .18s}.pn-row i::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .18s}
-.pn-row[aria-checked="true"] i{background:var(--good)}.pn-row[aria-checked="true"] i::after{transform:translateX(17px)}.pn-row:focus-visible{outline:2px solid var(--kx);outline-offset:-2px}
+.pn-row[aria-checked="true"] i{background:var(--good)}.pn-row[aria-checked="true"] i::after{transform:translateX(17px)}
+/* MC 2026-11-21 sounds for wins and losses */
+#kxsnd{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.kx-sndg{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px 12px;align-items:center;padding:4px 14px 14px}.kx-sndg.off{opacity:.45}
+.kx-sndl{font-size:12.5px;font-weight:650;color:var(--ink)}.kx-sndl span{display:block;font-size:10.5px;font-weight:400;color:var(--faint)}
+.kx-sndr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.kx-sndc{all:unset;box-sizing:border-box;cursor:pointer;padding:8px 10px;border-radius:11px;border:1px solid var(--line);min-width:0}
+.kx-sndc b{display:block;font-size:12.5px;font-weight:650;color:var(--ink)}.kx-sndc small{display:block;font-size:10.5px;color:var(--faint);line-height:1.3;margin-top:1px}
+.kx-sndc.win[aria-checked="true"]{border-color:color-mix(in srgb,var(--good) 60%,transparent);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.kx-sndc.loss[aria-checked="true"]{border-color:color-mix(in srgb,var(--bad) 60%,transparent);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.kx-sndc:focus-visible,.kx-sndv button:focus-visible{outline:2px solid var(--kx)}
+.kx-sndv{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:11px;justify-self:start}
+.kx-sndv button{all:unset;cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--mute)}.kx-sndv button[aria-checked="true"]{background:color-mix(in srgb,var(--kx) 18%,transparent);color:var(--ink)}
+.kx-sndn{margin:0;padding:10px 14px 12px;border-top:1px solid var(--line);font-size:11.5px;line-height:1.45;color:var(--faint)}
+@media(max-width:520px){.kx-sndg{grid-template-columns:1fr}.kx-sndr{grid-template-columns:repeat(3,minmax(0,1fr))}.kx-sndc{padding:7px 8px}}.pn-row:focus-visible{outline:2px solid var(--kx);outline-offset:-2px}
 .pn-prev{display:flex;gap:12px;align-items:flex-start;margin:14px 0;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:color-mix(in srgb,var(--s2) 60%,transparent);max-width:440px}
 .pn-pi{flex:none;width:36px;height:36px;border-radius:9px;background:#060a16 url(/icon-192.png) center/cover}.pn-prev>div:last-child{min-width:0;flex:1}
 .pn-pt{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.pn-pt b{font-size:13px;color:var(--ink);line-height:1.3}.pn-pt span{font-size:11px;color:var(--faint);flex:none}.pn-prev p{margin:3px 0 0;font-size:12.5px;line-height:1.45;color:var(--mute)}
@@ -1904,7 +1918,7 @@ async function load(auto){
     // dashboard actually sends on every refresh
     const lvS=!!(j.kx?.live?.live&&!j.kx.live.live.hidden);if(fv&&j.kx&&lvS!==!!fv.live){fv.live=lvS;try{sessionStorage.setItem('fr-fv',JSON.stringify(fv))}catch{}}
     const D={...(j.heavy||{}),...(j.lite||{})};if(j.kx)D.kalshi=kxArch(j.kx);if(D.edition==='kalshi')D.at=Date.now();   // the edition stamps the reply time, and a 304 hands back the earlier stamp
-    ST.D=D;ST.last=D.at;ST.err=0;carWatch(D);sndPump();if(ST.pane?.kind==='coin'&&$('#drawer').classList.contains('on')){paintChrome();coinPane(ST.pane.id,ST.pane.tid)}else if(!kxSetHold())renderNew(raw,auto===1);else paintChrome();carPump();}
+    ST.D=D;ST.last=D.at;ST.err=0;carWatch(D);try{kxSndCheck()}catch{}sndPump();if(ST.pane?.kind==='coin'&&$('#drawer').classList.contains('on')){paintChrome();coinPane(ST.pane.id,ST.pane.tid)}else if(!kxSetHold())renderNew(raw,auto===1);else paintChrome();carPump();}
   catch(e){ST.err++;}
   beat();
 }
@@ -2545,8 +2559,45 @@ function kxEdgeCard(K){const E=K?.edge||{},m=E.mon,s=E.search;if(!m&&!s)return''
 async function pnTogE(){if(!PN.prefs||!PN.ep)return;PN.prefs.edge=PN.prefs.edge===false;pnPaint();const r=await api('/api/push',{op:'prefs',endpoint:PN.ep,prefs:PN.prefs});if(r.prefs)PN.prefs=r.prefs;pnPaint()}
 async function pnTog(book,k){if(!PN.prefs||!PN.ep)return;PN.prefs[book][k]=!PN.prefs[book][k];pnPaint();const r=await api('/api/push',{op:'prefs',endpoint:PN.ep,prefs:PN.prefs});if(r.prefs)PN.prefs=r.prefs;else{PN.note=r.msg||'That switch did not save.';PN.prefs[book][k]=!PN.prefs[book][k]}pnPaint()}
 async function pnTest(){const r=await api('/api/push',{op:'test',endpoint:PN.ep});toast(r.msg||(r.ok?'Test sent':'Test not sent'))}
+// MC 2026-11-21 asked: a positive sound for wins and a negative one for losses, crypto flavoured. A web app cannot choose the
+// sound of a push notification (iPhone always uses its own, and current browsers dropped the option), so the sounds play here,
+// in the open app, the moment a trade settles, and the push messages say which it was (a rocket for a win, a red chart for a
+// loss, and a different buzz on Android). Each sound is made on the spot with Web Audio, nothing to download. Saved per device.
+const KXS={on:true,win:'moon',loss:'rug',vol:2,seen:null,mode:null,t0:Date.now()};
+try{const j=JSON.parse(localStorage.getItem('cr-snd')||'{}');for(const k of ['on','win','loss','vol'])if(j[k]!==undefined)KXS[k]=j[k]}catch{}
+const kxSndSave=()=>{try{localStorage.setItem('cr-snd',JSON.stringify({on:KXS.on,win:KXS.win,loss:KXS.loss,vol:KXS.vol}))}catch{}};
+let KXA=null;const kxAC=()=>{try{if(!KXA){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;KXA=new C()}if(KXA.state==='suspended')KXA.resume();return KXA}catch{return null}};
+// a phone only lets a page make sound after a tap, so the first tap anywhere wakes the audio
+for(const ev of ['pointerdown','keydown'])addEventListener(ev,()=>{if(KXS.on)kxAC()},{passive:true});
+const KXSND={win:[['moon','To the moon','a quick rising run'],['coin','Coin drop','two bright coin notes'],['pump','Green candle','a sweep up and a ping']],loss:[['rug','Rug pull','a long slide down'],['red','Red candle','two falling notes'],['liq','Liquidated','a low buzz and a thud']]};
+function kxTone(ac,o){const t=ac.currentTime+(o.at||0),g=ac.createGain(),v=(o.g??.3)*1.9*[0,.4,.7,1][KXS.vol??2],d=o.d||.2;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+(o.a||.008));g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  let out=g;if(o.lp){const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(o.lp[0],t);f.frequency.exponentialRampToValueAtTime(o.lp[1],t+d);f.connect(g);out=f}g.connect(ac.destination);
+  for(const det of o.det||[0]){const x=ac.createOscillator();x.type=o.w||'sine';x.frequency.setValueAtTime(o.f,t);if(o.f2)x.frequency.exponentialRampToValueAtTime(o.f2,t+(o.fd||d));x.detune.value=det;x.connect(out);x.start(t);x.stop(t+d+.05)}}
+function kxSnd(kind,id){if(!(KXS.vol>0))return;const ac=kxAC();if(!ac)return;id=id||KXS[kind];
+  if(id==='moon')[523.25,659.25,783.99,1046.5].forEach((f,i)=>{kxTone(ac,{at:i*.075,f,w:'square',g:.16,d:.2,lp:[4000,1500]});kxTone(ac,{at:i*.075,f:f*2,w:'triangle',g:.1,d:.16})}),kxTone(ac,{at:.32,f:2093,w:'sine',g:.2,d:.5});
+  else if(id==='coin'){kxTone(ac,{f:987.77,w:'triangle',g:.28,d:.11});kxTone(ac,{at:.085,f:1318.5,w:'triangle',g:.28,d:.45});kxTone(ac,{at:.085,f:2637,w:'sine',g:.06,d:.3})}
+  else if(id==='pump'){kxTone(ac,{f:320,f2:1280,fd:.32,w:'sawtooth',g:.18,d:.34,lp:[900,5000]});kxTone(ac,{at:.33,f:1567.98,w:'sine',g:.3,d:.55});kxTone(ac,{at:.33,f:3135.96,w:'sine',g:.05,d:.35})}
+  else if(id==='rug'){kxTone(ac,{f:560,f2:55,fd:.75,w:'sawtooth',g:.2,d:.8,lp:[2400,180],det:[-8,8]});kxTone(ac,{at:.7,f:70,f2:40,w:'sine',g:.35,d:.35})}
+  else if(id==='red'){kxTone(ac,{f:329.63,w:'square',g:.12,d:.28,lp:[1800,600]});kxTone(ac,{at:.24,f:261.63,w:'square',g:.12,d:.5,lp:[1600,400]});kxTone(ac,{at:.24,f:130.81,w:'triangle',g:.18,d:.5})}
+  else if(id==='liq'){kxTone(ac,{f:110,w:'sawtooth',g:.16,d:.5,lp:[900,300],det:[-14,0,14]});kxTone(ac,{at:.48,f:90,f2:35,w:'sine',g:.4,d:.3})}}
+// new settled trades since the last look: live's (every account) while live is on, paper's otherwise. Only trades that closed in
+// the last few minutes count, and nothing plays in the first 20 seconds, so opening the app does not replay old results.
+function kxSndCheck(){if(ST.fv)return;const lv=kxLv(),K=ST.D?.kalshi,now=Date.now(),mode=lv?.on?'live':'paper';let R;
+  if(mode==='live')R=[...(lv.recent||[]).map(x=>['m',x]),...(lv.books||[]).flatMap(b=>(b.recent||[]).map(x=>[b.id,x]))].filter(([,x])=>x.fill>0&&x.result&&x.pnl!=null).map(([a,x])=>[a+':'+x.tk,x.pnl>0,x.sold?.at||x.close]);
+  else R=(K?.recent||[]).filter(t=>t.done&&!t.capped&&t.pnl!=null).map(t=>['p:'+t.tk,t.pnl>0,t.close]);
+  const keys=new Set(R.map(r=>r[0]));if(!KXS.seen||KXS.mode!==mode||now-KXS.t0<20000){KXS.seen=keys;KXS.mode=mode;return}
+  const nw=R.filter(r=>!KXS.seen.has(r[0])&&now-r[2]<6*60000);for(const k of keys)KXS.seen.add(k);if(KXS.seen.size>3000)KXS.seen=keys;
+  if(!KXS.on||!nw.length)return;const w=nw.some(r=>r[1]),l=nw.some(r=>!r[1]);if(l)kxSnd('loss');if(w)setTimeout(()=>kxSnd('win'),l?1100:0)}
+function kxSndCard(){const ch=(kind)=>KXSND[kind].map(([id,nm,d])=>`<button type="button" class="kx-sndc ${kind}" aria-checked="${KXS[kind]===id}" role="radio" onclick="KXS['${kind}']='${id}';kxSndSave();kxAC();kxSnd('${kind}','${id}');kxSndPaint()"><b>${nm}</b><small>${d}</small></button>`).join('');
+  return `<button class="pn-row" role="switch" aria-checked="${!!KXS.on}" onclick="KXS.on=!KXS.on;kxSndSave();if(KXS.on)kxAC();kxSndPaint()"><span><b>Sounds when trades settle</b><small>${lv0()?'Live':'Paper'} results, every account, while this app is open on this device.</small></span><i></i></button>
+   <div class="kx-sndg ${KXS.on?'':'off'}"><div class="kx-sndl">Win<span>tap to hear it</span></div><div class="kx-sndr" role="radiogroup" aria-label="Win sound">${ch('win')}</div>
+   <div class="kx-sndl">Loss<span>tap to hear it</span></div><div class="kx-sndr" role="radiogroup" aria-label="Loss sound">${ch('loss')}</div>
+   <div class="kx-sndl">Volume</div><div class="kx-sndv" role="radiogroup" aria-label="Volume">${[[1,'Low'],[2,'Medium'],[3,'High']].map(([v,n])=>`<button type="button" role="radio" aria-checked="${KXS.vol===v}" onclick="KXS.vol=${v};kxSndSave();kxAC();kxSnd('win')">${n}</button>`).join('')}</div></div>
+   <p class="kx-sndn">A push notification on the phone plays the phone's own sound: iPhone does not let a web app pick it. The notifications now come apart, 🚀 for wins and 📉 for losses, and on Android a win and a loss vibrate differently.</p>`}
+const lv0=()=>!!kxLv()?.on;
+function kxSndPaint(){const e=$('#kxsnd');if(e)e.innerHTML=kxSndCard()}
 function kxPushCard(){if(PN.st==='init'){setTimeout(pnLoad,0);return '<div class="pn-note">Checking this device…</div>'}
-  const sample=`<div class="pn-prev" aria-hidden="true"><div class="pn-pi"></div><div><div class="pn-pt"><b>Paper account: 3 of 3 won, +$11.82</b><span>now</span></div><p>BTC +$4.10  ·  ETH +$3.62  ·  SOL +$4.10<br>Today +$103.41. Bank $1,103.41.</p></div></div>`;
+  const sample=`<div class="pn-prev" aria-hidden="true"><div class="pn-pi"></div><div><div class="pn-pt"><b>🚀 Paper account: 3 won, +$11.82</b><span>now</span></div><p>BTC +$4.10  ·  ETH +$3.62  ·  SOL +$4.10<br>Today +$103.41. Bank $1,103.41.</p></div></div>`;
   if(PN.st==='none')return `<div class="pn-note">${pnIOS()&&!pnApp()?'<b>Add this dashboard to your Home Screen first.</b> On iPhone and iPad, notifications only work in the app opened from the Home Screen: tap Share, then Add to Home Screen, open it from there and come back to this page.':'<b>This browser cannot receive push notifications.</b> On iPhone, open the dashboard from its Home Screen icon. On a computer, use a current Chrome, Edge, Firefox or Safari.'}</div>${sample}`;
   if(PN.st==='denied')return `<div class="pn-note"><b>Notifications are blocked for this app.</b> ${pnIOS()?'Open the iPhone\'s Settings, then Notifications, find this app and allow notifications. Then come back to this page.':'Allow notifications for this site in your browser\'s site settings, then reload this page.'}</div>${sample}`;
   if(PN.st==='error')return `<div class="pn-note"><b>This device could not be set up for notifications.</b> ${esc(PN.note)}</div><div class="pn-acts"><button class="btn sm" onclick="PN.st='init';pnPaint()">Try again</button></div>`;
@@ -3478,7 +3529,7 @@ function kxDraw(cv,o){if(!o.noFin&&o.strike!=null&&o.close&&Date.now()>=o.close-
 function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<4)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
 // ----- live data: the tracker's snapshot via the worker, the bot's snapshot as fallback -----
 // MC 2026-11-15 on Home or with a coin box open, ask the tracker for Kalshi prices no more than about 10 seconds old (fresh=1)
-async function kxPoll(){if(!KX.on)return;const fv=ST.fv,j=await getJ(fv?'/api/friends/live?id='+encodeURIComponent(fv.id):'/api/klive'+((ST.tab==='kalshi'||document.querySelector('#mbox .kx-coinv'))&&!document.hidden?'?fresh=1':''));if(ST.fv!==fv)return;if(j&&j.at){KX.live=j;KX.liveAt=Date.now()}else{const K=ST.D?.kalshi;if(K){KX.live={at:K.live?.at||0,scan:K.live?.scan||[],open:(K.pending||[]).map(t=>({tk:t.tk,coin:t.coin,side:t.side,px:t.px,ask:t.ask,n:t.n,cost:t.cost,at:t.t,close:t.close,strike:t.strike,title:t.title,yb:null,ya:null,last:null,path:t.path||[]})),fallback:true}}}kxBoard();kxHdr();kxLivePaint()}
+async function kxPoll(){if(!KX.on)return;const fv=ST.fv,j=await getJ(fv?'/api/friends/live?id='+encodeURIComponent(fv.id):'/api/klive'+((ST.tab==='kalshi'||document.querySelector('#mbox .kx-coinv'))&&!document.hidden?'?fresh=1':''));if(ST.fv!==fv)return;if(j&&j.at){KX.live=j;KX.liveAt=Date.now()}else{const K=ST.D?.kalshi;if(K){KX.live={at:K.live?.at||0,scan:K.live?.scan||[],open:(K.pending||[]).map(t=>({tk:t.tk,coin:t.coin,side:t.side,px:t.px,ask:t.ask,n:t.n,cost:t.cost,at:t.t,close:t.close,strike:t.strike,title:t.title,yb:null,ya:null,last:null,path:t.path||[]})),fallback:true}}}kxBoard();kxHdr();kxLivePaint();try{kxSndCheck()}catch{}}
 // MC 2026-11-15 a market bought by hand that the rule had not taken never showed on the Live board: the board listed only what
 // the tracker's own book held, so the Mode tile said "1 open" over a board saying "Nothing open". On the Live view, any open
 // live position (Main's or a subaccount's) the board does not already list is added from the scanner's row for that market.
@@ -4834,6 +4885,7 @@ ${isL?'':`    ${fld('dailyLossUsd','Daily stop','Trading stops for the ET day on
       return `<div class="fld"><label>Schedule (ET)${kxSc('sched')}</label><div class="kx-hrpick kx-hh">${Array.from({length:24},(_,h)=>`<div class="kx-hpw"><button type="button" class="kx-hph" onclick="kxHpHour(this)" title="Switch the whole hour" ${dis}>${kxHrLbl(h)}</button><div class="kx-hp2">${half(h*2)}${half(h*2+1)}</div></div>`).join('')}</div><div class="hint">Tap :00 or :30 to switch that half hour off, or the hour to switch both. Trades that would start in an off half hour are skipped on every playbook. Paper and live each have their own. Under each half is what the plain rule made in it so far.</div>${more('Each hour has two buttons, :00 for the first half and :30 for the second, in Eastern time. A lit button trades; a crossed-out one does not. A trade belongs to the half hour it is made in: the :05 and :20 trade checks are in the first half, :35 and :50 in the second, and a later buy goes with its own window. Off times apply to every playbook. Paper and live each keep their own. The small number under each half is what the plain rule has made in it across your whole history, so you can see which half hours are hurting before you switch them off. A schedule saved in whole hours carries over as both halves of each hour.','Switch off 9a :30 and 10a :00 to sit out the first half hour of the US stock market. The 9:35, 9:50, 10:05 and 10:20 trade checks are skipped. 9:05, 9:20 and 10:35 onward run as normal.','sched')}</div>`})()}
     </div>
 ${isL?'':`    <div class="kx-sg" id="kxg-notify"><div class="kx-sgh">Notifications</div><div class="kx-sgd">Sent to this device when positions open and when they settle. One message per 15-minute window, never one per coin. These switches save as you tap them.</div><div id="kxpush">${kxPushCard()}</div></div>`}
+    <div class="kx-sg" id="kxg-sound"><div class="kx-sgh">Sounds</div><div class="kx-sgd">A sound for a win and another for a loss, the moment a trade settles. Saved on this device as you tap.</div><div id="kxsnd">${kxSndCard()}</div></div>
     <div class="kx-savebar ${lk?'locked':''}" id="kxsavebar"><div><b id="kxsavest">${lk?'Locked on this device':'No unsaved changes'}</b><span>${lk?(isL?'Live settings need an unlocked device. ':'')+'To change settings, unlock this device once with a code sent to your Telegram. It stays unlocked for 30 days.':(isL?'Real money. Applies from the next trade check. Paper is not changed.':'Saving re-books the paper account from the whole log. Live keeps its own settings.')}</span></div><div class="kx-saveb">${lk?'<button class="btn pri unl" onclick="unlockFlow()">Unlock this device</button>':'<button class="btn" onclick="render()">Discard</button>'}${lk?'':(isL?`<button class="btn pri" onclick="kxSaveLive()">${kxLsBook(K)?'Save for '+esc(kxLsBook(K).name):'Save live settings'}</button>`:'<button class="btn pri" onclick="kxSave()">Save</button>')}</div></div>
     </div>`};
   const pb=`<div class="kx-pb">${kxPbTile('paper',K)}${kxPbTile('live',K)}</div>`;
@@ -5625,7 +5677,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.47',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.48',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

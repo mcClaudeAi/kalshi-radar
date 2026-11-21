@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.48 (Nov 21, 2026): Wins and losses apart, with sounds
+- [new] Push notifications split wins from losses: a window with both sends two, the loss first (📉) and the win (🚀), so a glance says which it was. The Wins and Losses switches each cover one. On Android a win and a loss also vibrate differently.
+- [new] Live notifications cover every account, not only Main: each coin is one line with its money added up over the accounts that held it, and the Today and cash lines are every account's.
+- [new] Sounds when trades settle, while the app is open: a win sound and a loss sound, three of each to pick from (To the moon, Coin drop, Green candle; Rug pull, Red candle, Liquidated), with a volume and an off switch, saved per device in Settings under Sounds. A phone's push notification still plays the phone's own sound: iPhone does not let a web app choose it.
+
 ## 1.3.47 (Nov 21, 2026): Protect profit in steps, a progressive stop, and half-hour schedules
 - [new] Protect profit in up to three steps (Steven's idea). Each step is a "from" amount and a "keep" share of the day's high, for example from $40 keep 0%, from $50 keep 50%, from $75 keep 85%: risk more early in the day and keep more as it climbs. The highest step reached sets what is kept, and what is kept never goes down as the high rises. A single step works exactly as the old setting did. On paper and live settings, per subaccount, in Labs, Analytics and the Backtest page.
 - [new] Progressive stop, off until you turn it on. Near the daily stop each trade only stakes what is left before it, counting what open trades already have at stake, so the day cannot end below the stop. At a $150 stop and -$100 a $50 trade goes in full; at -$130 it is cut to $20, and wins give the room back. Under $5 of room it stops for the day. It shares one budget with profit protection: a buy gets the smaller of the two.

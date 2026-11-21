@@ -49,7 +49,7 @@ export async function pushSend(storage, events, contact) {
   const v = await vapid(storage); let sent = 0; const dead = new Set();
   for (const s of subs) for (const e of events) {
     if (e.kind === 'chat') { if (s.prefs?.chat === false) continue; } else if (e.kind === 'edge') { if (s.prefs?.edge === false) continue; } else { const p = s.prefs?.[e.book] || {}; if (!(e.kind === 'open' ? p.open : ((e.win && p.win) || (e.loss && p.loss)))) continue; }
-    try { const st = await sendOne(v, s, { title: e.title, body: e.body, tag: e.tag, url: e.url || '/' }, contact); if (st === 404 || st === 410) dead.add(s.endpoint); else if (st >= 200 && st < 300) sent++; else console.log('push ' + st); } catch (x) { console.log('push error ' + x.message); }
+    try { const st = await sendOne(v, s, { title: e.title, body: e.body, tag: e.tag, url: e.url || '/', ...(e.snd ? { snd: e.snd } : {}) }, contact); if (st === 404 || st === 410) dead.add(s.endpoint); else if (st >= 200 && st < 300) sent++; else console.log('push ' + st); } catch (x) { console.log('push error ' + x.message); }
   }
   if (dead.size) await storage.put('pushsubs', subs.filter(s => !dead.has(s.endpoint)));
   return sent;
@@ -79,7 +79,9 @@ export const SW_JS = `// Kalshi Radar service worker: shows push notifications a
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', e => { let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Kalshi Radar', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Kalshi Radar', { body: d.body || '', tag: d.tag || undefined, renotify: !!d.tag, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: d.url || '/' } })); });
+  // a win and a loss feel different where the phone allows it (Android vibrates in the pattern; iPhone uses its own sound)
+  const vib = d.snd === 'win' ? [40, 40, 40, 40, 120] : d.snd === 'loss' ? [450] : undefined;
+  e.waitUntil(self.registration.showNotification(d.title || 'Kalshi Radar', { body: d.body || '', tag: d.tag || undefined, renotify: !!d.tag, icon: '/icon-192.png', badge: '/icon-192.png', ...(vib ? { vibrate: vib } : {}), data: { url: d.url || '/', snd: d.snd || null } })); });
 self.addEventListener('notificationclick', e => { e.notification.close(); const url = (e.notification.data && e.notification.data.url) || '/';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => { for (const c of l) if ('focus' in c) { c.postMessage({ go: url }); return c.focus(); } return self.clients.openWindow(url); })); });
 `;
