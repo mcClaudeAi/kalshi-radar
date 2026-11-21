@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.40 (Nov 20, 2026): The hand buy box fits on one phone screen
+- [improved] Buying by hand on live is now one screen: when it settles, three small tiles (best ask and the most it pays, what Main pays, what it wins or loses), the chart readings as chips, one list of the accounts with the full and protected amount side by side and their tick boxes, a short warning, and the two hold buttons next to each other.
+
 ## 1.3.39 (Nov 20, 2026): Hand buys can be protected or unprotected
 - [new] Buying by hand while an account has Protect profit set now gives two hold buttons. "Hold to buy protected" cuts each account's buy to the room above the level it keeps today, and skips an account with no room left. "Hold to buy unprotected" buys at full size as before and can take the day below that level. Each button says under it what every account would buy, and the box lists each account's room, so a fast buy is never the wrong one.
 - [new] An account whose protection has not started yet today buys its full size either way, and says so.
