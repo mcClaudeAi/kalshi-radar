@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.45 (Nov 20, 2026): Trade cards name the account, not "Live"
+- [fixed] A trade card said "Live skipped" while two subaccounts had bought it. "Live" meant the main account only. With subaccounts the tags now say Main, list the accounts that bought first, and put the accounts that passed together on one short tag, for example "Main and Fun Money skipped: protecting today's profit, done for today".
+
 ## 1.3.44 (Nov 20, 2026): Eight new themes
 - [new] Eight more themes made for trading. Dark: Dim (soft blue-grey for a lit room), Blackout (true black for OLED phones), Amber (the classic market terminal), Bullion (black and gold), Greenback (money green with gold) and Neon (crypto at night). Light: Paper (newsprint with ink blue) and Mint. Every one was checked so small text, gains and losses stay easy to read on its cards.
 - [improved] The theme picker is split into Dark and Light.
