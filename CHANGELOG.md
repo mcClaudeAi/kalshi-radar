@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.55 (Nov 21, 2026): Final-minute prices fit on a phone
+- [fixed] In a position's final minute, the Target, Avg so far and Now prices on the right of the chart were cut off on a phone for Bitcoin (60,163.99 is wider than the space kept for it). That column now widens to fit the longest price.
+
 ## 1.3.54 (Nov 21, 2026): Easier on the phone battery
 - [improved] The dashboard uses far less of the phone while it is open. Measured on Home on a phone screen with prices streaming, the page kept the phone busy about 29% of the time before and about 5% now; the coin box went from 33% to 8%, Cockpit from 12% to 5% and Analytics from 10% to 3%. Nothing was turned off: the same live prices, readings, pulses and flashes, at the same rate.
 - [fixed] The causes were all drawing, not the app's own work: the countdown ring to the next trade check, the live dots' pulse, the price flash on scanner rows, and the window bar and scanner gauges each redrew part of the screen every frame. They now animate in a way the phone's graphics chip handles on its own, or step to each new reading (moves of under a pixel).
