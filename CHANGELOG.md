@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.49 (Nov 21, 2026): Hand-buy check, retested
+- [improved] The hand-buy check now leads with one number: its edge in cents a contract after fees. It comes from a model that counts the price paid along with the cushion, any swing the other way, the time left, the spread and the last window, retested on every minute a leader sat at 80¢ to 97¢ from Aug 21 to Nov 20. Green from +1¢ (in the months held out of the fit, those buys made money every time), red from -1¢ (lost every time), plain between.
+- [improved] Each reading shows what it is worth in cents against a typical buy at the same price, costliest first, so a thin cushion on a 95¢ coin counts for more than the same cushion at 80¢.
+- [fixed] The tested line matches the price now: buys at 80 to 84¢, 85 to 89¢, 90 to 93¢ or 94 to 97¢ over the last 30 days. Before, an 80¢ buy showed the average of 85¢ to 96¢ buys. Under 80¢, over 97¢, and in the first 1½ or last 2½ minutes of a window it says not tested.
+- [improved] Straight run and cushion shrinking are out of the check: once the price was counted they did not hold up. The buy box no longer warns about a straight run.
+
 ## 1.3.48 (Nov 21, 2026): Wins and losses apart, with sounds
 - [new] Push notifications split wins from losses: a window with both sends two, the loss first (📉) and the win (🚀), so a glance says which it was. The Wins and Losses switches each cover one. On Android a win and a loss also vibrate differently.
 - [new] Live notifications cover every account, not only Main: each coin is one line with its money added up over the accounts that held it, and the Today and cash lines are every account's.
