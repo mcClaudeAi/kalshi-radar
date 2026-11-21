@@ -274,7 +274,13 @@ export function createBooks(D) {
   // include. A hand buy skips the playbook (it is a hand buy) but keeps the book's own limits: one position a market, the daily
   // loss cap, the cash floor, and enough cash for the whole trade. Same ceiling price as the main order, the book's own size.
   const handWhy = (b, tk) => { const x = L[b.id]?.get(tk), t = today(b), s = S[b.id]; return !b.on ? 'not trading' : x && busy(x) ? 'already holds it' : realized(t) <= -b.loss ? 'daily loss cap hit' : s.bal != null && s.bal < Math.max(b.floor, 1) ? 'under its cash floor' : s.bal != null && s.bal < b.size ? `cash $${s.bal.toFixed(2)} does not cover $${b.size}` : null; };
-  const handList = tk => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk); return { id: b.id, name: b.name, sub: b.sub, size: b.size, cash: S[b.id].bal, ok: !why, why }; });
+  // MC 2026-11-20 room above the protected level for a hand buy, with the same sums as buy()'s protect check: today's run and
+  // high, the share of the high kept, and what is already riding on that window. null when the account has no protection set.
+  const lockRoom = (b, cfg0, close) => { const c = cfgOf(b, cfg0 || {}); if (!(c.lockAt > 0)) return null; let run = 0, pk = 0; for (const x of today(b).filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); }
+    const keep = c.lockKeep || 0; if (pk < c.lockAt) return { active: false, at: c.lockAt, keep, pk: +pk.toFixed(2) };
+    const riding = close ? [...L[b.id].values()].filter(x => x.close === close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0) : 0, floor = pk * keep / 100;
+    return { active: true, at: c.lockAt, keep, pk: +pk.toFixed(2), floor: +floor.toFixed(2), riding: +riding.toFixed(2), room: +Math.max(0, run - floor - riding).toFixed(2), min: BOOK_MIN }; };
+  const handList = (tk, cfg0, close) => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk); return { id: b.id, name: b.name, sub: b.sub, size: b.size, cash: S[b.id].bal, ok: !why, why, prot: lockRoom(b, cfg0, close) }; });
   const heldList = tk => (list || []).map(b => { const x = L[b.id]?.get(tk); return x && x.fill > 0 && !x.result && x.close > Date.now() && x.fill - (x.sold?.fill || 0) > 0 ? { id: b.id, name: b.name, sub: b.sub, left: x.fill - (x.sold?.fill || 0), px: x.px } : null; }).filter(Boolean);
   async function handBuy(ids, o) {
     await load();
@@ -282,7 +288,10 @@ export function createBooks(D) {
       try {
         const w0 = handWhy(b, o.tk); if (w0) return { name: nm, ok: false, msg: w0 };
         const bal = await balance(b, true); if (bal == null) return { name: nm, ok: false, msg: 'could not read its balance' };
-        const size = b.size, n = Math.floor(size / o.maxPx); if (n < 1) return { name: nm, ok: false, msg: 'its size is too small for one contract' };
+        let size = b.size;
+        // MC 2026-11-20 "Hold to buy protected": the buy is cut to the room above the level this account keeps today, or not sent
+        if (o.prot) { const lr = lockRoom(b, o.cfg, o.close); if (lr?.active) { if (lr.room < BOOK_MIN) return { name: nm, ok: false, msg: `not bought, protected: only $${lr.room.toFixed(2)} of room left above the $${lr.floor.toFixed(2)} it keeps today` }; size = Math.min(size, lr.room); } }
+        const n = Math.floor(size / o.maxPx); if (n < 1) return { name: nm, ok: false, msg: o.prot ? 'not bought, protected: its room left is under one contract' : 'its size is too small for one contract' };
         if (bal < b.floor) return { name: nm, ok: false, msg: `cash $${bal.toFixed(2)} is under its $${b.floor} floor` };
         if (bal < n * o.maxPx + D.fee(o.maxPx, n) - 0.005) return { name: nm, ok: false, msg: `cash $${bal.toFixed(2)} does not cover a $${size} trade` };
         if ((s.shard[D.XI] ?? 0) < size + 1) { s.xferAt = 0; await fund(b); }

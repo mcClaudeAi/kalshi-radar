@@ -272,7 +272,7 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 @keyframes pop{from{transform:translateY(8px) scale(.98);opacity:0}}
 .modal h2{margin:0 0 6px;font-size:17px;letter-spacing:-.01em}
 .modal p{margin:0;color:var(--ink2);font-size:13.5px;line-height:1.5}
-.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}.modal .acts.col{flex-direction:column;align-items:stretch}.modal .acts.col .btn{justify-content:center;text-align:center;padding-top:11px;padding-bottom:11px}.modal .acts.col .btn,.modal .acts.col .btn span{white-space:normal}.modal .acts.col .btn{height:auto;min-height:50px;flex-direction:column;line-height:1.25}.modal .acts.col .btn>span:not(.fill){display:block;position:relative}.modal .acts .btn small{display:block;font-size:11.5px;font-weight:500;opacity:.85;margin-top:3px;line-height:1.3}.modal .acts .btn.prot{background:color-mix(in srgb,var(--good) 22%,var(--s2));border:1px solid color-mix(in srgb,var(--good) 60%,transparent);color:var(--ink)}
 .modal .warnbox{margin-top:12px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--bad) 10%,var(--s2));border:1px solid color-mix(in srgb,var(--bad) 35%,var(--line));font-size:12.5px;color:var(--ink2)}
 .modal .summ{margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
 .modal .summ span{color:var(--mute)}.modal .summ b{text-align:right;font-variant-numeric:tabular-nums}
@@ -2390,14 +2390,20 @@ function toast(t){const x=toastP(t,'');x.ok(t,'')}
 // modal
 function modal(html){$('#mbox').innerHTML=html;$('#modal').classList.add('on');$('#mbox').scrollTop=0;try{window.kxNudge?.()}catch{}setTimeout(()=>$('#mbox').querySelector('[autofocus]')?.focus(),30)}
 function closeModal(){$('#modal').classList.remove('on');$('#mbox').innerHTML=''}
-function confirmBox({title,body='',summary=[],warn='',confirm='Confirm',danger=false,hold=false}){return new Promise(res=>{
+// MC 2026-11-20 alt adds a second confirm button under the first (both held the same way): it resolves 'alt' instead of true.
+// Used for hand buys while profit protection is set: "Hold to buy protected" and "Hold to buy unprotected", stacked full width
+// with a line under each saying what it does, so a fast buy cannot be the wrong one by accident.
+function confirmBox({title,body='',summary=[],warn='',confirm='Confirm',danger=false,hold=false,sub='',alt=null}){return new Promise(res=>{
+  const bt=(k,lab,sb,cl,af)=>`<button class="btn ${cl} ${hold?'hold':''}" data-mx="${k}" ${af?'autofocus':''}>${hold?'<span class="fill"></span>':''}<span>${hold?'Hold to '+esc(lab.toLowerCase()):esc(lab)}${sb?`<small>${sb}</small>`:''}</span></button>`;
   modal(`<h2>${esc(title)}</h2>${body?`<p>${body}</p>`:''}${summary.length?`<div class="summ">${summary.map(([k,v])=>`<span>${esc(k)}</span><b>${v}</b>`).join('')}</div>`:''}${warn?`<div class="warnbox">${warn}</div>`:''}
-   <div class="acts"><button class="btn ghost" data-mx="0">Cancel</button><button class="btn ${danger?'dng':'pri'} ${hold?'hold':''}" data-mx="1" autofocus>${hold?'<span class="fill"></span>':''}<span>${hold?'Hold to '+esc(confirm.toLowerCase()):esc(confirm)}</span></button></div>`);
-  const ok=$('#mbox [data-mx="1"]'),no=$('#mbox [data-mx="0"]');let tmr=null,done=false;
+   ${alt?`<div class="acts col">${bt(1,confirm,sub,alt.mainCls||(danger?'dng':'pri'),1)}${bt(2,alt.label,alt.sub||'',alt.cls||'dng')}<button class="btn ghost" data-mx="0">Cancel</button></div>`
+     :`<div class="acts"><button class="btn ghost" data-mx="0">Cancel</button>${bt(1,confirm,sub,danger?'dng':'pri',1)}</div>`}`);
+  const no=$('#mbox [data-mx="0"]');let tmr=null,done=false;
   const fin=v=>{if(done)return;done=true;closeModal();res(v)};
   no.onclick=()=>fin(false);$('#modal .bk').onclick=()=>fin(false);ST.modalEsc=()=>fin(false);
-  if(!hold)ok.onclick=()=>fin(true);
-  else{const start=e=>{e.preventDefault();ok.classList.add('go');tmr=setTimeout(()=>fin(true),900)},stop=()=>{ok.classList.remove('go');clearTimeout(tmr)};
+  for(const ok of document.querySelectorAll('#mbox [data-mx="1"],#mbox [data-mx="2"]')){const v=ok.dataset.mx==='2'?'alt':true;
+    if(!hold){ok.onclick=()=>fin(v);continue}
+    const start=e=>{e.preventDefault();ok.classList.add('go');tmr=setTimeout(()=>fin(v),900)},stop=()=>{ok.classList.remove('go');clearTimeout(tmr)};
     ok.addEventListener('pointerdown',start);['pointerup','pointerleave','pointercancel'].forEach(ev=>ok.addEventListener(ev,stop));
     ok.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){if(!ok.classList.contains('go'))start(e)}});ok.addEventListener('keyup',stop)}
 })}
@@ -3523,9 +3529,15 @@ async function kxBuyOne(tk,side,paper){if(!paper&&!ST.me.control){unlockFlow();r
       warn:`Practice money only. Nothing is sent to Kalshi. It goes into the paper book past your paper rules${q.notes?.length?` (${q.notes.map(esc).join('; ')})`:''}, at the price the book shows right now.`,confirm:'Buy on paper'});
     if(ok){await cmd('kalshiPaperBuy',{tk,side:q.side},'Paper buy '+q.coin);if(KX.on)setTimeout(kxPoll,500)}return}
   const multi=(q.accts||[]).length>1,RD=kxRdBox((KX.live?.scan||[]).find(z=>z.tk===tk),q.side);KX.hsel=null;
-  const ok=await confirmBox({title:q.mainHeld?`Add ${q.coin} ${S} to other accounts?`:`Buy ${q.coin} ${S} now?`,summary:[...(multi?[['Accounts',kxAcctRow(q.accts,'buy',!q.mainHeld)]]:[]),['Buying',q.mainHeld?`${S} contracts, each account at its own size`:`${q.n} ${S} contract${q.n===1?'':'s'}, your $${q.size} live size${multi?' (each subaccount at its own size)':''}`],['Sellers ask now',`<b>${kxC(q.best)}</b> best, about ${kxC(q.avg)} across all of them`],['Costs you',`about $${q.cost.toFixed(2)}${q.est<q.n?` (only ${q.est} on offer up to ${kxC(q.maxPx)})`:''}`],['If '+S+' wins',`<b class="pos">${usd(q.ifWin)}</b>`],['If it loses',`<b class="neg">${usd(q.ifLose)}</b>`],['Settles',`${tm2s(q.close)}, in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`],...RD.rows],
-    warn:`Real money, bought by hand outside your rules${q.notes?.length?`: ${q.notes.map(esc).join('; ')}`:''}.${RD.warn.length?` Before you buy: ${RD.warn.map(esc).join('; ')}.`:''} Buys right now at ${kxC(q.maxPx)} or less (the best ask plus your ${q.room}¢ price room). Anything not offered at that price is not bought.`,confirm:'Buy now',danger:true,hold:true});
-  if(ok){const sel=multi?kxAcctSel():null;if(multi&&!sel.length){toast('Pick at least one account');return}await cmd('kalshiBuyOne',{tk,side:q.side,maxPx:q.maxPx,ask:q.best,...(multi?{accts:sel}:{})},'Buy '+q.coin);if(KX.on)setTimeout(kxPoll,500)}}
+  // MC 2026-11-20 asked: hand buys can go protected or unprotected, both hold-to-confirm, and plain about which is which.
+  // Protected cuts each account's buy to the room above the level it keeps today (no buy when there is none); unprotected is
+  // the full size as before. Shown only when an account that can buy has profit protection set.
+  const PA=(q.accts||[]).filter(x=>x.ok&&x.prot),f2=v=>'$'+(+v).toFixed(2);
+  const pTxt=x=>{const p=x.prot;return !p.active?`${esc(x.name)}: not on yet today (starts at +$${n0(p.at)}), full ${f2(x.size)}`:p.room<p.min?`${esc(x.name)}: <b class="neg">no room left</b>, a protected buy skips it (keeps ${f2(p.floor)})`:`${esc(x.name)}: up to <b>${f2(Math.min(x.size,p.room))}</b> (keeps ${f2(p.floor)}${p.riding>0?`, ${f2(p.riding)} already on this window`:''})`};
+  const pSub=PA.map(x=>{const p=x.prot;return `${esc(x.name)} ${!p.active?f2(x.size):p.room<p.min?'skipped':'up to '+f2(Math.min(x.size,p.room))}`}).join(' · ');
+  const ok=await confirmBox({title:q.mainHeld?`Add ${q.coin} ${S} to other accounts?`:`Buy ${q.coin} ${S} now?`,summary:[...(multi?[['Accounts',kxAcctRow(q.accts,'buy',!q.mainHeld)]]:[]),...(PA.length?[['Profit protection',PA.map(pTxt).join('<br>')]]:[]),['Buying',q.mainHeld?`${S} contracts, each account at its own size`:`${q.n} ${S} contract${q.n===1?'':'s'}, your $${q.size} live size${multi?' (each subaccount at its own size)':''}`],['Sellers ask now',`<b>${kxC(q.best)}</b> best, about ${kxC(q.avg)} across all of them`],['Costs you',`about $${q.cost.toFixed(2)}${q.est<q.n?` (only ${q.est} on offer up to ${kxC(q.maxPx)})`:''}`],['If '+S+' wins',`<b class="pos">${usd(q.ifWin)}</b>`],['If it loses',`<b class="neg">${usd(q.ifLose)}</b>`],['Settles',`${tm2s(q.close)}, in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`],...RD.rows],
+    warn:`Real money, bought by hand outside your rules${q.notes?.length?`: ${q.notes.map(esc).join('; ')}`:''}.${RD.warn.length?` Before you buy: ${RD.warn.map(esc).join('; ')}.`:''} Buys right now at ${kxC(q.maxPx)} or less (the best ask plus your ${q.room}¢ price room). Anything not offered at that price is not bought.`,...(PA.length?{confirm:'Buy protected',sub:`Keeps today's protected profit · ${pSub}`,alt:{label:'Buy unprotected',sub:`Full size, can go below it · ${(q.accts||[]).filter(x=>x.ok).map(x=>`${esc(x.name)} $${n0(x.size)}`).join(' · ')}`,cls:'dng',mainCls:'prot'}}:{confirm:'Buy now'}),danger:true,hold:true});
+  if(ok){const sel=multi?kxAcctSel():null;if(multi&&!sel.length){toast('Pick at least one account');return}const prot=!!PA.length&&ok===true;await cmd('kalshiBuyOne',{tk,side:q.side,maxPx:q.maxPx,ask:q.best,prot,...(multi?{accts:sel}:{})},(prot?'Protected buy ':PA.length?'Unprotected buy ':'Buy ')+q.coin);if(KX.on)setTimeout(kxPoll,500)}}
 // MC 2026-11-14 asked for a way to sell an open live position by hand when it is clearly not going to win, showing the price it
 // would sell at. Each card the live account holds gets a row with what buyers pay right now (the bid for our side from the
 // tracker's last read, so "about"), what selling all of it would bring back against what it cost, and a Sell button. Sell reads
@@ -5421,7 +5433,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.38',KR_DATE='Nov 20, 2026';
+const KR_VERSION='1.3.39',KR_DATE='Nov 20, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

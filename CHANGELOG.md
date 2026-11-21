@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.39 (Nov 20, 2026): Hand buys can be protected or unprotected
+- [new] Buying by hand while an account has Protect profit set now gives two hold buttons. "Hold to buy protected" cuts each account's buy to the room above the level it keeps today, and skips an account with no room left. "Hold to buy unprotected" buys at full size as before and can take the day below that level. Each button says under it what every account would buy, and the box lists each account's room, so a fast buy is never the wrong one.
+- [new] An account whose protection has not started yet today buys its full size either way, and says so.
+
 ## 1.3.38 (Nov 20, 2026): "Protecting" clears when the open trade's window closes
 - [fixed] When a coin was skipped because the trade already open that window was using the protected room, the account kept saying "Protecting" with that note for the rest of the day, even after the trade settled and it was trading again. That note now clears when the window closes. "Protecting" stays all day only when today's result is down at the level kept.
 

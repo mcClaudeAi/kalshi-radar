@@ -799,6 +799,11 @@ export function createKalshi(state, env, keep) {
   // room. The live rules a buy like this would not have passed (the timing, price band, coins, window cap, profit target) are named
   // in the quote, not enforced: buying by hand is the point. The hard stops stay: live on, an unlocked device, the daily loss cap,
   // the daily order limit, the cash floor and the $50 size cap. One position per market, so a market live already holds is refused.
+  // MC 2026-11-20 room above today's protected level on Main for a hand buy (the same sums as onRule's protect check)
+  function lockRoomL(close) { if (!(cfgL.lockAt > 0)) return null; let run = 0, pk = 0; for (const x of todayL().filter(x => x.pnl != null).sort((a, b) => a.at - b.at)) { run += x.pnl; pk = Math.max(pk, run); }
+    const keep = cfgL.lockKeep || 0; if (pk < cfgL.lockAt) return { active: false, at: cfgL.lockAt, keep, pk: +pk.toFixed(2) };
+    const riding = [...L.values()].filter(x => x.close === close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), floor = pk * keep / 100;
+    return { active: true, at: cfgL.lockAt, keep, pk: +pk.toFixed(2), floor: +floor.toFixed(2), riding: +riding.toFixed(2), room: +Math.max(0, run - floor - riding).toFixed(2), min: 5 }; }
   function handGate(c, tk) {
     const t = todayL(), x = L.get(tk);
     if (!c.enabled) return 'Turn live trading on first. A manual buy uses the live account.';
@@ -812,10 +817,11 @@ export function createKalshi(state, env, keep) {
     tk = String(tk || ''); const s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
     // MC 2026-11-15 the quote lists the accounts a hand buy can go to (accts). When the main account already holds the market the
     // quote still comes back if a book could take it, with mainHeld set, so a position can be added to the books afterwards.
-    await books.load(); const bkL = books.handList(tk), HELD = 'Live already holds this market.';
+    await books.load(); let bkL = books.handList(tk, cfgL); const HELD = 'Live already holds this market.';
     const c = ctl(), g = handGate(c, tk), mainHeld = g === HELD && bkL.some(b => b.ok); if (g && !mainHeld) return { ok: false, msg: g };
     let m, ob; try { [m, ob] = await Promise.all([get(`/markets/${tk}`), get(`/markets/${tk}/orderbook`)]); m = m?.market || m; } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
     const now = Date.now(), close = Date.parse(m?.close_time); if (!(close > now + 20000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
+    bkL = books.handList(tk, cfgL, close);   // again with the window known, so the protected room counts what rides on it
     const mine = book(ob)[side === 'yes' ? 'yesAsks' : 'noAsks'], best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is selling ${side.toUpperCase()} right now.` };
     const room = Math.min(3, Math.max(0, cfgL.slipC ?? 1)), maxPx = +Math.min(0.99, best + room / 100).toFixed(4), size = c.sizeUsd, n = Math.floor(size / maxPx);
     if (n < 1) return { ok: false, msg: 'Your live size is too small for one contract at this price.' };
@@ -830,7 +836,7 @@ export function createKalshi(state, env, keep) {
     if ((cfgL.skipHours || []).includes(etHour(now))) notes.push('this hour is one of your off hours');
     if (cfgL.dailyWinUsd > 0 && realized(t) >= cfgL.dailyWinUsd) notes.push(`live's daily profit target is already hit (+$${realized(t).toFixed(2)})`);
     { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9), inW = [...L.values()].filter(x => x.close === close && busy(x)).length; if (inW >= cap) notes.push(`this window already has ${inW} live trade${inW === 1 ? '' : 's'}, your cap is ${cap}`); }
-    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes, mainHeld, accts: [{ id: 'main', name: 'Main', size, ok: !mainHeld, why: mainHeld ? 'already holds it' : null }, ...bkL] };
+    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes, mainHeld, accts: [{ id: 'main', name: 'Main', size, ok: !mainHeld, why: mainHeld ? 'already holds it' : null, prot: lockRoomL(close) }, ...bkL] };
   }
   function onSettle(r) {
     const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0)) return;
@@ -2220,15 +2226,17 @@ export function createKalshi(state, env, keep) {
         if (!wantMain && !held) return { ok: false, msg: 'A hand buy for a subaccount goes with Main, unless Main already holds that market.' };
         const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); if (!(Number(a.maxPx) > 0)) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
         let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { } const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
-        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1 }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null, cfg: cfgL, retry: handRetry }) : []]);
+        const [mr, br] = await Promise.all([wantMain ? command('kalshiBuyOne', { tk, side: a.side, maxPx: a.maxPx, ask: a.ask, one: 1, prot: !!a.prot }, who) : null, ids.length ? books.handBuy(ids, { tk, coin: coin(s), side: a.side, maxPx, close, prot: !!a.prot, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null, cfg: cfgL, retry: handRetry }) : []]);
         viewDirty = true; await publish(true);
         return { ok: !!mr?.ok || br.some(x => x.ok), msg: [mr ? `Main: ${mr.msg}` : '', ...br.map(x => `${x.name}: ${x.msg}.`)].filter(Boolean).join(' ') }; }
       const tk = String(a.tk || ''), side = a.side, s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
       const c = ctl(), g = handGate(c, tk); if (g) return { ok: false, msg: g };
-      const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)), size = c.sizeUsd, n = Math.floor(size / maxPx);
+      const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); let size = c.sizeUsd, n = Math.floor(size / maxPx);
       if (!(Number(a.maxPx) > 0) || n < 1) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
       let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { }
       const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
+      // MC 2026-11-20 "Hold to buy protected": cut to the room above today's protected level, or not sent at all
+      if (a.prot) { const lr = lockRoomL(close); if (lr?.active) { if (lr.room < 5) return { ok: false, msg: `Not bought, protected: only $${lr.room.toFixed(2)} of room left above the $${lr.floor.toFixed(2)} you keep today. Hold Buy unprotected to buy anyway.` }; size = Math.min(size, lr.room); n = Math.floor(size / maxPx); if (n < 1) return { ok: false, msg: 'Not bought, protected: the room left is under one contract. Hold Buy unprotected to buy anyway.' }; } }
       const bal = await balance(true); if (bal == null) return { ok: false, msg: 'Could not read your Kalshi cash. Try again.' };
       const floor = c.minBank ?? HARD.minBank; if (bal - vault.held() - resv < floor) return { ok: false, msg: `Your Kalshi cash ($${bal.toFixed(2)}) is under the $${floor} floor.` };
       if ((st.shard[XI] ?? 0) - resv < size + 1) { st.xferAt = 0; await fund(c); }
