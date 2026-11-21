@@ -19,6 +19,44 @@ const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')
 const unhex = s => new Uint8Array(String(s).match(/../g).map(h => parseInt(h, 16)));
 const B64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
 export const BOOK_MAX = 50, BOOK_MIN = 5;
+
+// MC 2026-11-21 the money guards every account shares (the main account in kalshi-cloud.js, these books, the paper book and the
+// Labs replays), kept here so all of them do the same sums.
+// Protect profit in tiers (Steven asked for three pairs, e.g. from $40 keep 0%, from $50 keep 50%, from $75 keep 85%): tier one
+// is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
+// day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
+// as the high does, whatever order the tiers were typed in.
+export const OWN_NEW = { lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
+export const lockTiers = c => [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
+// the level today keeps with a high of pk: null with no tiers set, on:false under the first tier, else the floor and the next tier
+export function lockLevel(c, pk) {
+  const T = lockTiers(c); if (!T.length) return null; const hit = T.filter(([a]) => pk >= a - 1e-9), nx = T.find(([a]) => pk < a - 1e-9) || null;
+  if (!hit.length) return { on: false, at: T[0][0], keep: T[0][1], floor: null, next: nx };
+  const keep = Math.max(...hit.map(t => t[1])); return { on: true, at: hit[hit.length - 1][0], keep, floor: pk * keep / 100, next: nx };
+}
+// Progressive stop (lossTaper 1): a buy may only stake what is left before the daily stop, the stop plus today's result less
+// what is already riding on open trades, so the day cannot end under the stop even if every open trade loses. At a $150 stop and
+// -$100 a $50 trade goes in full; at -$130 it is cut to $20; wins give the room back.
+export const stopRoom = (c, loss, run, riding = 0) => c?.lossTaper === 1 && loss > 0 ? loss + run - riding : Infinity;
+// the most a new buy may stake under both: room (Infinity when neither limits it), by (which one sets it), the profit level kept
+export function buyRoom(c, loss, run, pk, riding = 0) {
+  const lv = lockLevel(c, pk), pr = lv?.on ? run - lv.floor - riding : Infinity, sr = stopRoom(c, loss, run, riding), room = Math.min(pr, sr);
+  return { lv, pr, sr, room, by: !isFinite(room) ? null : pr <= sr ? 'profit' : 'stop' };
+}
+// the skip reason when a buy does not fit (the page reads these: kxPlain)
+export const roomWhy = (g, loss, riding) => g.by === 'stop' ? `near the daily stop: $${Math.max(0, g.sr).toFixed(2)} of room left before -$${(+loss).toFixed(0)}${riding > 0 ? `, $${riding.toFixed(2)} riding on this window` : ''}` : `protecting today's profit: $${Math.max(0, g.pr).toFixed(2)} of room left${riding > 0 ? `, $${riding.toFixed(2)} riding on this window` : ''}`;
+// for a hand buy's quote: null when neither guard is set
+export function handRoom(c, loss, run, pk, riding, min) {
+  const tiers = lockTiers(c).length > 0, taper = c?.lossTaper === 1 && loss > 0; if (!tiers && !taper) return null;
+  const g = buyRoom(c, loss, run, pk, riding), lv = g.lv;
+  return { tiers, taper, active: isFinite(g.room), by: g.by, room: isFinite(g.room) ? +Math.max(0, g.room).toFixed(2) : null, floor: lv?.on ? +lv.floor.toFixed(2) : null, at: lv?.at ?? null, keep: lv?.keep ?? null, next: lv?.next || null, pk: +pk.toFixed(2), stop: taper ? +loss : null, riding: +riding.toFixed(2), min };
+}
+// Off times in half hours (asked for in place of whole hours). skipSlots holds the half hours off, 0 to 47 (9 = 4:30 to 5:00 AM
+// ET); a setting saved before this has skipHours only, and each of those hours is both of its halves. A trade belongs to the
+// half hour its own time falls in. Eastern time is a whole number of hours off UTC, so the half comes from the UTC minutes.
+export const offSlots = c => new Set(Array.isArray(c?.skipSlots) ? c.skipSlots : (c?.skipHours || []).flatMap(h => [h * 2, h * 2 + 1]));
+export const slotOf = (t, etHour) => etHour(t) * 2 + (new Date(t).getUTCMinutes() >= 30 ? 1 : 0);
+export const slotName = s => `${(Math.floor(s / 2) % 12) || 12}:${s % 2 ? '30' : '00'} ${s < 24 ? 'AM' : 'PM'}`;
 const LIMITS = { maxPerWindow: 9, maxPerDay: 150 };
 
 // PEM to PKCS#8 bytes; an RSA key in PKCS#1 ("BEGIN RSA PRIVATE KEY", what Kalshi's site hands out) is wrapped first
@@ -139,11 +177,15 @@ export function createBooks(D) {
   }
 
   // MC 2026-11-20 same as Main: the riding kind clears when its window closes
-  function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; S[b.id].stoppedDay = /^(daily |give-back|bank drawdown|cash)/.test(why) || (/^protecting/.test(why) && !/ riding /.test(why)); S[b.id].stoppedTo = S[b.id].stoppedDay ? null : r.close; }   // MC 2026-11-16 a one-window reason ends with its window, as on Main
+  function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; S[b.id].stoppedDay = /^(daily |give-back|bank drawdown|cash)/.test(why) || (/^(protecting|near the daily stop)/.test(why) && !/ riding /.test(why)); S[b.id].stoppedTo = S[b.id].stoppedDay ? null : r.close; }   // MC 2026-11-16 a one-window reason ends with its window, as on Main
   // the same checks and order as the main live book (kalshi-cloud.js onRule), with this book's size, loss cap and floor
   // MC 2026-11-14 like the main book: each book checks its orders one by one against its own limits (its own window cap, day,
   // loss cap, floor and fills), counting a planned order as if it filled, then sends them all at once. Books run side by side.
   const busy = x => x.fill > 0 || !!x.pend;
+  // today's running result and its high, in the order the trades were made; and what is at stake on open trades (every one not
+  // settled yet, in case the last window's result has not come in)
+  const dayRun = t => { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); } return { run, pk }; };
+  const ridingOf = Lb => [...Lb.values()].filter(x => busy(x) && !x.result && x.close > Date.now() - 3600000).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0);
   async function buy(b, r, lab, cfgP, bench, later, missed) {
     const s = S[b.id], Lb = L[b.id]; if (Lb.has(r.ticker)) return; s.resv = s.resv || 0;
     const cn = D.coin(r.series), t = today(b), why = (() => {
@@ -160,8 +202,9 @@ export function createBooks(D) {
     s.stopped = null;
     let rS = null; if (lab?.size) { let run = 0, pk = 0; for (const x of [...Lb.values()].filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); } rS = { peak: bal + (pk - run), start: bal - run }; }
     let size = lab?.size ? Math.min(b.size, BOOK_MAX, Math.max(BOOK_MIN, lab.size(bal, { kf: r.kf, win: r.win }, rS))) : b.size;
-    if (cfgP.lockAt > 0) { const t2 = t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at); let run = 0, pk = 0; for (const x of t2) { run += x.pnl; pk = Math.max(pk, run); }
-      if (pk >= cfgP.lockAt) { const riding = [...Lb.values()].filter(x => x.close === r.close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0), room = run - pk * (cfgP.lockKeep || 0) / 100 - riding; if (room < BOOK_MIN) return skip(b, r, `protecting today's profit: $${Math.max(0, room).toFixed(2)} of room left${riding > 0 ? `, $${riding.toFixed(2)} riding on this window` : ''}`); size = Math.min(size, room); } }
+    // MC 2026-11-21 protect profit in tiers and the progressive stop, the same sums as the main account (buyRoom above)
+    { const { run, pk } = dayRun(t), riding = ridingOf(Lb), g = buyRoom(cfgP, b.loss, run, pk, riding);
+      if (g.room < BOOK_MIN) return skip(b, r, roomWhy(g, b.loss, riding)); if (isFinite(g.room)) size = Math.min(size, g.room); }
     if ((s.shard[D.XI] ?? 0) - s.resv < size + 1) { s.xferAt = 0; await fund(b); }
     // MC 2026-11-14 same top price as the main book: live's room, never past the maximum price or the playbook's limit
     const lim = D.orderLimit(r, lab?.id || 'rule', cfgP), maxPx = lim.top; if (maxPx < r.ask - 1e-9) return skip(b, r, `the ${(r.ask * 100).toFixed(1)}c ask is over the limit (${lim.why})`);
@@ -217,15 +260,17 @@ export function createBooks(D) {
   // the main account's live rules); without one it follows Main as before. own(b) hands back that book's trades to consider,
   // playbook check and benched coins worked out from its own rules, so its price band, coins, off hours, stops and window cap
   // are its own.
-  const cfgOf = (b, main) => b.cfg ? { ...main, ...b.cfg } : main;
+  // MC 2026-11-21 a book's own copy saved before the protect steps, the progressive stop and the half-hour schedule existed has
+  // none of them: they stay off for it (its own hours still count) rather than following Main's, until saved for that book
+  const cfgOf = (b, main) => b.cfg ? { ...main, ...OWN_NEW, ...b.cfg } : main;
   async function onMark(hits0, now, gate0, cfg0, bench0, missed = null, own = null) {
     await load(); if (!hits0.length && !own) return;
     await Promise.all(list.filter(b => b.on).map(async b => {
       const sid = D.stratAt(b.strat, now), sends = [], o = b.cfg && own ? own(cfgOf(b, cfg0)) : null, hits = o ? o.hits : hits0, gate = o ? o.gate : gate0, cfgP = o ? o.cfg : cfg0, bench = o ? o.bench : bench0;
-      const offNow = (cfgP.skipHours || []).includes(D.etHour(now));
+      const sl = slotOf(now, D.etHour), offNow = offSlots(cfgP).has(sl);
       try {
         for (const r of hits) {
-          if (offNow) { skip(b, r, `off schedule (${D.etHour(now)}:00 ET hour)`); continue; }
+          if (offNow) { skip(b, r, `off schedule (${slotName(sl)} ET half hour)`); continue; }
           const g = gate(sid, r); if (!g.ok) { skip(b, r, g.why); continue; }
           try { await buy(b, r, g.lab, cfgP, bench, sends, missed); } catch (e) { fail(b, 'order error: ' + e.message); }
         }
@@ -276,11 +321,9 @@ export function createBooks(D) {
   const handWhy = (b, tk) => { const x = L[b.id]?.get(tk), t = today(b), s = S[b.id]; return !b.on ? 'not trading' : x && busy(x) ? 'already holds it' : realized(t) <= -b.loss ? 'daily loss cap hit' : s.bal != null && s.bal < Math.max(b.floor, 1) ? 'under its cash floor' : s.bal != null && s.bal < b.size ? `cash $${s.bal.toFixed(2)} does not cover $${b.size}` : null; };
   // MC 2026-11-20 room above the protected level for a hand buy, with the same sums as buy()'s protect check: today's run and
   // high, the share of the high kept, and what is already riding on that window. null when the account has no protection set.
-  const lockRoom = (b, cfg0, close) => { const c = cfgOf(b, cfg0 || {}); if (!(c.lockAt > 0)) return null; let run = 0, pk = 0; for (const x of today(b).filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); }
-    const keep = c.lockKeep || 0; if (pk < c.lockAt) return { active: false, at: c.lockAt, keep, pk: +pk.toFixed(2) };
-    const riding = close ? [...L[b.id].values()].filter(x => x.close === close && busy(x) && !x.result).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0) : 0, floor = pk * keep / 100;
-    return { active: true, at: c.lockAt, keep, pk: +pk.toFixed(2), floor: +floor.toFixed(2), riding: +riding.toFixed(2), room: +Math.max(0, run - floor - riding).toFixed(2), min: BOOK_MIN }; };
-  const handList = (tk, cfg0, close) => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk); return { id: b.id, name: b.name, sub: b.sub, size: b.size, cash: S[b.id].bal, ok: !why, why, prot: lockRoom(b, cfg0, close) }; });
+  // MC 2026-11-21 with the tiers and the progressive stop (handRoom above); riding counts every open trade, as buy() does
+  const lockRoom = (b, cfg0) => { const c = cfgOf(b, cfg0 || {}), { run, pk } = dayRun(today(b)); return handRoom(c, b.loss, run, pk, ridingOf(L[b.id]), BOOK_MIN); };
+  const handList = (tk, cfg0, close) => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk); return { id: b.id, name: b.name, sub: b.sub, size: b.size, cash: S[b.id].bal, ok: !why, why, prot: lockRoom(b, cfg0) }; });
   const heldList = tk => (list || []).map(b => { const x = L[b.id]?.get(tk); return x && x.fill > 0 && !x.result && x.close > Date.now() && x.fill - (x.sold?.fill || 0) > 0 ? { id: b.id, name: b.name, sub: b.sub, left: x.fill - (x.sold?.fill || 0), px: x.px } : null; }).filter(Boolean);
   async function handBuy(ids, o) {
     await load();
@@ -290,7 +333,7 @@ export function createBooks(D) {
         const bal = await balance(b, true); if (bal == null) return { name: nm, ok: false, msg: 'could not read its balance' };
         let size = b.size;
         // MC 2026-11-20 "Hold to buy protected": the buy is cut to the room above the level this account keeps today, or not sent
-        if (o.prot) { const lr = lockRoom(b, o.cfg, o.close); if (lr?.active) { if (lr.room < BOOK_MIN) return { name: nm, ok: false, msg: `not bought, protected: only $${lr.room.toFixed(2)} of room left above the $${lr.floor.toFixed(2)} it keeps today` }; size = Math.min(size, lr.room); } }
+        if (o.prot) { const lr = lockRoom(b, o.cfg); if (lr?.active) { if (lr.room < BOOK_MIN) return { name: nm, ok: false, msg: lr.by === 'stop' ? `not bought, protected: only $${lr.room.toFixed(2)} of room left before its -$${lr.stop} daily stop` : `not bought, protected: only $${lr.room.toFixed(2)} of room left above the $${lr.floor.toFixed(2)} it keeps today` }; size = Math.min(size, lr.room); } }
         const n = Math.floor(size / o.maxPx); if (n < 1) return { name: nm, ok: false, msg: o.prot ? 'not bought, protected: its room left is under one contract' : 'its size is too small for one contract' };
         if (bal < b.floor) return { name: nm, ok: false, msg: `cash $${bal.toFixed(2)} is under its $${b.floor} floor` };
         if (bal < n * o.maxPx + D.fee(o.maxPx, n) - 0.005) return { name: nm, ok: false, msg: `cash $${bal.toFixed(2)} does not cover a $${size} trade` };
@@ -521,5 +564,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf };
+  return { load, onMark, onLate, lateOpen, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }

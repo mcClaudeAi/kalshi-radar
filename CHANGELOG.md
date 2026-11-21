@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.47 (Nov 21, 2026): Protect profit in steps, a progressive stop, and half-hour schedules
+- [new] Protect profit in up to three steps (Steven's idea). Each step is a "from" amount and a "keep" share of the day's high, for example from $40 keep 0%, from $50 keep 50%, from $75 keep 85%: risk more early in the day and keep more as it climbs. The highest step reached sets what is kept, and what is kept never goes down as the high rises. A single step works exactly as the old setting did. On paper and live settings, per subaccount, in Labs, Analytics and the Backtest page.
+- [new] Progressive stop, off until you turn it on. Near the daily stop each trade only stakes what is left before it, counting what open trades already have at stake, so the day cannot end below the stop. At a $150 stop and -$100 a $50 trade goes in full; at -$130 it is cut to $20, and wins give the room back. Under $5 of room it stops for the day. It shares one budget with profit protection: a buy gets the smaller of the two.
+- [new] The schedule is now in half hours. Each hour has a :00 and a :30 button (tap the hour for both), with what the plain rule made in each half under it. Off hours saved before carry over as both halves.
+- [improved] "Hold to buy protected" on a hand buy also keeps inside the progressive stop, and the account list says which one cut each buy.
+- [improved] A subaccount with its own saved rules keeps these new settings off until they are set for that account.
+
 ## 1.3.46 (Nov 21, 2026): Hand-buy check
 - [new] A hand-buy check on every coin: six readings that each lowered the win rate in testing (every market Aug 21 to Nov 20, 63,000 first chances to buy a leader at 85¢ to 96¢). Cushion under 1.5, a swing of 2 usual moves or more the other way in the last 30 minutes, a straight run, the last window going the same way, the cushion shrinking over the last minute, and a spread over 2¢. The check counts the warnings and shows how buys like it did: before the trade check, none won 93.5% paying 90.5¢ on average; four or more won 83.4% paying 87.4¢.
 - [new] The check is on each scanner row (with a Swing chip and a Last window chip when those warn), in the coin box as a short list with a tick or a warning for each, and at the top of the buy box. Its warnings are added to the buy box's caution.
