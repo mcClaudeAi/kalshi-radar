@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.53 (Nov 21, 2026): Hand buys: buy the rest, or buy again after selling
+- [fixed] A hand buy that only partly fills can be topped up. Its card on the Live board, its scanner row and its coin box say how many Main holds of the number wanted, with a Buy more button. The buy goes into the same trade, up to your trade size counted at what you paid for what is still held. A subaccount that came up short adds the same way from the account list in the buy box.
+- [fixed] A market you sold can be bought again. Before, selling left the market counted as held and its buy buttons gone. The sold trade stays in today's results as it was, and the new buy is a trade of its own.
+- [improved] A hand buy that comes up short says so and points to Buy more. Buying the other side of a market you hold, or one with a buy still going through, is still refused.
+
 ## 1.3.52 (Nov 21, 2026): Which Cloudflare plan the tracker is using
 - [new] A Cloudflare chip next to Tracker and Prices on Home says which limits the tracker runs on: green "paid plan on" when the worker has PAID_PLAN set to 1, grey "free plan limits" when it does not. Upgrading the Cloudflare account alone does not switch it: on the paid Workers plan, add a secret named PAID_PLAN with the value 1 (your worker > Settings > Variables and Secrets). Use Secret, not Text, so the hourly update does not clear it.
 

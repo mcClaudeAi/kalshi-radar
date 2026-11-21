@@ -57,6 +57,26 @@ export function handRoom(c, loss, run, pk, riding, min) {
 export const offSlots = c => new Set(Array.isArray(c?.skipSlots) ? c.skipSlots : (c?.skipHours || []).flatMap(h => [h * 2, h * 2 + 1]));
 export const slotOf = (t, etHour) => etHour(t) * 2 + (new Date(t).getUTCMinutes() >= 30 ? 1 : 0);
 export const slotName = s => `${(Math.floor(s / 2) % 12) || 12}:${s % 2 ? '30' : '00'} ${s < 24 ? 'AM' : 'PM'}`;
+// MC 2026-11-21 a hand buy filled 1 of 40 and nothing could buy the rest; selling that one to start again left the market
+// counted as held, so it could not be bought at all. addOf(x, side, size) reads the row an account already has for a market:
+//   null         nothing held there (no row, or a pass the rule wrote down): a fresh buy, as before
+//   {sold}       all of it was sold: the sold trade is set apart under its own key (apartKey; it stays in today's results)
+//                and the buy starts a new one
+//   {add, room}  an open position on the same side: a hand buy adds to it, up to the trade size counted at what was paid
+//                for what is still held
+//   {why}        the other side is held, a buy for it is still going through, or it has settled
+export function addOf(x, side, size) {
+  if (!x || !(x.fill > 0 || x.pend)) return null;
+  if (x.pend || x.adding) return { why: 'a buy for it is still going through' };
+  if (x.result === 'sold') return { sold: x };
+  if (x.result) return { why: 'it has settled' };
+  if (x.side !== side) return { why: 'it holds the other side' };
+  const held = Math.max(0, +(x.fill - (x.sold?.fill || 0)).toFixed(2)), inv = (x.cost ?? x.fill * (x.px || 0)) * held / x.fill;
+  return { add: x, held, room: +Math.max(0, size - inv).toFixed(2) };
+}
+export const apartKey = x => `${x.tk}~${x.at}`;
+// orders sent today: each trade, plus every later buy added to it by hand
+export const ordersOf = (t, busy) => t.reduce((a, x) => a + (busy(x) ? 1 + (x.tops || 0) : 0), 0);
 const LIMITS = { maxPerWindow: 9, maxPerDay: 150 };
 
 // PEM to PKCS#8 bytes; an RSA key in PKCS#1 ("BEGIN RSA PRIVATE KEY", what Kalshi's site hands out) is wrapped first
@@ -94,10 +114,12 @@ export function createBooks(D) {
     for (const b of list) { L[b.id] = new Map(); // MC 2026-11-15 after every restart (each release is one) a book showed a dash for cash until its next balance check, which
       // read as the money being gone. The last balance read is kept on the book and shown until the fresh one arrives.
       S[b.id] = S[b.id] || { bal: b.lastBal ?? null, balAt: 0, shard: b.lastBal != null && b.lastCx != null ? { 0: Math.max(0, +(b.lastBal - b.lastCx).toFixed(2)), [D.XI]: b.lastCx } : {}, keyOk: null, err: null, errAt: 0, stopped: null, xferAt: 0, lastXfer: null, host: 0 }; }
-    for (const r of sql.exec('SELECT bid, j FROM kb')) { try { const j = JSON.parse(r.j); (L[r.bid] = L[r.bid] || new Map()).set(j.tk, j); } catch { } }
+    for (const r of sql.exec('SELECT bid, j FROM kb')) { try { const j = JSON.parse(r.j); (L[r.bid] = L[r.bid] || new Map()).set(j.key || j.tk, j); } catch { } }
   }
   const saveList = () => kv.put('kbooks', list);
-  const saveRow = (b, x) => sql.exec('INSERT OR REPLACE INTO kb (bid, tk, at, j) VALUES (?, ?, ?, ?)', b.id, x.tk, x.at, JSON.stringify(x));
+  const saveRow = (b, x) => sql.exec('INSERT OR REPLACE INTO kb (bid, tk, at, j) VALUES (?, ?, ?, ?)', b.id, x.key || x.tk, x.at, JSON.stringify(x));
+  // a sold trade set apart so the market can be bought again (addOf): kept under its own key, the market's key freed for the new one
+  const setApart = (b, x) => { const Lb = L[b.id]; if (Lb.get(x.tk) === x) Lb.delete(x.tk); x.key = apartKey(x); Lb.set(x.key, x); saveRow(b, x); };
   const fail = (b, m) => { S[b.id].err = m; S[b.id].errAt = Date.now(); D.say(`BOOK ${b.name}: ${m}`); };
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
 
@@ -193,7 +215,7 @@ export function createBooks(D) {
       if (realized(t) <= -b.loss) return `daily loss cap hit (${realized(t).toFixed(2)})`;
       if (cfgP.dailyWinUsd > 0 && realized(t) >= cfgP.dailyWinUsd) return `daily profit target hit (+$${realized(t).toFixed(2)})`;
       if (cfgP.giveBackPct > 0) { let run = 0, pk = 0; for (const x of t.filter(x => x.pnl != null).sort((a, z) => a.at - z.at)) { run += x.pnl; pk = Math.max(pk, run); } if (pk >= (cfgP.giveBackMin ?? 25) && run <= pk * cfgP.giveBackPct / 100) return `give-back stop: today peaked at +$${pk.toFixed(2)}`; }
-      if (t.filter(busy).length >= LIMITS.maxPerDay) return 'daily order limit';
+      if (ordersOf(t, busy) >= LIMITS.maxPerDay) return 'daily order limit';
       { const cap = Math.min(LIMITS.maxPerWindow, cfgP.winCap ?? 9); if ([...Lb.values()].filter(x => x.close === r.close && busy(x)).length >= cap) return cap < LIMITS.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
       return null; })();
     if (why) return skip(b, r, why);
@@ -318,20 +340,25 @@ export function createBooks(D) {
   // MC 2026-11-15 Mitchell bought XRP by hand and only the main account got it. Hand buys and sells can now name the books to
   // include. A hand buy skips the playbook (it is a hand buy) but keeps the book's own limits: one position a market, the daily
   // loss cap, the cash floor, and enough cash for the whole trade. Same ceiling price as the main order, the book's own size.
-  const handWhy = (b, tk) => { const x = L[b.id]?.get(tk), t = today(b), s = S[b.id]; return !b.on ? 'not trading' : x && busy(x) ? 'already holds it' : realized(t) <= -b.loss ? 'daily loss cap hit' : s.bal != null && s.bal < Math.max(b.floor, 1) ? 'under its cash floor' : s.bal != null && s.bal < b.size ? `cash $${s.bal.toFixed(2)} does not cover $${b.size}` : null; };
+  // MC 2026-11-21 a book that holds the market on this side can add to it up to its size (addOf); one that sold it can buy again
+  const handWhy = (b, tk, side) => { const ad = addOf(L[b.id]?.get(tk), side, b.size), t = today(b), s = S[b.id], need = ad?.add ? ad.room : b.size;
+    return !b.on ? 'not trading' : ad?.why ? (ad.why === 'it holds the other side' ? 'holds the other side' : ad.why === 'it has settled' ? 'already settled' : 'a buy is still going through') : ad?.add && ad.room < BOOK_MIN ? 'already holds it at full size'
+      : realized(t) <= -b.loss ? 'daily loss cap hit' : ordersOf(t, busy) >= LIMITS.maxPerDay ? 'daily order limit' : s.bal != null && s.bal < Math.max(b.floor, 1) ? 'under its cash floor' : s.bal != null && s.bal < need ? `cash $${s.bal.toFixed(2)} does not cover $${need}` : null; };
   // MC 2026-11-20 room above the protected level for a hand buy, with the same sums as buy()'s protect check: today's run and
   // high, the share of the high kept, and what is already riding on that window. null when the account has no protection set.
   // MC 2026-11-21 with the tiers and the progressive stop (handRoom above); riding counts every open trade, as buy() does
   const lockRoom = (b, cfg0) => { const c = cfgOf(b, cfg0 || {}), { run, pk } = dayRun(today(b)); return handRoom(c, b.loss, run, pk, ridingOf(L[b.id]), BOOK_MIN); };
-  const handList = (tk, cfg0, close) => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk); return { id: b.id, name: b.name, sub: b.sub, size: b.size, cash: S[b.id].bal, ok: !why, why, prot: lockRoom(b, cfg0) }; });
+  const handList = (tk, cfg0, close, side) => (list || []).filter(b => b.on).map(b => { const why = handWhy(b, tk, side), ad = why ? null : addOf(L[b.id]?.get(tk), side, b.size);
+    return { id: b.id, name: b.name, sub: b.sub, size: ad?.add ? Math.min(b.size, ad.room) : b.size, cash: S[b.id].bal, ok: !why, why, prot: lockRoom(b, cfg0), ...(ad?.add ? { add: ad.held } : ad?.sold ? { again: 1 } : {}) }; });
   const heldList = tk => (list || []).map(b => { const x = L[b.id]?.get(tk); return x && x.fill > 0 && !x.result && x.close > Date.now() && x.fill - (x.sold?.fill || 0) > 0 ? { id: b.id, name: b.name, sub: b.sub, left: x.fill - (x.sold?.fill || 0), px: x.px } : null; }).filter(Boolean);
   async function handBuy(ids, o) {
     await load();
     return Promise.all(list.filter(b => ids.includes(b.id)).map(async b => { const s = S[b.id], Lb = L[b.id], nm = b.name;
       try {
-        const w0 = handWhy(b, o.tk); if (w0) return { name: nm, ok: false, msg: w0 };
+        const w0 = handWhy(b, o.tk, o.side); if (w0) return { name: nm, ok: false, msg: w0 };
+        const ad = addOf(Lb.get(o.tk), o.side, b.size), add = ad?.add || null;
         const bal = await balance(b, true); if (bal == null) return { name: nm, ok: false, msg: 'could not read its balance' };
-        let size = b.size;
+        let size = add ? Math.min(b.size, ad.room) : b.size;
         // MC 2026-11-20 "Hold to buy protected": the buy is cut to the room above the level this account keeps today, or not sent
         if (o.prot) { const lr = lockRoom(b, o.cfg); if (lr?.active) { if (lr.room < BOOK_MIN) return { name: nm, ok: false, msg: lr.by === 'stop' ? `not bought, protected: only $${lr.room.toFixed(2)} of room left before its -$${lr.stop} daily stop` : `not bought, protected: only $${lr.room.toFixed(2)} of room left above the $${lr.floor.toFixed(2)} it keeps today` }; size = Math.min(size, lr.room); } }
         const n = Math.floor(size / o.maxPx); if (n < 1) return { name: nm, ok: false, msg: o.prot ? 'not bought, protected: its room left is under one contract' : 'its size is too small for one contract' };
@@ -342,6 +369,23 @@ export function createBooks(D) {
         const body = o.side === 'yes'
           ? { ticker: o.tk, side: 'bid', count: String(n), price: down(o.maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
           : { ticker: o.tk, side: 'ask', count: String(n), price: up(1 - o.maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
+        const spend = d => { if (!d) return; if (s.bal != null) s.bal = +(s.bal - d).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - d).toFixed(2); };
+        const retry = !!cfgOf(b, o.cfg || {}).retryFill && typeof o.retry === 'function';
+        if (ad?.sold) setApart(b, ad.sold);
+        // MC 2026-11-21 adding to a position it holds: the fills go into the same trade (contracts, average price, fees, cost)
+        if (add) { const f0 = add.fill, c0 = add.cost || 0, a0 = add.again || 0, held0 = ad.held; add.adding = 1; let res;
+          try { res = await breq(b, 'POST', '/portfolio/events/orders', body); } finally { delete add.adding; }
+          if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 160); D.say(`BOOK ${nm} hand add ${o.tk} refused: ${e}`); return { name: nm, ok: false, msg: `Kalshi refused it: ${e}` }; }
+          const j = res.j?.order || res.j || {}, g1 = D.fillMerge(add, o.side, j); add.again = a0; let topped = g1.fill > 0; if (topped) { add.tops = (add.tops || 0) + 1; add.id = add.id || j.order_id || null; saveRow(b, add); spend(g1.cost); }
+          let tried = 0; const more = () => Math.floor(n - (add.fill - f0) + 1e-9);
+          if (retry && more() >= 1) tried = await o.retry(o.tk, o.side, o.maxPx, o.ask || 0, o.close, more, async k => {
+            const r2 = await breq(b, 'POST', '/portfolio/events/orders', { ...body, count: String(more()), client_order_id: `crh${b.sub}a${k}-${Date.now() % 100000}-${o.tk}`.slice(0, 60) });
+            if (!r2?.ok) { D.say(`BOOK ${nm} hand add ${o.tk} second try refused: ${r2?.status} ${errOf(r2)}`.slice(0, 200)); return; }
+            const j2 = r2.j?.order || r2.j || {}, g2 = D.fillMerge(add, o.side, j2); if (g2.fill > 0) { if (!topped) { add.tops = (add.tops || 0) + 1; topped = true; } saveRow(b, add); spend(g2.cost); } });
+          s.balAt = 0; const got = +(add.fill - f0).toFixed(2), paid = +((add.cost || 0) - c0).toFixed(2);
+          if (!(got > 0)) return { name: nm, ok: false, msg: `nothing more filled, the price moved${retry ? (tried ? `, and ${tried} more tr${tried === 1 ? 'y' : 'ies'} found nothing at your price` : '') : ''}; it still holds ${held0}` };
+          D.say(`BOOK ${nm} added ${got}/${n} ${o.tk} ${o.side.toUpperCase()} by hand, now ${add.fill - (add.sold?.fill || 0)} held`);
+          return { name: nm, ok: true, msg: `added ${got}${got < n ? ` of ${n}` : ''} for $${paid.toFixed(2)}, now holds ${+(add.fill - (add.sold?.fill || 0)).toFixed(2)}` }; }
         const res = await breq(b, 'POST', '/portfolio/events/orders', body);
         if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 160); D.say(`BOOK ${nm} hand buy ${o.tk} refused: ${e}`); return { name: nm, ok: false, msg: `Kalshi refused it: ${e}` }; }
         const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
@@ -349,9 +393,8 @@ export function createBooks(D) {
         // in kalshi-cloud.js). The row is only kept once something has filled.
         const prev = Lb.get(o.tk), got1 = fill > 0 && avgYes != null, px1 = got1 ? +(o.side === 'yes' ? avgYes : 1 - avgYes).toFixed(4) : null, fees1 = got1 ? +(fill * avgFee).toFixed(4) : 0;
         const row = { tk: o.tk, coin: o.coin, side: o.side, at: Date.now(), close: o.close, strike: o.strike ?? null, title: o.title || null, ask: o.ask ?? null, want: n, limit: o.maxPx, limWhy: 'the price you confirmed', size, fill: got1 ? fill : 0, ...(got1 ? { avgYes, px: px1, fees: fees1, cost: +(fill * px1 + fees1).toFixed(2) } : {}), id: j.order_id || null, strat: 'hand', hand: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
-        const spend = d => { if (!d) return; if (s.bal != null) s.bal = +(s.bal - d).toFixed(2); if (s.shard[D.XI] != null) s.shard[D.XI] = +(s.shard[D.XI] - d).toFixed(2); };
         if (got1) { Lb.set(o.tk, row); saveRow(b, row); spend(row.cost); }
-        const retry = !!cfgOf(b, o.cfg || {}).retryFill && typeof o.retry === 'function'; let tried = 0;
+        let tried = 0;
         if (retry && row.fill < n) tried = await o.retry(o.tk, o.side, o.maxPx, o.ask || 0, o.close, () => Math.floor(n - row.fill + 1e-9), async k => {
           const r2 = await breq(b, 'POST', '/portfolio/events/orders', { ...body, count: String(Math.floor(n - row.fill + 1e-9)), client_order_id: `crh${b.sub}r${k}-${Date.now() % 100000}-${o.tk}`.slice(0, 60) });
           if (!r2?.ok) { D.say(`BOOK ${nm} hand buy ${o.tk} second try refused: ${r2?.status} ${errOf(r2)}`.slice(0, 200)); return; }

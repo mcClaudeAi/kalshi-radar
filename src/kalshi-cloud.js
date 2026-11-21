@@ -1,5 +1,5 @@
 import { feats, fit, predict, logit, LEARN_F, LEARN_NAME } from './learn.js';
-import { createBooks, OWN_NEW, lockTiers, buyRoom, roomWhy, handRoom, offSlots, slotOf, slotName } from './books.js';
+import { createBooks, OWN_NEW, lockTiers, buyRoom, roomWhy, handRoom, offSlots, slotOf, slotName, addOf, apartKey, ordersOf } from './books.js';
 import { createVault } from './vault.js';
 import { SEED } from './learn-seed.js';
 import { XSEED } from './labs-seed.js';
@@ -452,7 +452,7 @@ export function createKalshi(state, env, keep) {
     rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3'); rec4 = loadT('k4'); rec5 = loadT('k5');
     lsRows = []; for (const row of sql.exec('SELECT j FROM kls WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { lsRows.push(...JSON.parse(row.j)); } catch { } }
     xRows = []; for (const row of sql.exec('SELECT j FROM kxr WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { xRows.push(...JSON.parse(row.j)); } catch { } }
-    L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.tk, j); } catch {} }
+    L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.key || j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     edgeS = (await kv.get('kedge')) || { seen: {}, mon: {} }; EDGE_FOUND = edgeS.latest?.found || [];
     { const l = await kv.get('kcfgL'); if (l) cfgL = { ...pickL(PAPER_DEF), ...l }; else { cfgL = pickL(cfgP); await kv.put('kcfgL', cfgL); } }
@@ -508,7 +508,9 @@ export function createKalshi(state, env, keep) {
     }
   }
   const saveRec = r => saveT('kt', r), saveRec2 = r => saveT('k2', r), saveRec3 = r => saveT('k3', r), saveRec4 = r => saveT('k4', r), saveRec5 = r => saveT('k5', r);
-  const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.tk, x.at, JSON.stringify(x));
+  const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.key || x.tk, x.at, JSON.stringify(x));
+  // MC 2026-11-21 a sold trade set apart so its market can be bought again (books.js addOf): its own key, the market's key freed
+  const setApart = x => { if (L.get(x.tk) === x) L.delete(x.tk); x.key = apartKey(x); L.set(x.key, x); saveL(x); };
   const ctl = () => ({ enabled: ctlL.enabled === true, autoPause: ctlL.autoPause === true, sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
   // ---------- signed requests ----------
@@ -647,7 +649,7 @@ export function createKalshi(state, env, keep) {
       if (cfgL.bankDdPct > 0) { const xs = [...L.values()].filter(x => x.pnl != null).sort((a, b) => a.at - b.at), start = (st.bal ?? 0) - xs.reduce((a, x) => a + x.pnl, 0); let run = 0, ref = start, lastD = null; const tripped = {};
         for (const x of xs) { const d = etDay(x.at); if (lastD && lastD !== d && tripped[lastD]) ref = start + run; lastD = d; run += x.pnl; const cash = start + run; ref = Math.max(ref, cash); if (cash <= ref * (1 - cfgL.bankDdPct / 100)) tripped[d] = true; }
         if (lastD === etDay(Date.now()) && tripped[lastD]) return `bank drawdown stop: ${cfgL.bankDdPct}% under its high today`; }
-      if (t.filter(busy).length >= HARD.maxPerDay) return 'daily order limit';
+      if (ordersOf(t, busy) >= HARD.maxPerDay) return 'daily order limit';
       // MC 2026-11-12 winCap: the most trades one window may take, clearest first (hits arrive sorted). Coins that line up on one
       // side lose together; at three a window the worst day in the history fell by a third for about a tenth of the profit.
       { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9); if ([...L.values()].filter(x => x.close === r.close && busy(x)).length >= cap) return cap < HARD.maxPerWindow ? `window is full (${cap} a window, clearest first)` : 'window limit'; }
@@ -806,12 +808,16 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-20 room above today's protected level on Main for a hand buy (the same sums as onRule's protect check)
   // MC 2026-11-21 with the tiers and the progressive stop (books.js handRoom): null when neither is set
   function lockRoomL() { const { run, pk } = dayRunL(); return handRoom(cfgL, ctl().dailyLossUsd, run, pk, ridingL(), 5); }
-  function handGate(c, tk) {
-    const t = todayL(), x = L.get(tk);
+  // MC 2026-11-21 one position a market still, but a hand buy can add to it (same side, up to the live size) and a market sold
+  // in full can be bought again (books.js addOf). Anything else that holds it stops Main's part and starts with HELD.
+  const HELD = 'Live already holds this market';
+  function handGate(c, tk, side) {
+    const t = todayL(), ad = addOf(L.get(tk), side, c.sizeUsd);
     if (!c.enabled) return 'Turn live trading on first. A manual buy uses the live account.';
-    if (x && busy(x)) return 'Live already holds this market.';
+    if (ad?.why) return `${HELD}: ${ad.why}.`;
+    if (ad?.add && ad.room < 1) return `${HELD} at its full $${c.sizeUsd} size.`;
     if (realized(t) <= -c.dailyLossUsd) return `Live's daily loss cap is hit (${realized(t).toFixed(2)}), so no more buys today.`;
-    if (t.filter(busy).length >= HARD.maxPerDay) return 'Live has reached its daily order limit.';
+    if (ordersOf(t, busy) >= HARD.maxPerDay) return 'Live has reached its daily order limit.';
     return null;
   }
   const handMkt = (tk, side) => { const s = SERIES.find(z => String(tk).startsWith(z + '-')); return s && (side === 'yes' || side === 'no') ? s : null; };
@@ -819,17 +825,21 @@ export function createKalshi(state, env, keep) {
     tk = String(tk || ''); const s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
     // MC 2026-11-15 the quote lists the accounts a hand buy can go to (accts). When the main account already holds the market the
     // quote still comes back if a book could take it, with mainHeld set, so a position can be added to the books afterwards.
-    await books.load(); let bkL = books.handList(tk, cfgL); const HELD = 'Live already holds this market.';
-    const c = ctl(), g = handGate(c, tk), mainHeld = g === HELD && bkL.some(b => b.ok); if (g && !mainHeld) return { ok: false, msg: g };
+    await books.load(); let bkL = books.handList(tk, cfgL, null, side);
+    const c = ctl(), g = handGate(c, tk, side); let mainHeld = !!g?.startsWith(HELD) && bkL.some(b => b.ok); if (g && !mainHeld) return { ok: false, msg: g };
     let m, ob; try { [m, ob] = await Promise.all([get(`/markets/${tk}`), get(`/markets/${tk}/orderbook`)]); m = m?.market || m; } catch { return { ok: false, msg: 'Could not read the market. Try again.' }; }
     const now = Date.now(), close = Date.parse(m?.close_time); if (!(close > now + 20000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
-    bkL = books.handList(tk, cfgL, close);   // again with the window known, so the protected room counts what rides on it
+    bkL = books.handList(tk, cfgL, close, side);   // again with the window known, so the protected room counts what rides on it
     const mine = book(ob)[side === 'yes' ? 'yesAsks' : 'noAsks'], best = mine[0]?.[0] ?? null; if (best == null) return { ok: false, msg: `Nobody is selling ${side.toUpperCase()} right now.` };
-    const room = Math.min(3, Math.max(0, cfgL.slipC ?? 1)), maxPx = +Math.min(0.99, best + room / 100).toFixed(4), size = c.sizeUsd, n = Math.floor(size / maxPx);
+    const room = Math.min(3, Math.max(0, cfgL.slipC ?? 1)), maxPx = +Math.min(0.99, best + room / 100).toFixed(4), ad = mainHeld ? null : addOf(L.get(tk), side, c.sizeUsd);
+    let size = ad?.add ? Math.min(c.sizeUsd, ad.room) : c.sizeUsd, n = Math.floor(size / maxPx);
+    if (n < 1 && ad?.add) { if (!bkL.some(b => b.ok)) return { ok: false, msg: `${HELD} at its full $${c.sizeUsd} size.` }; mainHeld = true; size = c.sizeUsd; n = Math.floor(size / maxPx); }
     if (n < 1) return { ok: false, msg: 'Your live size is too small for one contract at this price.' };
     const near = mine.filter(([p]) => p <= maxPx + 1e-9), depth = near.reduce((a, l) => a + l[1], 0), est = Math.min(n, depth), avg = est ? walk(near, est) : best, fe = fee(avg, est), cost = +(est * avg + fe).toFixed(2);
     const bal = await balance(false), floor = c.minBank ?? HARD.minBank; if (!mainHeld && bal != null && bal - vault.held() - resv < floor) return { ok: false, msg: `Your Kalshi cash ($${bal.toFixed(2)}) is under the $${floor} floor.` };
     const cn = coin(s), t = todayL(), mark = close - 10 * 60000, notes = [];
+    if (!mainHeld && ad?.add) notes.push(`Main adds to the ${ad.held} it holds, up to your $${c.sizeUsd} size`);
+    if (!mainHeld && ad?.sold) notes.push('Main sold this one earlier; this buys it again');
     notes.push(now < mark ? `${Math.round((mark - now) / 60000)} min before the trade check` : `after the trade check (${Math.max(0, Math.round((close - now) / 60000))} min left)`);
     if (best < 0.5) notes.push(`${side.toUpperCase()} is behind, under 50¢`);
     else if (best < (cfgL.minAsk ?? 0.9) || best > (cfgL.maxAsk ?? 0.99)) notes.push(`${(best * 100).toFixed(1)}¢ is outside your live price band (${Math.round((cfgL.minAsk ?? 0.9) * 100)} to ${Math.round((cfgL.maxAsk ?? 0.99) * 100)}¢)`);
@@ -838,7 +848,7 @@ export function createKalshi(state, env, keep) {
     if (offSlots(cfgL).has(slotOf(now, etHour))) notes.push(`${slotName(slotOf(now, etHour))} is one of your off half hours`);
     if (cfgL.dailyWinUsd > 0 && realized(t) >= cfgL.dailyWinUsd) notes.push(`live's daily profit target is already hit (+$${realized(t).toFixed(2)})`);
     { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9), inW = [...L.values()].filter(x => x.close === close && busy(x)).length; if (inW >= cap) notes.push(`this window already has ${inW} live trade${inW === 1 ? '' : 's'}, your cap is ${cap}`); }
-    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes, mainHeld, accts: [{ id: 'main', name: 'Main', size, ok: !mainHeld, why: mainHeld ? 'already holds it' : null, prot: lockRoomL() }, ...bkL] };
+    return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes, mainHeld, accts: [{ id: 'main', name: 'Main', size, ok: !mainHeld, why: mainHeld ? (/other side/.test(g || '') ? 'holds the other side' : /going through/.test(g || '') ? 'a buy is still going through' : /settled/.test(g || '') ? 'already settled' : 'already holds it at full size') : null, prot: lockRoomL(), ...(ad?.add && !mainHeld ? { add: ad.held } : {}) }, ...bkL] };
   }
   function onSettle(r) {
     const x = L.get(r.ticker); if (!x || x.result || !(x.fill > 0)) return;
@@ -2239,7 +2249,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-15 a.accts picks the accounts: 'main' and book ids. Main and the books are sent side by side at the same
       // ceiling price, each at its own size. Books go only with Main, or when Main already holds the market.
       if (Array.isArray(a.accts) && !a.one) { const tk = String(a.tk || ''), s = handMkt(tk, a.side); if (!s) return { ok: false, msg: 'Unknown market.' };
-        const ids = a.accts.filter(x => x !== 'main').map(String), wantMain = a.accts.includes('main'), held = (() => { const x = L.get(tk); return !!(x && busy(x)); })();
+        const ids = a.accts.filter(x => x !== 'main').map(String), wantMain = a.accts.includes('main'), held = (() => { const x = L.get(tk); return !!(x && busy(x) && x.result !== 'sold'); })();
         if (!wantMain && !ids.length) return { ok: false, msg: 'Pick at least one account.' };
         if (!wantMain && !held) return { ok: false, msg: 'A hand buy for a subaccount goes with Main, unless Main already holds that market.' };
         const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); if (!(Number(a.maxPx) > 0)) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
@@ -2248,9 +2258,12 @@ export function createKalshi(state, env, keep) {
         viewDirty = true; await publish(true);
         return { ok: !!mr?.ok || br.some(x => x.ok), msg: [mr ? `Main: ${mr.msg}` : '', ...br.map(x => `${x.name}: ${x.msg}.`)].filter(Boolean).join(' ') }; }
       const tk = String(a.tk || ''), side = a.side, s = handMkt(tk, side); if (!s) return { ok: false, msg: 'Unknown market.' };
-      const c = ctl(), g = handGate(c, tk); if (g) return { ok: false, msg: g };
-      const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); let size = c.sizeUsd, n = Math.floor(size / maxPx);
-      if (!(Number(a.maxPx) > 0) || n < 1) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
+      const c = ctl(), g = handGate(c, tk, side); if (g) return { ok: false, msg: g };
+      // MC 2026-11-21 an open position on this side takes more, up to the live size; one sold in full is set apart and bought again
+      const ad = addOf(L.get(tk), side, c.sizeUsd), add = ad?.add || null;
+      const maxPx = Math.min(0.99, Math.max(0.01, Number(a.maxPx) || 0)); let size = add ? Math.min(c.sizeUsd, ad.room) : c.sizeUsd, n = Math.floor(size / maxPx);
+      if (!(Number(a.maxPx) > 0)) return { ok: false, msg: 'No price to buy at. Open the quote again.' };
+      if (n < 1) return { ok: false, msg: add ? `${HELD} at its full $${c.sizeUsd} size.` : 'No price to buy at. Open the quote again.' };
       let m = null; try { m = await get(`/markets/${tk}`); m = m?.market || m; } catch { }
       const close = Date.parse(m?.close_time); if (!(close > Date.now() + 15000)) return { ok: false, msg: 'That market is about to close, too late to buy.' };
       // MC 2026-11-20 "Hold to buy protected": cut to the room above today's protected level, or not sent at all
@@ -2262,6 +2275,26 @@ export function createKalshi(state, env, keep) {
       const body = side === 'yes'
         ? { ticker: tk, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
         : { ticker: tk, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
+      const spend = d => { if (!d) return; if (st.bal != null) st.bal = +(st.bal - d).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - d).toFixed(2); };
+      if (add) {
+        // adding to the position: the fills go into the same trade (contracts, average price, fees, cost), as a second try does
+        const f0 = add.fill, c0 = add.cost || 0, a0 = add.again || 0, held0 = ad.held, cn = coin(s); add.adding = 1; resv += size; let res;
+        try { res = await kreq('POST', '/portfolio/events/orders', body); } finally { delete add.adding; resv = Math.max(0, resv - size); }
+        if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 200); fail(`hand add ${tk} refused: ${e}`); await publish(true); return { ok: false, msg: `Kalshi refused the order: ${e}` }; }
+        const j = res.j?.order || res.j || {}, g1 = fillMerge(add, side, j); add.again = a0; let topped = g1.fill > 0;
+        if (topped) { add.tops = (add.tops || 0) + 1; add.id = add.id || j.order_id || null; saveL(add); spend(g1.cost); }
+        let tried = 0; const more = () => Math.floor(n - (add.fill - f0) + 1e-9);
+        if (cfgL.retryFill && more() >= 1) tried = await handRetry(tk, side, maxPx, Number(a.ask) || 0, close, more, async k => {
+          const r2 = await kreq('POST', '/portfolio/events/orders', { ...body, count: String(more()), client_order_id: `crh${k}a${Date.now() % 100000}-${tk}`.slice(0, 60) });
+          if (!r2?.ok) { say(`LIVE hand add ${tk} second try refused: ${r2?.status} ${errOf(r2)}`.slice(0, 200)); return; }
+          const j2 = r2.j?.order || r2.j || {}, g2 = fillMerge(add, side, j2); if (g2.fill > 0) { if (!topped) { add.tops = (add.tops || 0) + 1; topped = true; } saveL(add); spend(g2.cost); } });
+        const got = +(add.fill - f0).toFixed(2), paid = +((add.cost || 0) - c0).toFixed(2), held = +(add.fill - (add.sold?.fill || 0)).toFixed(2);
+        st.balAt = 0; viewDirty = true; await publish(true);
+        if (!(got > 0)) return { ok: false, msg: `Nothing more bought at ${(maxPx * 100).toFixed(1)}¢ or less; the price moved.${cfgL.retryFill && tried ? ` Tried ${tried} more time${tried === 1 ? '' : 's'}.` : ''} Main still holds ${held0}. Nothing was spent.` };
+        say(`LIVE added ${got}/${n} ${tk} ${side.toUpperCase()} by hand for $${paid.toFixed(2)}, now ${held} held at ${(add.px * 100).toFixed(1)}c`);
+        return { ok: true, msg: `Added ${got}${got < n ? ` of ${n}` : ''} ${cn} ${side.toUpperCase()} for $${paid.toFixed(2)}. Main now holds ${held} at ${(add.px * 100).toFixed(1)}¢ on average and is paid $${held.toFixed(Number.isInteger(held) ? 0 : 2)}${Number.isInteger(held) ? '.00' : ''} if ${side.toUpperCase()} wins.` };
+      }
+      if (ad?.sold) setApart(ad.sold);
       const prev = L.get(tk), cn = coin(s), row = { tk, coin: cn, side, at: Date.now(), close, strike: kStrike(m) ?? null, title: m?.title || null, ask: Number(a.ask) || null, want: n, limit: maxPx, limWhy: 'the price you confirmed', size, fill: 0, strat: 'hand', hand: 1, pend: 1, ...(prev?.skipped ? { was: prev.skipped } : {}) };
       // a buy that does not happen leaves the market as it was (the rule's skip, say), so the record of why the rule passed stays
       const undo = () => { if (prev) { L.set(tk, prev); saveL(prev); } else { L.delete(tk); sql.exec('DELETE FROM ko WHERE tk = ?', tk); } viewDirty = true; };
@@ -2273,7 +2306,6 @@ export function createKalshi(state, env, keep) {
       row.rtt = Date.now() - t0;
       if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 200); undo(); fail(`hand buy ${tk} refused: ${e}`); await publish(true); return { ok: false, msg: `Kalshi refused the order: ${e}` }; }
       const j = res.j?.order || res.j || {}, fill = +(j.fill_count ?? 0), avgYes = j.average_fill_price != null ? +j.average_fill_price : null, avgFee = j.average_fee_paid != null ? +j.average_fee_paid : 0;
-      const spend = d => { if (!d) return; if (st.bal != null) st.bal = +(st.bal - d).toFixed(2); if (st.shard[XI] != null) st.shard[XI] = +(st.shard[XI] - d).toFixed(2); };
       if (fill > 0 && avgYes != null) { Object.assign(row, { id: j.order_id || null, fill, avgYes, px: +(side === 'yes' ? avgYes : 1 - avgYes).toFixed(4), fees: +(fill * avgFee).toFixed(4) }); row.cost = +(fill * row.px + row.fees).toFixed(2); saveL(row); spend(row.cost); }
       let tried = 0;
       if (cfgL.retryFill && row.fill < n) tried = await handRetry(tk, side, maxPx, Number(a.ask) || 0, close, () => Math.floor(n - row.fill + 1e-9), async k => {
@@ -2284,7 +2316,7 @@ export function createKalshi(state, env, keep) {
       saveL(row);
       st.balAt = 0; viewDirty = true; await publish(true);
       say(`LIVE bought ${tk} ${side.toUpperCase()} by hand: ${row.fill}/${n} at ${(row.px * 100).toFixed(1)}c ($${row.cost.toFixed(2)})${row.again ? `, ${row.again} second tr${row.again === 1 ? 'y' : 'ies'} filled` : ''}`);
-      return { ok: true, msg: `Bought ${row.fill}${row.fill < n ? ` of ${n}` : ''} ${cn} ${side.toUpperCase()} at ${(row.px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}${row.again ? ' (a second try filled the rest)' : ''}. It pays $${row.fill.toFixed(Number.isInteger(row.fill) ? 0 : 2)}${Number.isInteger(row.fill) ? '.00' : ''} if ${side.toUpperCase()} wins.` };
+      return { ok: true, msg: `Bought ${row.fill}${row.fill < n ? ` of ${n}` : ''} ${cn} ${side.toUpperCase()} at ${(row.px * 100).toFixed(1)}¢ for $${row.cost.toFixed(2)}${row.again ? ' (a second try filled the rest)' : ''}. It pays $${row.fill.toFixed(Number.isInteger(row.fill) ? 0 : 2)}${Number.isInteger(row.fill) ? '.00' : ''} if ${side.toUpperCase()} wins.${row.fill <= n - 1 ? ' Buy more on its card to add the rest.' : ''}` };
     }
     if (type === 'kalshiSellOne') {
       // MC 2026-11-14 sell one open live position now (the Sell button on its card). The page shows the quote first; minPx is the

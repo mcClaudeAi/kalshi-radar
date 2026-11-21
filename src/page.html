@@ -277,6 +277,7 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 .hb-c{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.hb-c span{font-size:11.5px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);background:var(--s2)}
 .hb-acc{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}.hb-acc label,.hb-ah{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 10px;font-size:13px;border-top:1px solid var(--line);cursor:pointer}.hb-acc.p label,.hb-acc.p .hb-ah{grid-template-columns:20px minmax(0,1fr) 34px 86px}.hb-acc>:first-child{border-top:0}
 .hb-ah{font-size:10px!important;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;padding:5px 10px!important;cursor:default}.hb-ah span:nth-child(n+3){text-align:right}.hb-acc .hb-ah span:nth-child(2){text-align:left;color:var(--faint)}.hb-acc input{margin:0;width:16px;height:16px}.hb-acc b{font-weight:600;line-height:1.25;min-width:0}.hb-acc span{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.hb-acc .hb-add{font-weight:500;font-size:11px;color:var(--mute);white-space:nowrap}
 .hb-acc em{font-style:normal;text-align:right;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.15}.hb-acc em small{display:block;font-weight:400;font-size:10.5px;color:var(--mute)}.hb-acc em.na{font-weight:400;color:var(--faint);font-size:11.5px}.hb-acc label.off{opacity:.55;cursor:default}.hb-acc .why{grid-column:3/-1;font-size:11.5px;color:var(--mute);text-align:right}
 .modal .warnbox.hb-wb{padding:8px 11px;font-size:12px;line-height:1.4;margin-top:10px}.modal .acts.col{flex-direction:column;align-items:stretch}.modal .acts.col .btn{justify-content:center;text-align:center;padding-top:11px;padding-bottom:11px}.modal .acts.col .btn,.modal .acts.col .btn span{white-space:normal}.modal .acts.col .btn{height:auto;min-height:50px;flex-direction:column;line-height:1.25}.modal .acts.col .btn>span:not(.fill){display:block;position:relative}.modal .acts .btn small{display:block;font-size:11.5px;font-weight:500;opacity:.85;margin-top:3px;line-height:1.3}.modal .acts .btn.prot{background:color-mix(in srgb,var(--good) 22%,var(--s2));border:1px solid color-mix(in srgb,var(--good) 60%,transparent);color:var(--ink)}
 .modal .warnbox{margin-top:12px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--bad) 10%,var(--s2));border:1px solid color-mix(in srgb,var(--bad) 35%,var(--line));font-size:12.5px;color:var(--ink2)}
@@ -3309,7 +3310,7 @@ function kxRdChips(s){const r=kxRd(s);if(!r)return '';const [zc,zw]=kxRdZ(r.z),S
 function kxRdHot(s){const r=kxRd(s);if(!r||r.z==null||r.w==null||r.ask==null||r.r2==null||s.close-Date.now()<20000)return false;
   if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)&&!(r.dp!=null&&r.dp<=-2)))return false;
   return !kxHeld(s)}
-function kxHeld(s){const held=x=>x.tk===s.tk&&x.fill>0,lv=kxLv();return !!(kxOpen().some(o=>o.tk===s.tk)||kxPp(s.tk)||(lv?.recent||[]).some(held)||(lv?.books||[]).some(b=>(b.recent||[]).some(held)))}
+function kxHeld(s){const held=x=>x.tk===s.tk&&x.fill>0&&!x.result,lv=kxLv();return !!(kxOpen().some(o=>o.tk===s.tk)||kxPp(s.tk)||(lv?.recent||[]).some(held)||(lv?.books||[]).some(b=>(b.recent||[]).some(held)))}
 // MC 2026-11-18 asked: after the trade check, a row the running playbook would buy right now should glow green as a buy.
 // The tracker reads these each minute until 4 minutes are left (pbLate on the scan row); shown only while the coin is not held.
 const kxLateBuy=s=>s.pbLate===1&&kxPbBuy(s)&&s.close-Date.now()>=4*60000&&!kxHeld(s);
@@ -3662,7 +3663,7 @@ function kxPayH(o){const S=o.side.toUpperCase(),lv=kxLv(),d=v=>'$'+Math.abs(v).t
   const L=R.filter(r=>r.cl==='lv'),row=r=>`<div class="r ${r.cl}"><b>${esc(r.nm)}<small>${r.n} × ${kxC(r.px)}${r.sold?` · sold ${r.sold.fill}`:''}</small></b><span class="pos">+${d(r.n-r.cost)}</span><span class="neg">-${d(r.cost)}</span></div>`;
   const tot=L.length>1?`<div class="r tot"><b>All live accounts<small>${L.reduce((a,r)=>a+r.n,0)} contracts</small></b><span class="pos">+${d(L.reduce((a,r)=>a+r.n-r.cost,0))}</span><span class="neg">-${d(L.reduce((a,r)=>a+r.cost,0))}</span></div>`:'';
   return `<div class="kx-payt"><div class="r h"><b>Account</b><span>If ${S} wins</span><span>If not</span></div>${R.map(row).join('')}${tot}</div>`}
-const kxSellPatch=(card,o)=>kxSlot(card.querySelector('[data-k=sell]'),kxSellRow(o)+kxAddRow(o.tk,o.side));
+const kxSellPatch=(card,o)=>kxSlot(card.querySelector('[data-k=sell]'),kxSellRow(o)+kxMoreRow(o.tk,o.side)+kxAddRow(o.tk,o.side));
 // MC 2026-11-14 manual buy on the scanner cards. Asked for when SOL led NO at 94c after the trade check and the rule had passed on
 // it. With live on, each card offers its leader at the price now and the live size; tapping it reads the book and shows a hold-to
 // -confirm check that names any of your live rules the buy would not have passed. Once live holds the market, the row becomes the
@@ -3681,17 +3682,24 @@ function kxHandRowP(s,inView){if(Date.now()>=s.close-20000)return '';const pp=kx
   if(pp){if(!inView&&kxOpen().some(o=>o.tk===s.tk))return '';return `<div class="kx-hl"><span class="kx-pbtag in tx">Paper · bought ${pp.n} ${pp.side.toUpperCase()} at ${kxC(pp.px)}${pp.hand?' · by hand':''}</span></div>${kxSellRowP({...s,side:pp.side})}`}
   if(!s.leader||s.lask==null)return '';const S=s.leader.toUpperCase(),size=ST.D?.kalshi?.cfg?.sizeUsd||50;
   return `<div class="kx-sellrow kx-buyrow kx-pap"><span class="tx">Paper buy at <b>${kxC(s.lask)}</b> · $${size} · <b class="pos">+$${Math.max(0,Math.floor(size/s.lask)*(1-s.lask)).toFixed(2)}</b> if it wins</span><button class="btn sm" onclick="event.stopPropagation();kxBuyOne('${esc(s.tk)}','${s.leader}',1)">Buy ${S}</button></div>`}
-function kxAddRow(tk,side){if(!kxHandOn())return '';const lv=kxLv(),x=(lv?.recent||[]).find(r=>r.tk===tk);if(!lv?.on||!x||!(x.fill>0)||x.result||Date.now()>=x.close-20000)return '';
-  const more=kbBooks().filter(b=>b.on&&!(b.open||[]).some(o=>o.tk===tk)&&!(b.recent||[]).some(r=>r.tk===tk&&r.fill>0));
+// MC 2026-11-21 a hand buy filled 1 of 40 and there was no way to buy the rest, and once that one was sold the market could not
+// be bought again. Main's row for a market (kxMainRow) is now the open one (or one still being sent); a market sold in full has none, so
+// its buy buttons come back. kxMoreRow offers to add to an open position that is short of the live size.
+const kxMainRow=tk=>(kxLv()?.recent||[]).find(r=>r.tk===tk&&!r.result&&(r.fill>0||r.pend))||null;
+function kxMoreRow(tk,side){if(!kxHandOn())return '';const lv=kxLv(),x=kxMainRow(tk);if(!lv?.on||!x||x.pend||!(x.fill>0)||x.side!==side||Date.now()>=x.close-20000)return '';
+  const held=+(x.fill-(x.sold?.fill||0)).toFixed(2),room=(lv.size||0)-(x.cost??x.fill*x.px)*held/x.fill;if(!(held>0)||room<1)return '';
+  return `<div class="kx-sellrow kx-buyrow kx-addrow"><span class="tx">Main holds ${n0(held)}${x.want>held?` of the ${x.want} wanted`:''} · room for about $${Math.floor(room)} more</span><button class="btn sm" onclick="event.stopPropagation();kxBuyOne('${esc(tk)}','${side}')">Buy more</button></div>`}
+function kxAddRow(tk,side){if(!kxHandOn())return '';const lv=kxLv(),x=kxMainRow(tk);if(!lv?.on||!x||!(x.fill>0)||Date.now()>=x.close-20000)return '';
+  const more=kbBooks().filter(b=>b.on&&!(b.open||[]).some(o=>o.tk===tk)&&!(b.recent||[]).some(r=>r.tk===tk&&r.fill>0&&!r.result));
   return more.length?`<div class="kx-sellrow kx-buyrow kx-addrow"><span class="tx">Not in ${more.map(b=>esc(b.name)).join(', ')}</span><button class="btn sm" onclick="event.stopPropagation();kxBuyOne('${esc(tk)}','${side}')">Add to ${more.length===1?'it':'them'}</button></div>`:''}
 // the coin box's buy row: both sides, each with its price and what it pays, the leader first
-function kxHandBoth(s){const lv=kxLv();if(!lv?.on||Date.now()>=s.close-20000)return '';const x=(lv.recent||[]).find(r=>r.tk===s.tk);if(x&&x.fill>0||x?.pend)return kxHandRow(s);
+function kxHandBoth(s){const lv=kxLv();if(!lv?.on||Date.now()>=s.close-20000)return '';const x=kxMainRow(s.tk);if(x)return kxHandRow(s);
   const size=lv.size||10,ya=s.ya,na=s.yb!=null?+(1-s.yb).toFixed(4):null,age=Math.floor((Date.now()-(s.q||KX.live?.at||Date.now()))/10000)*10,old=age>=20?`<i class="kx-old">prices read ${age>=60?Math.floor(age/60)+' min':age+'s'} ago</i>`:'';
   const one=(sd,a)=>a==null||!(a>0&&a<1)?`<button class="btn kx-bs" disabled><span>Buy ${sd.toUpperCase()}</span><small>no sellers</small></button>`:`<button class="btn kx-bs ${sd}" onclick="event.stopPropagation();kxBuyOne('${esc(s.tk)}','${sd}')"><span>Buy ${sd.toUpperCase()} <b>${kxC(a)}</b></span><small>+$${Math.max(0,Math.floor(size/Math.min(.99,a+.01))*(1-a)).toFixed(2)} if it wins</small></button>`;
   const L=s.leader==='no'?[['no',na],['yes',ya]]:[['yes',ya],['no',na]];
   return `<div class="kx-both">${L.map(([sd,a])=>one(sd,a)).join('')}</div><div class="kx-bothn">$${size} a trade${old?' · '+old:''}</div>`}
-function kxHandRow(s){if(!kxHandOn())return kxHandRowP(s);const lv=kxLv();if(!lv?.on||Date.now()>=s.close-20000)return '';const x=(lv.recent||[]).find(r=>r.tk===s.tk);
-  if(x&&x.fill>0){if(x.result||kxOpen().some(o=>o.tk===s.tk))return '';const tag=kxLvOf({tk:s.tk});return `<div class="kx-hl">${tag?`<span class="kx-pbtag lv tx">${tag.txt}${x.hand?' · by hand':x.late?' · later watched':''}</span>`:''}</div>${kxSellRow({...s,side:x.side})}${kxAddRow(s.tk,x.side)}`}
+function kxHandRow(s){if(!kxHandOn())return kxHandRowP(s);const lv=kxLv();if(!lv?.on||Date.now()>=s.close-20000)return '';const x=kxMainRow(s.tk);
+  if(x&&x.fill>0){if(kxOpen().some(o=>o.tk===s.tk))return '';const tag=kxLvOf({tk:s.tk});return `<div class="kx-hl">${tag?`<span class="kx-pbtag lv tx">${tag.txt}${x.hand?' · by hand':x.late?' · later watched':''}</span>`:''}</div>${kxSellRow({...s,side:x.side})}${kxMoreRow(s.tk,x.side)}${kxAddRow(s.tk,x.side)}`}
   if(x?.pend)return `<div class="kx-sellrow kx-buyrow"><span class="tx">Live · sending the order…</span></div>`;
   if(!s.leader||s.lask==null)return '';const S=s.leader.toUpperCase(),size=lv.size||10;
   // MC 2026-11-15 the row said 61c while the buy box said 74c: the row's price was the tracker's reading and nothing said how old
@@ -3739,7 +3747,7 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
     if(!x)kxSlot(box.querySelector('[data-k=hc]'),kxHcCard(s,side));else kxSlot(box.querySelector('[data-k=hc]'),'');
     const act=box.querySelector('[data-k=act]');
     kxSlot(act,!kxHandOn()?`${kxHandRowP(s,1)||'<p class="note tx">Too close to the close to trade.</p>'}<p class="note tx" style="margin-top:8px">Paper view: practice money only, nothing is sent to Kalshi.${lv?.on?' Switch Home to Live to trade by hand with real money.':''}</p>`
-      :x?`<div class="kx-hl"><span class="kx-pbtag lv tx">${kxLvNm()} · bought ${x.fill} at ${kxC(x.px)}${x.hand?' · by hand':x.late?' · later watched':''}${x.sold?` · sold ${x.sold.fill}`:''}</span></div>${kxSellRow({...s,side:x.side})||'<p class="note tx">Too close to the close to sell.</p>'}`
+      :x?`<div class="kx-hl"><span class="kx-pbtag lv tx">${kxLvNm()} · bought ${x.fill} at ${kxC(x.px)}${x.hand?' · by hand':x.late?' · later watched':''}${x.sold?` · sold ${x.sold.fill}`:''}</span></div>${kxSellRow({...s,side:x.side})||'<p class="note tx">Too close to the close to sell.</p>'}${kxMoreRow(tk,x.side)}`
       :!lv?.on?`<p class="note tx">Live trading is off, so there is nothing to buy or sell here.${pp?` Paper holds ${esc(pp.side.toUpperCase())} at ${kxC(pp.px??pp.ask)}.`:''}</p>`
       :(kxHandBoth(s)||'<p class="note tx">Too close to the close to buy.</p>'))};
   paint();KX.cvT=setInterval(paint,250);requestAnimationFrame(kxMidBox);
@@ -3778,7 +3786,7 @@ async function kxBuyOne(tk,side,paper){if(!paper&&!ST.me.control){unlockFlow();r
     const amt=p.room==null?x.size:Math.min(x.size,p.room),cut=amt<x.size-0.005,sm=p.by==='stop'&&cut?`stop -$${n0(p.stop)}`:p.floor!=null?`keeps ${f2(p.floor)}`:p.tiers?'not on yet':'full size';
     return `<em class="${cut||p.floor!=null?'pos':''}"${p.tiers&&p.floor==null&&p.at?` title="Protection starts at +$${n0(p.at)} today"`:''}>${f2(amt)}<small>${sm}</small></em>`};
   KX.hsel={};for(const x of A)if(x.ok)KX.hsel[x.id]=true;
-  const accH=(multi||PA.length)?`<div class="hb-acc${PA.length?' p':''}">${PA.length?'<div class="hb-ah"><span></span><span>Account</span><span>Full</span><span>Protected</span></div>':''}${A.map(x=>`<label class="${x.ok?'':'off'}"><input type="checkbox" ${x.ok?'checked':'disabled'} ${x.ok&&x.id==='main'&&!q.mainHeld&&multi?'disabled':''} onchange="KX.hsel['${x.id}']=this.checked"><b>${esc(x.name)}</b>${x.ok?`<span>$${n0(x.size)}</span>${PA.length?prc(x):''}`:`<span class="why">${esc(x.why||'not available')}</span>`}</label>`).join('')}</div>`:'';
+  const accH=(multi||PA.length)?`<div class="hb-acc${PA.length?' p':''}">${PA.length?'<div class="hb-ah"><span></span><span>Account</span><span>Full</span><span>Protected</span></div>':''}${A.map(x=>`<label class="${x.ok?'':'off'}"><input type="checkbox" ${x.ok?'checked':'disabled'} ${x.ok&&x.id==='main'&&!q.mainHeld&&multi?'disabled':''} onchange="KX.hsel['${x.id}']=this.checked"><b>${esc(x.name)}${x.ok&&x.add?` <small class="hb-add">adds to ${n0(x.add)}</small>`:x.ok&&x.again?' <small class="hb-add">buys again</small>':''}</b>${x.ok?`<span>$${n0(x.size)}</span>${PA.length?prc(x):''}`:`<span class="why">${esc(x.why||'not available')}</span>`}</label>`).join('')}</div>`:'';
   const html=`<div class="hb-t">Settles ${tm2s(q.close)}, in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}</div><div class="hb-q"><div><small>Best ask</small><b>${kxC(q.best)}</b><i>max ${kxC(q.maxPx)}</i></div>${q.mainHeld?`<div><small>Buying</small><b>${S}</b><i>own size each</i></div>`:`<div><small>Main costs</small><b>$${q.cost.toFixed(2)}</b><i>${q.est<q.n?`only ${q.est} on offer`:`${q.est} contracts`}</i></div>`}<div><small>If ${S} wins</small><b class="pos">${usd(q.ifWin)}</b><i class="neg" title="if it loses">or ${usd(q.ifLose)}</i></div></div>${chips.length?`<div class="hb-c">${chips.join('')}</div>`:''}${accH}`;
   const why=[...(q.notes||[]),...RD.warn].map(esc);
   const ok=await confirmBox({title:q.mainHeld?`Add ${q.coin} ${S} to other accounts?`:`Buy ${q.coin} ${S} now?`,html,warnCls:'hb-wb',
@@ -5721,7 +5729,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.52',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.53',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
