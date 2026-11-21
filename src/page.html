@@ -1038,7 +1038,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-strip .kx-ss i{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}.kx-strip .kx-ss.on i{background:var(--kx);box-shadow:0 0 0 3px color-mix(in srgb,var(--kx) 22%,transparent)}.kx-strip .kx-ss.live i{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
 .kx-strip .kx-ssb{display:inline-flex;align-items:center;gap:8px}.kx-strip .kx-ssb .kx-bar{width:70px;margin:0}
 .kx-strip .kx-sp{margin-left:auto}.kx-strip .kx-feeds{gap:6px}.kx-strip .kx-chip{padding:3px 9px;font-size:11px}
-.kx-chip i{animation:kxbreathe 2.4s ease-in-out infinite}.kx-chip.kxoff i{animation:none}
+.kx-chip i{animation:kxbreathe 2.4s ease-in-out infinite}.kx-chip.kxoff i,.kx-chip.kxna i{animation:none}
 @keyframes kxbreathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,currentColor 35%,transparent)}50%{box-shadow:0 0 0 4px transparent}}
 /* hero */
 .kx-hero2{min-height:0;padding:24px 26px 20px}
@@ -3568,8 +3568,12 @@ function kxOpen(){const L=KX.live;if(!L)return[];const now=Date.now(),A=(L.open|
     for(const x of lv?.recent||[])add(x);for(const b of lv?.books||[])for(const x of b.recent||[])add(x)}
   return A}
 function kxHdr(){const e=$('#kxfeeds');if(!e)return;const age=KX.liveAt?(Date.now()-KX.liveAt)/1000:Infinity,tr=KX.live?.at?(Date.now()-KX.live.at)/1000:Infinity;
-  const chip=(ok,lab,sub)=>`<span class="kx-chip ${ok===true?'kxok':ok===false?'kxoff':'kxwarn'}"><i></i>${lab}<small>${sub}</small></span>`;
-  e.innerHTML=chip(tr<90?true:tr<180?null:false,'Tracker',isFinite(tr)?(tr<60?Math.round(tr)+'s ago':Math.round(tr/60)+'m ago')+(KX.live?.fallback?' · via bot':''):'no data')+chip(KX.wsOk?true:Object.keys(KX.px).length?null:false,'Prices',KX.wsOk?'Coinbase live':Object.keys(KX.px).length?'Coinbase, polling':'connecting')+(ST.D?.copyOff||botAge()>3600?'':chip(botAge()<30?true:botAge()<120?null:false,'Bot',isFinite(botAge())?Math.round(botAge())+'s ago':'offline'))}
+  const chip=(ok,lab,sub,tt)=>`<span class="kx-chip ${ok===true?'kxok':ok===false?'kxoff':ok==='na'?'kxna':'kxwarn'}"${tt?` title="${esc(tt)}"`:''}><i></i>${lab}<small>${sub}</small></span>`;
+  // MC 2026-11-21 Steven upgraded his Cloudflare plan and could not tell whether the app was using it. The tracker only uses the
+  // paid plan's limits when the worker has PAID_PLAN set to 1, so this chip says which limits it is running on.
+  const K=ST.D?.kalshi,plan=!K?'':K.paid?chip(true,'Cloudflare','paid plan on','PAID_PLAN is set on this worker, so the tracker runs on the paid plan\'s limits: past trades\' charts and price paths fill in within minutes and every trade\'s minute prices are saved.')
+    :chip('na','Cloudflare','free plan limits','The tracker is running on the free plan\'s limits. On Cloudflare\'s paid Workers plan, add a secret named PAID_PLAN with the value 1 (your worker > Settings > Variables and Secrets) and this turns green within a minute.');
+  e.innerHTML=chip(tr<90?true:tr<180?null:false,'Tracker',isFinite(tr)?(tr<60?Math.round(tr)+'s ago':Math.round(tr/60)+'m ago')+(KX.live?.fallback?' · via bot':''):'no data')+chip(KX.wsOk?true:Object.keys(KX.px).length?null:false,'Prices',KX.wsOk?'Coinbase live':Object.keys(KX.px).length?'Coinbase, polling':'connecting')+plan+(ST.D?.copyOff||botAge()>3600?'':chip(botAge()<30?true:botAge()<120?null:false,'Bot',isFinite(botAge())?Math.round(botAge())+'s ago':'offline'))}
 // MC 2026-11-10 the live board shows every trade the rule took, but the paper book may be running a playbook that passed on
 // some of them. Each card now says whether this one is in your book, and if not, why (the volatility numbers when it is that).
 function kxPbOf(o){const K=ST.D?.kalshi||{};if(o.late)return {cls:'in',txt:`In your book · ${o.lw?'later watched':'second look'}, bought with ${Math.round(Number(o.left)||0)} min left`};const t=[...(K.pending||[]),...(K.recent||[])].find(x=>x.tk===o.tk),pb=kxLabOf(K,K.playbook?.id).name;
@@ -5717,7 +5721,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.51',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.52',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

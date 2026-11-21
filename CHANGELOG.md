@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.52 (Nov 21, 2026): Which Cloudflare plan the tracker is using
+- [new] A Cloudflare chip next to Tracker and Prices on Home says which limits the tracker runs on: green "paid plan on" when the worker has PAID_PLAN set to 1, grey "free plan limits" when it does not. Upgrading the Cloudflare account alone does not switch it: on the paid Workers plan, add a secret named PAID_PLAN with the value 1 (your worker > Settings > Variables and Secrets). Use Secret, not Text, so the hourly update does not clear it.
+
 ## 1.3.51 (Nov 21, 2026): Plainer price words
 - [improved] The Win chance chip on scanner rows says "overpriced" and "underpriced" instead of "dear" and "cheap": overpriced when Kalshi's price is 3 or more points above the model's win chance, underpriced when it is 3 or more below.
 
