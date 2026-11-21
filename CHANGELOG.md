@@ -2,6 +2,24 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.43 (Nov 20, 2026): Display clean-up on the web and phones
+- [fixed] Tapping an account: the last line of its header sat under the yellow "protecting" note. The note also reads as a sentence now, here, on Live account and on each account's card.
+- [fixed] Analytics, Daily P&L: the day labels under the bars ran together on a phone ("Nov 2Nov 3"), and the amounts on the left lost their "$" and minus sign at the edge. Labels are thinned to what fits, and the side amounts are whole dollars ($1.1k past a thousand). Same for the drawdown amount under Equity.
+- [fixed] Analytics, By hour: amounts ran past their squares on phones and on the web. The grid drops to six across when the card is narrow.
+- [fixed] Analytics, Calendar and Breakdown: amounts ran out of the day squares on small phones and past the column at $1,000 and up. Thousands are shortened (exact amount on hover).
+- [fixed] Settings, Schedule: each hour's amount was cut off ("+$335..."). Now whole dollars.
+- [fixed] Cockpit: the speed dial's side numbers ran into the tick marks when they had four decimals, and a nine-digit price ran into the side numbers on a phone.
+- [fixed] Home: the list of trading accounts ran off the right edge on small phones, and long account names were cut in the payout table under each open trade. They wrap now.
+- [fixed] Hand buy box: long account names wrap instead of being cut, and the loss line under "If YES wins" fits ("or -$34.42").
+- [fixed] Coin box: "At this pace by the close" was cut on small phones. It wraps.
+- [fixed] Money in and out: "withdrawal" was cut on a small phone. The kind now sits under the amount there.
+- [fixed] Live account: "$290.37 on crypto" was cut on small phones.
+- [fixed] Top strip on the web: "Kalshi cash, all accounts" ran past its tile (now "Kalshi cash · all"), and the Mode tile cut "8 open" short. The next check time hides when the tile is narrow.
+- [fixed] Scanner rows on the web: "mark in 3:20" ran past its column.
+- [fixed] Requests: the two text boxes used a typewriter font. They use the page font now.
+- [fixed] Labs: the "PAPER · PRACTICE MONEY" tag broke onto two lines.
+- [fixed] Light theme on a phone: "LIVE TRADING" was pale pink on pink. It uses the darker red the web uses.
+
 ## 1.3.42 (Nov 20, 2026): Home names which accounts have stopped
 - [fixed] With Main protecting its profit, Home said "Not trading right now" while other accounts were still buying. It only read Main. It now names each account that is done for the day and why, then lists the accounts still trading. The red box is only for when every account that is on has stopped.
 
