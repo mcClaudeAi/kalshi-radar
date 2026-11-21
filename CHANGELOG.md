@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.41 (Nov 20, 2026): Live analytics counts every account
+- [fixed] Analytics on Live now adds up the trades of every account, not just Main. Chips above it pick All accounts or one account, and the heading, the cash line, the profit take and stop loss lines on Daily P&L and the Execution card all follow that pick. All uses the sum of the limits of the accounts that are on.
+- [fixed] Tapping a coin's row opens its box in the middle of the screen, like the buy box, instead of at the very top. It is placed once when it opens, so it still does not jump as its numbers refresh.
+
 ## 1.3.40 (Nov 20, 2026): The hand buy box fits on one phone screen
 - [improved] Buying by hand on live is now one screen: when it settles, three small tiles (best ask and the most it pays, what Main pays, what it wins or loses), the chart readings as chips, one list of the accounts with the full and protected amount side by side and their tick boxes, a short warning, and the two hold buttons next to each other.
 
