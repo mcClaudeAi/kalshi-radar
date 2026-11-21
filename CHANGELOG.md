@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.54 (Nov 21, 2026): Easier on the phone battery
+- [improved] The dashboard uses far less of the phone while it is open. Measured on Home on a phone screen with prices streaming, the page kept the phone busy about 29% of the time before and about 5% now; the coin box went from 33% to 8%, Cockpit from 12% to 5% and Analytics from 10% to 3%. Nothing was turned off: the same live prices, readings, pulses and flashes, at the same rate.
+- [fixed] The causes were all drawing, not the app's own work: the countdown ring to the next trade check, the live dots' pulse, the price flash on scanner rows, and the window bar and scanner gauges each redrew part of the screen every frame. They now animate in a way the phone's graphics chip handles on its own, or step to each new reading (moves of under a pixel).
+- [improved] The coin box only rewrites its price, countdown and readings when they change, instead of four times a second.
+
 ## 1.3.53 (Nov 21, 2026): Hand buys: buy the rest, or buy again after selling
 - [fixed] A hand buy that only partly fills can be topped up. Its card on the Live board, its scanner row and its coin box say how many Main holds of the number wanted, with a Buy more button. The buy goes into the same trade, up to your trade size counted at what you paid for what is still held. A subaccount that came up short adds the same way from the account list in the buy box.
 - [fixed] A market you sold can be bought again. Before, selling left the market counted as held and its buy buttons gone. The sold trade stays in today's results as it was, and the new buy is a trade of its own.

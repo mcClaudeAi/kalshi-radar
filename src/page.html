@@ -49,8 +49,9 @@ header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 8
 .pill.live{background:color-mix(in srgb,var(--bad) 20%,transparent);color:var(--bad)}
 .sp{flex:1}
 .beat{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mute)}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent);animation:pulse 2s infinite}
-.dot.stale{background:var(--warn);animation:none}.dot.dead{background:var(--bad);animation:none}
+.dot{position:relative;width:8px;height:8px;border-radius:50%;background:var(--good)}
+.dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--good);pointer-events:none;--ro:.55;--rs:3;animation:ring70 2s infinite}
+.dot.stale{background:var(--warn);animation:none}.dot.stale::after,.dot.dead::after{content:none}.dot.dead{background:var(--bad);animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 55%,transparent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .iconbtn{border:1px solid var(--line);background:var(--s1);color:var(--ink2);border-radius:10px;height:32px;min-width:32px;display:grid;place-items:center;cursor:pointer;font-size:14px}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:0 0 10px}
@@ -933,25 +934,28 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .btn.golive:hover{box-shadow:0 0 0 1px rgba(255,77,94,.25) inset,0 8px 30px rgba(255,77,94,.38)}.btn.golive:active{transform:translateY(1px)}
 .gl-dot{width:10px;height:10px;border-radius:50%;border:2px solid #ff4d5e;flex:none}
 .btn.golive.on{background:linear-gradient(180deg,#ff3b4f,#c81e34);color:#fff;border-color:#ff6b7a;box-shadow:0 0 24px rgba(255,59,79,.55)}
-.btn.golive.on .gl-dot{background:#fff;border-color:#fff;animation:glPulse 1.4s ease-out infinite}
+.btn.golive.on .gl-dot{position:relative;background:#fff;border-color:#fff}
+.btn.golive.on .gl-dot::after{content:"";position:absolute;inset:-2px;border-radius:50%;background:rgba(255,255,255,.8);pointer-events:none;--ro:1;--rs:2.8;animation:ring100 1.4s ease-out infinite}
 .btn.golive small{font:700 12px 'JetBrains Mono',monospace;letter-spacing:0;text-transform:none;opacity:.95}.btn.golive.on small{color:#fff!important}
 @keyframes glPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}100%{box-shadow:0 0 0 9px rgba(255,255,255,0)}}
 /* MC 2026-11-09 the go-live button's pale pink text vanished on the light theme */
 :root[data-theme="light"] .btn.pri,:root[data-theme="light"] .chip[aria-pressed="true"],:root[data-theme="light"] .kp-btn.on{color:#fff}
 :root[data-theme="light"] .btn.golive:not(.on){color:#b3121f;background:linear-gradient(180deg,rgba(255,77,94,.16),rgba(255,77,94,.06))}
 @media(max-width:760px){.btn.golive{height:38px;padding:0 12px;font-size:11.5px}.btn.golive small{display:none}}
-@media (prefers-reduced-motion:reduce){.btn.golive.on .gl-dot{animation:none}}
+@media (prefers-reduced-motion:reduce){.btn.golive.on .gl-dot{animation:none}.btn.golive.on .gl-dot::after{content:none}}
 
 .kp.mode b{display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.07em;font-size:13.5px}.kp.mode b i{width:8px;height:8px;border-radius:50%;flex:none}
 .kp.mode.paper{border-color:color-mix(in srgb,var(--kx) 55%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--kx) 16%,transparent),color-mix(in srgb,var(--kx) 5%,transparent))}
 .kp.mode.paper b{color:var(--kx)}.kp.mode.paper b i{background:var(--kx);box-shadow:0 0 8px var(--kx)}
 .kx-msp{position:relative;height:42px;margin-top:auto;padding-top:8px}.kx-msp svg{width:100%;height:100%;display:block;overflow:visible}.kx-msp .z{stroke:var(--faint);stroke-width:1;stroke-dasharray:2 3;vector-effect:non-scaling-stroke;opacity:.6}
-.kx-msp i{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--c,var(--faint));box-shadow:0 0 0 0 var(--c,var(--faint));animation:kxmsp 2s ease-out infinite;transform:translateY(4px)}.kx-msp0 i{--c:var(--faint);opacity:.6}
+.kx-msp i{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--c,var(--faint));transform:translateY(4px)}
+.kx-msp i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--c,var(--faint));pointer-events:none;--ro:.7;--rs:3.25;animation:ring100 2s ease-out infinite}.kx-msp0 i{--c:var(--faint);opacity:.6}
 @keyframes kxmsp{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c,#888) 70%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
 .kp .kx-mcap{display:flex;justify-content:space-between;gap:8px;margin-top:4px}.kp .kx-mcap em{font-style:normal;font-size:11px;font-weight:500;color:var(--mute);white-space:nowrap;letter-spacing:0;text-transform:none}.kp .kx-mcap strong{font-weight:700}
 @media(max-width:600px){.kp .kx-mcap em.nx{display:none}}
 .kp.mode{display:flex;flex-direction:column}
-.kp.mode.live{border-color:color-mix(in srgb,#ff4d5e 60%,transparent);background:linear-gradient(180deg,rgba(255,77,94,.2),rgba(255,77,94,.06))}.kp.mode.live b{color:#ff8a98}[data-theme=light] .kp.mode.live b{color:#d3263b}.kp.mode.live b i{background:#ff4d5e;animation:glPulse 1.4s ease-out infinite}
+.kp.mode.live{border-color:color-mix(in srgb,#ff4d5e 60%,transparent);background:linear-gradient(180deg,rgba(255,77,94,.2),rgba(255,77,94,.06))}.kp.mode.live b{color:#ff8a98}[data-theme=light] .kp.mode.live b{color:#d3263b}.kp.mode.live b i{position:relative;background:#ff4d5e}
+.kp.mode.live b i::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.8);pointer-events:none;--ro:1;--rs:3.25;animation:ring100 1.4s ease-out infinite}
 
 /* MC 2026-11-08 double-tapping a menu item on a phone zoomed the page. touch-action:manipulation turns off double-tap zoom but
    keeps pinch zoom, and inputs at 16px stop iOS from zooming in when a field is focused. */
@@ -1056,7 +1060,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 /* countdown ring */
 .kx-next{display:flex;align-items:center;gap:14px;text-align:left;min-width:0;padding:12px 16px 12px 12px}
 .kx-ring{position:relative;width:64px;height:64px;flex:none}.kx-ring svg{width:64px;height:64px;transform:rotate(-90deg)}
-.kx-ring circle{fill:none;stroke-width:4}.kx-ring .bg{stroke:color-mix(in srgb,var(--line2) 70%,transparent)}.kx-ring .fg{stroke:var(--kx);stroke-linecap:round;stroke-dasharray:176;transition:stroke-dashoffset .5s linear;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--kx) 70%,transparent))}
+.kx-ring circle{fill:none;stroke-width:4}.kx-ring .bg{stroke:color-mix(in srgb,var(--line2) 70%,transparent)}.kx-ring .fg{stroke:var(--kx);stroke-linecap:round;stroke-dasharray:176;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--kx) 70%,transparent))}
 .kx-ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;font-weight:600;margin:0;color:var(--ink)}
 .kx-next.soon .kx-ring{animation:kxpulse 1s ease-in-out infinite}.kx-next.soon .kx-ring .fg{stroke:var(--good)}.kx-next.soon .kx-ring b{color:var(--good)}
 @keyframes kxpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
@@ -1093,13 +1097,15 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-sbc b{display:block;font-size:14px;font-weight:700;letter-spacing:.02em}.kx-sbc span{display:block;font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap}
 .kx-sbl{display:flex;align-items:center;gap:6px;font-size:12.5px;flex-wrap:wrap;min-width:0}.kx-sbl b{font-size:13px}.kx-sbl b.pos{color:var(--good)}.kx-sbl b.neg{color:var(--bad)}
 .kx-sbs svg{width:100%;height:24px;display:block}
-.kx-sbp{min-width:0}.kx-sbp b{display:block;font-size:13.5px;font-weight:600;transition:color .4s;border-radius:4px;padding:0 3px;margin-left:-3px}.kx-sbp b.up{animation:kxup .7s ease-out}.kx-sbp b.dn{animation:kxdn .7s ease-out}
+.kx-sbp{min-width:0}.kx-sbp b{position:relative;isolation:isolate;display:block;font-size:13.5px;font-weight:600;transition:color .4s;border-radius:4px;padding:0 3px;margin-left:-3px}
+.kx-sbp b::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:4px;opacity:0;pointer-events:none}
+.kx-sbp b.up::after{background:color-mix(in srgb,var(--good) 35%,transparent);animation:kxfl .7s ease-out}.kx-sbp b.dn::after{background:color-mix(in srgb,var(--bad) 35%,transparent);animation:kxfl .7s ease-out}
 @keyframes kxup{0%{background:color-mix(in srgb,var(--good) 35%,transparent);color:var(--good)}100%{background:transparent}}
 @keyframes kxdn{0%{background:color-mix(in srgb,var(--bad) 35%,transparent);color:var(--bad)}100%{background:transparent}}
 .kx-sbp span{display:block;font-size:11px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kx-sbp span.pos{color:var(--good)}.kx-sbp span.neg{color:var(--bad)}
 .kx-sbg{position:relative;height:30px;min-width:0}
 .kx-sbg .t{position:absolute;left:0;right:0;top:16px;height:8px;border-radius:3px;background:color-mix(in srgb,var(--line) 85%,transparent)}
-.kx-sbg .t i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--good);box-shadow:0 0 10px -2px var(--good);transition:left .4s,width .4s}.kx-sbg .t i.neg{background:var(--bad);box-shadow:0 0 10px -2px var(--bad)}
+.kx-sbg .t i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--good);box-shadow:0 0 10px -2px var(--good)}.kx-sbg .t i.neg{background:var(--bad);box-shadow:0 0 10px -2px var(--bad)}
 .kx-sbg .t::after{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--mute)}
 .kx-sbg em{position:absolute;font-style:normal;font-size:9.5px;letter-spacing:.06em;color:var(--faint);top:0;white-space:nowrap;font-family:var(--mono)}.kx-sbg em.c{color:var(--mute)}.kx-sbg em.l{left:0}.kx-sbg em.c{left:50%;transform:translateX(-50%)}.kx-sbg em.r{right:0}
 .kx-sbh{display:grid;grid-template-columns:70px 128px 90px minmax(96px,.9fr) minmax(0,1.2fr);gap:12px;padding:0 12px 6px 14px}.kx-sbh span{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
@@ -1110,7 +1116,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-tlt .a{position:absolute;left:0;top:0;bottom:0;border-radius:5px 0 0 5px;background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 15%,transparent),color-mix(in srgb,var(--kx) 40%,transparent))}
 .kx-tlt .b{position:absolute;top:0;bottom:0;right:0;border-radius:0 5px 5px 0;background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .kx-tlt .m{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--kx);box-shadow:0 0 8px var(--kx)}
-.kx-tlt .cur{position:absolute;top:-7px;width:3px;height:24px;background:var(--ink);border-radius:2px;box-shadow:0 0 10px color-mix(in srgb,var(--ink) 60%,transparent);transition:left .5s linear}
+.kx-tlt .cur{position:absolute;top:-7px;width:3px;height:24px;background:var(--ink);border-radius:2px;box-shadow:0 0 10px color-mix(in srgb,var(--ink) 60%,transparent)}
 .kx-tlt .cur b{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--ink);white-space:nowrap}
 /* MC 2026-11-14 near the close the clock over the marker ran into the window's times on the line above and stuck out past the right
    edge. The track now sits lower so the clock has its own line, and the clock hangs to the left of the marker in the last tenth of
@@ -1123,9 +1129,9 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .ph-w .tw-ph .w{color:var(--kx)}.ph-h .tw-ph .h{color:var(--accent)}.ph-f .tw-ph .f{color:var(--warn)}
 .tw-t{position:relative;height:14px;border-radius:7px;background:color-mix(in srgb,var(--line) 70%,transparent)}
 .tw-t .sg{position:absolute;top:0;bottom:0;opacity:.5}.tw-t .sg.w{left:0;border-radius:7px 0 0 7px;background:color-mix(in srgb,var(--kx) 22%,transparent)}.tw-t .sg.h{background:color-mix(in srgb,var(--accent) 20%,transparent)}.tw-t .sg.f{right:0;border-radius:0 7px 7px 0;background:color-mix(in srgb,var(--warn) 38%,transparent)}
-.tw-t .fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 35%,transparent),var(--kx));transition:width .5s linear}.ph-h .tw-t .fill{background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 30%,transparent),var(--accent))}.ph-f .tw-t .fill{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 35%,transparent),var(--warn))}
+.tw-t .fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 35%,transparent),var(--kx))}.ph-h .tw-t .fill{background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 30%,transparent),var(--accent))}.ph-f .tw-t .fill{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 35%,transparent),var(--warn))}
 .tw-t .tk{position:absolute;top:3px;bottom:3px;width:1px;background:color-mix(in srgb,var(--ink) 26%,transparent)}.tw-t .tk.big{top:-5px;bottom:-5px;width:2px;background:var(--kx);box-shadow:0 0 8px var(--kx)}
-.tw-t .cur{position:absolute;top:-6px;width:4px;height:26px;margin-left:-2px;border-radius:2px;background:var(--ink);box-shadow:0 0 12px color-mix(in srgb,var(--ink) 70%,transparent);transition:left .5s linear}
+.tw-t .cur{position:absolute;top:-6px;width:4px;height:26px;margin-left:-2px;border-radius:2px;background:var(--ink);box-shadow:0 0 12px color-mix(in srgb,var(--ink) 70%,transparent)}
 .tw-t .tk.ek{top:-3px;bottom:-3px;width:2px;background:#64DFDF;box-shadow:0 0 6px #64DFDF}.kx-tlq .ek{color:#64DFDF;border-color:color-mix(in srgb,#64DFDF 45%,var(--line))}.kx-tlq .ek.done{opacity:.55}
 .tw-x{position:relative;height:16px;margin-top:8px;font-size:11px;color:var(--faint)}.tw-x span{position:absolute;top:0;white-space:nowrap}.tw-x span.c{transform:translateX(-50%)}.tw-x span.r{right:0}.tw-x b{color:var(--mute);font-weight:500;font-family:var(--mono)}
 @media(max-width:560px){.tw-cd b{font-size:22px}.tw-x span:first-child{display:none}.tw-x span.c{left:0!important;transform:none}}
@@ -1217,18 +1223,30 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @keyframes kxAvIn{from{stroke-dasharray:0 120;opacity:0}}
 .kx-av .g{position:relative;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:750;font-size:14px;letter-spacing:-.01em;color:var(--ink);background:radial-gradient(circle at 30% 22%,color-mix(in srgb,var(--ink) 22%,transparent),color-mix(in srgb,var(--ink) 5%,transparent) 62%),var(--s1);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 28%,transparent),inset 0 -6px 10px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.25)}
 .kx-av.on .g{color:#fff;background:radial-gradient(circle at 30% 22%,#ff8e99,#ff4d5e 48%,#b3122a);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -6px 10px rgba(120,0,20,.35),0 4px 14px rgba(255,77,94,.38)}
-.kx-av .lv{position:absolute;right:1px;bottom:1px;width:11px;height:11px;border-radius:50%;background:var(--good);border:2px solid var(--bg);box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent);animation:kxAvPulse 2s ease-out infinite}
+.kx-av .lv{position:absolute;right:1px;bottom:1px;width:11px;height:11px;border-radius:50%;background:var(--good);border:2px solid var(--bg)}
+.kx-av .lv::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--good);pointer-events:none;--ro:.6;--rs:3.5;animation:ring70 2s ease-out infinite}
 @keyframes kxAvPulse{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .kx-av .wn.hit{stroke-width:3.4;filter:drop-shadow(0 0 5px var(--good))}.kx-av.hit .g{box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -6px 10px rgba(0,0,0,.25),0 0 16px color-mix(in srgb,var(--good) 55%,transparent)}
 .kx-av:hover{transform:scale(1.08)}.kx-av:active{transform:scale(.94)}.kx-av:focus-visible{outline:2px solid var(--kx);outline-offset:3px}
 .kx-av .g.pic{background:var(--s1);overflow:hidden}.kx-av .g img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}.kx-accpic{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}.kx-accpic span{font-size:11.5px;color:var(--faint)}
 .kx-av.big{width:68px;height:68px;cursor:default;pointer-events:none}.kx-av.big .g{width:50px;height:50px;font-size:21px}.kx-av.big .lv{width:14px;height:14px;right:3px;bottom:3px}
-@media(prefers-reduced-motion:reduce){.kx-av,.kx-av .wn,.kx-av .ls,.kx-av .lv{animation:none;transition:none}}
+@media(prefers-reduced-motion:reduce){.kx-av,.kx-av .wn,.kx-av .ls,.kx-av .lv{animation:none;transition:none}.kx-av .lv::after{content:none}}
 /* MC 2026-11-15 phones: the page background and the hero glow drifted without end and every card blurred what was behind it, so the
    phone redrew the whole screen all the time. On touch screens the drifting stops and cards, tiles and chips are plain
    translucent panels. The top bar and the bottom menu keep their frosted look. */
 @media(pointer:coarse){body::before,.kx-hero2::before,.kx-ring::before,.kx-allbox,.kx-chip i,.lg-sw,.lg-pl{animation:none!important}
  .card,.kx-t,.kx-lab,.kx-next,.kxg,.kxg.mini,.kx-allbox,.fx-chip,.kx-rtip,.kx-savebar{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
+/* MC 2026-11-21 asked: the app ran the phone battery down. Measured on Home on a phone screen with the price stream running, the
+   page kept the phone busy about 30% of the time, almost all of it redrawing, not the app's own work (under 1%). Three things
+   forced a redraw every frame without end: the live dots pulsed by growing a shadow, the price flash on each scanner row
+   recoloured the number, and the window bar and the scanner gauges slid between readings. The dots now pulse with a ring that
+   only grows and fades (the graphics chip does that on its own), the flash is a tinted layer that fades under the number, and the
+   bars step to each reading (the window bar moves less than a pixel a reading). The biggest one was the countdown ring to the next
+   trade check: it slid for a second after every half-second reading, so its glow was redrawn every frame; it steps now too (a
+   fifth of a pixel a reading). Same look, same updates. */
+@keyframes ring70{0%{transform:scale(1);opacity:var(--ro)}70%,100%{transform:scale(var(--rs));opacity:0}}
+@keyframes ring100{0%{transform:scale(1);opacity:var(--ro)}100%{transform:scale(var(--rs));opacity:0}}
+@keyframes kxfl{0%{opacity:1}100%{opacity:0}}
 .modal .box:has(.kx-accs){width:min(520px,100%);max-height:calc(100dvh - 24px);overflow:auto}
 .kx-accs .hd{display:flex;align-items:center;gap:14px;margin-bottom:12px;height:auto}.kx-accs .hd>div{min-width:0}.kx-accs h2{margin:0}.kx-accs .hd p{margin:2px 0 0;font-size:12.5px;color:var(--mute)}.kx-accs .pd{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .kx-accs .big{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--s1)}.kx-accs .big .kx-accsp{width:100%;height:64px}
@@ -1403,7 +1421,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .lh-live.on{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 10%,transparent)}.lh-live.on i{background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 22%,transparent)}
 .lh-live.paper{color:var(--kx);border-color:color-mix(in srgb,var(--kx) 45%,transparent);background:color-mix(in srgb,var(--kx) 10%,transparent)}.lh-live.paper i{background:var(--kx)}.lh-acc.st{cursor:default}.lh-acc.st:hover{transform:none;border-color:var(--line)}.lh-acc.st span{padding-left:0}.lh-acc b.pos{color:var(--good)}.lh-acc b.neg{color:var(--bad)}.lh-pb{max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;line-height:26px}
 .lh-live.hand{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent)}.lh-live.hand i{background:var(--warn)}
-@media(prefers-reduced-motion:no-preference){.lh-live.on i{animation:lhPulse 2.4s ease-out infinite}}@keyframes lhPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 50%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+@media(prefers-reduced-motion:no-preference){.lh-live.on i{position:relative;box-shadow:none}.lh-live.on i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--good);pointer-events:none;--ro:.5;--rs:3.6;animation:ring100 2.4s ease-out infinite}}@keyframes lhPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 50%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
 .lh-chip{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:99px;font-size:12px;color:var(--mute);border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);white-space:nowrap}.lh-chip b{color:var(--ink);font-family:var(--mono);font-weight:600;margin-right:4px}
 /* MC 2026-11-20 display sweep, web and phone: long account lists wrap, small cards switch to fewer columns before numbers
    run past their cells, and the money list puts the kind under the amount on a narrow phone. */
@@ -1658,7 +1676,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-ring{isolation:isolate}.kx-ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;z-index:-1;opacity:.5;filter:blur(7px);background:conic-gradient(from 0deg,transparent 0 55%,color-mix(in srgb,var(--kx) 70%,transparent) 80%,transparent 100%)}
 @media (prefers-reduced-motion:no-preference){.kx-ring::before{animation:fxspin 5s linear infinite}.kx-next.soon .kx-ring::before{animation-duration:1.6s;opacity:.85;background:conic-gradient(from 0deg,transparent 0 45%,color-mix(in srgb,var(--good) 80%,transparent) 80%,transparent 100%)}}
 @keyframes fxspin{to{transform:rotate(360deg)}}
-.kx-ring .fg{transition:stroke-dashoffset 1s linear,stroke .3s;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--kx) 85%,transparent))}
+.kx-ring .fg{transition:stroke .3s;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--kx) 85%,transparent))}
 /* settle moments */
 #fxsettle{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:98;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(92vw,420px)}
 .fx-chip{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:10px 16px 10px 12px;border-radius:99px;font-size:13.5px;font-weight:650;color:var(--ink);background:color-mix(in srgb,var(--s1) 86%,transparent);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid color-mix(in srgb,var(--c) 55%,var(--line));box-shadow:0 10px 34px rgba(0,0,0,.4),0 0 26px color-mix(in srgb,var(--c) 30%,transparent);animation:fxchip 3.6s cubic-bezier(.2,.9,.2,1) both}
@@ -3648,6 +3666,8 @@ const kxPbTag=o=>{const b=kxPbOf(o),BK=kxHandOn()?kbBooks():[],l=kxLvOf(o,BK.len
 // HTML changes, so a moving price rebuilt the Sell button between press and release and the tap was lost. kxSlot swaps only the
 // text parts (.tx) while the buttons stay the same; the row is rebuilt only when a button changes (Sell to Sell the rest, Buy to
 // Sell) or the row goes away. The scanner's Buy row uses it too.
+// MC 2026-11-21 battery: write HTML (or text with t) only when it differs from what this element was last given
+function kxPut(el,h,t){if(!el||el._kp===h)return;el._kp=h;if(t)el.textContent=h;else el.innerHTML=h}
 function kxSlot(el,h){if(!el)return;if(!h){if(el.innerHTML)el.innerHTML='';return}if(el.innerHTML===h)return;
   const t=document.createElement('div');t.innerHTML=h;const sig=n=>[...n.querySelectorAll('button')].map(b=>b.outerHTML).join('|')+'#'+n.querySelectorAll('.tx').length;
   if(el.firstElementChild&&sig(el)===sig(t)){const a=el.querySelectorAll('.tx'),b=t.querySelectorAll('.tx');a.forEach((x,i)=>{if(x.innerHTML!==b[i].innerHTML)x.innerHTML=b[i].innerHTML});return}
@@ -3736,13 +3756,14 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
   const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
     const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),ph=kxPp(tk),pp=kxOpen().find(o=>o.tk===tk)||(ph?{side:ph.side,px:ph.px}:null),side=(kxHandOn()?x?.side||pp?.side:ph?.side||pp?.side||x?.side)||s.leader||'yes',S=side.toUpperCase();
     const r=kxDraw(box.querySelector('canvas'),{...s,side,at:x?.at??pp?.at,px:x?.px??pp?.px,ask:pp?.ask,trend:1,prev:kxPrev(s.coin,s.open)})||{},px=r.px,tg=s.strike,left=Math.max(0,Math.round((s.close-now)/1000));
-    box.querySelector('[data-k=lead]').innerHTML=s.leader&&s.lask!=null?`<i class="kx-side ${s.leader}">${s.leader.toUpperCase()}</i> <b>${kxC(s.lask)}</b>`:'';
-    box.querySelector('[data-k=left]').textContent=left?`settles in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'settling';
+    // MC 2026-11-21 battery: these three were rewritten four times a second whether they had changed or not; now only when they change
+    kxPut(box.querySelector('[data-k=lead]'),s.leader&&s.lask!=null?`<i class="kx-side ${s.leader}">${s.leader.toUpperCase()}</i> <b>${kxC(s.lask)}</b>`:'');
+    kxPut(box.querySelector('[data-k=left]'),left?`settles in ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'settling',1);
     const mg=px!=null&&tg?(px-tg)/tg*100:null,win=mg==null?null:(side==='yes'?mg>=0:mg<0),t=r.tr,perMin=t&&px?t.slope*60/px*100:null,pw=t&&tg?(side==='yes'?t.proj>=tg:t.proj<tg):null,toward=t?(side==='yes'?t.slope>0:t.slope<0):null;
-    box.querySelector('[data-k=st]').innerHTML=`<div><span>Price now</span><b>${px!=null?kxFmt(px,tg):'–'}</b><small class="${win==null?'':win?'pos':'neg'}">${mg!=null?`${mg>=0?'+':''}${mg.toFixed(Math.abs(mg)<.1?3:2)}% vs target`:''}</small></div>
+    kxPut(box.querySelector('[data-k=st]'),`<div><span>Price now</span><b>${px!=null?kxFmt(px,tg):'–'}</b><small class="${win==null?'':win?'pos':'neg'}">${mg!=null?`${mg>=0?'+':''}${mg.toFixed(Math.abs(mg)<.1?3:2)}% vs target`:''}</small></div>
      <div><span>${t?.long?'Trend since '+tm(s.open/1000-900):'Trend, last 3 min'}</span><b class="${toward==null?'':toward?'pos':'neg'}">${perMin!=null?`${perMin>=0?'+':''}${perMin.toFixed(3)}% a min`:'–'}</b><small>${t?(Math.abs(perMin)<.002?'flat':toward?`moving toward ${S}`:`moving against ${S}`):'needs a little more data'}</small></div>
      <div><span><i class="kx-lg" style="background:var(--kx)"></i>${t?.long?'On that trend by the close':'At this pace by the close'}</span><b>${t?kxFmt(t.proj,tg):'–'}</b><small class="${pw==null?'':pw?'pos':'neg'}">${t?(pw?`${S} would win`:`${S} would lose`):''}</small></div>
-     <div><span><i class="kx-lg" style="background:#e0a23a"></i>Likely by the close</span><b>${t?.est?kxFmt(t.est.proj,tg):'–'}</b><small class="${t?.est?.p==null?'':t.est.p>=.5?'pos':'neg'}">${t?.est?(t.est.p!=null?`${S} about ${Math.round(Math.min(.95,Math.max(.05,t.est.p))*100)}% · `:'')+(t.est.hi>t.est.lo?`${kxFmt(t.est.lo,tg)} to ${kxFmt(t.est.hi,tg)}`:'pace fading out'):'needs a little more data'}</small></div>`;
+     <div><span><i class="kx-lg" style="background:#e0a23a"></i>Likely by the close</span><b>${t?.est?kxFmt(t.est.proj,tg):'–'}</b><small class="${t?.est?.p==null?'':t.est.p>=.5?'pos':'neg'}">${t?.est?(t.est.p!=null?`${S} about ${Math.round(Math.min(.95,Math.max(.05,t.est.p))*100)}% · `:'')+(t.est.hi>t.est.lo?`${kxFmt(t.est.lo,tg)} to ${kxFmt(t.est.hi,tg)}`:'pace fading out'):'needs a little more data'}</small></div>`);
     {const w=kxWinP(s.coin,s,side),pl=Math.min(w&&!w.done?w.p:1,r?.tr?.est?.p??1),aiS=pl<.5?(side==='yes'?'no':'yes'):side;kxSlot(box.querySelector('[data-k=ai]'),kxAiRead(s,aiS,r,px,side))}
     if(!x)kxSlot(box.querySelector('[data-k=hc]'),kxHcCard(s,side));else kxSlot(box.querySelector('[data-k=hc]'),'');
     const act=box.querySelector('[data-k=act]');
@@ -5729,7 +5750,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.53',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.54',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
