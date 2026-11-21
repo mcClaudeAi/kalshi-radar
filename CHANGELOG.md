@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.50 (Nov 21, 2026): Open totals on the Live board
+- [new] The bottom right of the window bar on the Live board shows everything open: how many trades, what they pay back if they all win (green) and what they cost if they all lose (red). On Live it adds up Main and every subaccount, fees included, counting any part already sold; on Paper it is the paper book's open trades. Hover or press it for the total put in.
+
 ## 1.3.49 (Nov 21, 2026): Hand-buy check, retested
 - [improved] The hand-buy check now leads with one number: its edge in cents a contract after fees. It comes from a model that counts the price paid along with the cushion, any swing the other way, the time left, the spread and the last window, retested on every minute a leader sat at 80¢ to 97¢ from Aug 21 to Nov 20. Green from +1¢ (in the months held out of the fit, those buys made money every time), red from -1¢ (lost every time), plain between.
 - [improved] Each reading shows what it is worth in cents against a typical buy at the same price, costliest first, so a thin cushion on a 95¢ coin counts for more than the same cushion at 80¢.
