@@ -1158,7 +1158,20 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
    change in its height (a tile's small line going from one line to two, the buy row swapping for a note) moved the whole box.
    It now hangs from the top, so a change in height only moves its bottom edge, and the lines that vary keep room for two. */
 .modal:has(.kx-coinv){align-items:flex-start}.modal .box:has(.kx-coinv){width:min(700px,100%);margin-top:clamp(0px,5vh,56px);max-height:calc(100% - clamp(0px,5vh,56px))}
-.kx-cvs small{min-height:2.7em}.kx-air{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:58px}.kx-air:empty{display:none}.kx-airh{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;align-items:baseline}.kx-airh b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);grid-row:1/3;align-self:center;padding:5px 8px;border-radius:8px;background:color-mix(in srgb,var(--ink) 7%,transparent)}.kx-airh strong{font-size:15px}.kx-airh.y strong{color:var(--good)}.kx-airh.n strong{color:var(--warn,#e0a93b)}.kx-airh span{font-size:12px;color:var(--mute);grid-column:2}.kx-aird{margin-top:8px}.kx-aird summary{font-size:12px;color:var(--mute);cursor:pointer}.kx-aird ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px}.kx-aird li{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:12.5px}.kx-aird li i{width:8px;height:8px;border-radius:50%;background:var(--faint)}.kx-aird li.y i{background:var(--good)}.kx-aird li.n i{background:var(--bad)}.kx-aird li em{font-style:normal;color:var(--mute);text-align:right}.kx-aird p{margin:8px 0 0;font-size:11.5px;color:var(--faint);line-height:1.45}.kx-cvph{min-height:2.9em}.kx-cva{min-height:74px}
+.kx-cvs small{min-height:2.7em}.kx-air{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:58px}.kx-air:empty{display:none}
+/* MC 2026-11-21 hand-buy check in the coin box: a count of warnings with how buys like it did in testing, then the six checks */
+.kx-hck{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;padding:9px 12px 10px}
+.kx-hckh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.kx-hckh b{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+.kx-hckh em{font-style:normal;font-weight:700;font-size:13px;color:var(--ink)}
+.kx-hckh em.pos{color:var(--good)}.kx-hckh em.warn{color:var(--warn)}.kx-hckh em.neg{color:var(--bad)}
+.kx-hckh span{margin-left:auto;font-size:11.5px;color:var(--faint);cursor:help}
+.kx-hckl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px;margin-top:7px}
+.kx-hckl span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);min-width:0;cursor:help}
+.kx-hckl i{flex:none;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;font-style:normal;font-size:9.5px;font-weight:800;background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.kx-hckl span.w{color:var(--ink)}.kx-hckl span.w i{background:color-mix(in srgb,var(--bad) 20%,transparent);color:var(--bad)}
+@media(max-width:420px){.kx-hckl{grid-template-columns:repeat(2,minmax(0,1fr))}.kx-hckh span{margin-left:0;flex-basis:100%}}
+.hb-c span.pos{border-color:color-mix(in srgb,var(--good) 45%,var(--line))}.hb-c span.neg{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}.kx-airh{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;align-items:baseline}.kx-airh b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);grid-row:1/3;align-self:center;padding:5px 8px;border-radius:8px;background:color-mix(in srgb,var(--ink) 7%,transparent)}.kx-airh strong{font-size:15px}.kx-airh.y strong{color:var(--good)}.kx-airh.n strong{color:var(--warn,#e0a93b)}.kx-airh span{font-size:12px;color:var(--mute);grid-column:2}.kx-aird{margin-top:8px}.kx-aird summary{font-size:12px;color:var(--mute);cursor:pointer}.kx-aird ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px}.kx-aird li{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:12.5px}.kx-aird li i{width:8px;height:8px;border-radius:50%;background:var(--faint)}.kx-aird li.y i{background:var(--good)}.kx-aird li.n i{background:var(--bad)}.kx-aird li em{font-style:normal;color:var(--mute);text-align:right}.kx-aird p{margin:8px 0 0;font-size:11.5px;color:var(--faint);line-height:1.45}.kx-cvph{min-height:2.9em}.kx-cva{min-height:74px}
 .kx-cvh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.kx-cvh h2{margin:0}.kx-cvh .sp{flex:1}.kx-cvh b{font-variant-numeric:tabular-nums}.kx-cvh em{font-style:normal;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
 .kx-old{font-style:normal;color:var(--warn,#e0a93b);font-size:.92em;white-space:nowrap}
 .kx-apick{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left}.kx-apick label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px}.kx-apick label.off{opacity:.55;cursor:default}.kx-apick input{width:18px;height:18px;accent-color:var(--kx);flex:none}.kx-apick b{font-weight:600}.kx-addrow{margin-top:6px}
@@ -3125,7 +3138,7 @@ const kxWinZ=z=>kxPhi(z*Math.sqrt(10/(10-2/3))),kxNeed=p=>p+.07*p*(1-p)+.01;
 KX.v1h=KX.v1h||{};
 function kxVol1h(c){const v=KX.v1h[c],now=Date.now();if(v&&now-v.at<60000)return v.sigma;if(v?.busy||!KXPID[c])return v?.sigma??null;KX.v1h[c]={...(v||{}),busy:true};
   kxGet(`https://api.exchange.coinbase.com/products/${KXPID[c]}/candles?granularity=60`).then(r=>r.ok?r.json():null).then(j=>{const rows=(j||[]).slice(0,61).sort((a,b)=>a[0]-b[0]);if(rows.length<20){KX.v1h[c]={...(KX.v1h[c]||{}),busy:false,at:Date.now()-45000};return}
-    const rets=[];for(let i=1;i<rows.length;i++)rets.push(Math.log(rows[i][4]/rows[i-1][4]));const m=rets.reduce((a,b)=>a+b,0)/rets.length,sg=Math.sqrt(rets.reduce((a,b)=>a+(b-m)**2,0)/rets.length);KX.v1h[c]={sigma:sg,at:Date.now(),busy:false,cl:rows.slice(-31).map(r=>+r[4])}}).catch(()=>{KX.v1h[c]={...(KX.v1h[c]||{}),busy:false,at:Date.now()-45000}});return v?.sigma??null}
+    const rets=[];for(let i=1;i<rows.length;i++)rets.push(Math.log(rows[i][4]/rows[i-1][4]));const m=rets.reduce((a,b)=>a+b,0)/rets.length,sg=Math.sqrt(rets.reduce((a,b)=>a+(b-m)**2,0)/rets.length);KX.v1h[c]={sigma:sg,at:Date.now(),busy:false,cl:rows.slice(-31).map(r=>+r[4]),ct:rows.slice(-31).map(r=>+r[0])}}).catch(()=>{KX.v1h[c]={...(KX.v1h[c]||{}),busy:false,at:Date.now()-45000}});return v?.sigma??null}
 function kxWinP(c,W,side){if(!W||W.strike==null||W.close==null)return null;const now=Date.now(),S=W.open!=null?kxSeries(c,W.open):(KX.px[c]?.ticks||[]),px=KX.px[c]?.last??S.at(-1)?.[1];if(px==null)return null;
   const tail=S.filter(p=>p[0]>=now/1000-900),d=[];for(let i=0;i<tail.length;i++){const j=tail.findIndex((q,k)=>k>i&&q[0]>=tail[i][0]+10);if(j<0)break;const dt=tail[j][0]-tail[i][0];if(dt<=180)d.push((tail[j][1]-tail[i][1])/Math.sqrt(dt/60));i+=Math.max(0,j-i-1)}
   const s1=kxVol1h(c);let sig=px*.0006;if(s1>0)sig=px*s1;else if(d.length>=4){const m=d.reduce((a,b)=>a+b,0)/d.length;sig=Math.max(Math.sqrt(d.reduce((a,b)=>a+(b-m)**2,0)/(d.length-1)),px*.0002)}
@@ -3144,10 +3157,45 @@ function kxRd(s,side){side=side||s?.leader;if(!s||!side||!(s.strike>0))return nu
   const sgn=v=>(side==='yes'?v-s.strike:s.strike-v)/s.strike,mg=sgn(px),z=sg>0?mg/(sg*Math.sqrt(10)):null,w=s.close>Date.now()?kxWinP(c,s,side):null,ask=side==='yes'?s.ya:(s.yb!=null?+(1-s.yb).toFixed(4):null);
   let r2=null;if(cl&&cl.length>=15){const Y=[...cl.slice(-14),px].map(sgn),n=Y.length,mx=(n-1)/2,my=Y.reduce((a,b)=>a+b,0)/n;let sxy=0,sxx=0,syy=0;Y.forEach((y,i)=>{sxy+=(i-mx)*(y-my);sxx+=(i-mx)**2;syy+=(y-my)**2});r2=syy>0?sxy*sxy/(sxx*syy):0}
   const L=(KX.live?.scan||[]).filter(x=>x.leader&&x.close===s.close),same=L.filter(x=>x.leader===side).length;
-  return {side,z,mg,w:w&&!w.done?w.p:null,ask,r2,same,n:L.length,left:(s.close-Date.now())/60000}}
+  // MC 2026-11-21 asked for more signs, early in a window, that a hand buy is a bad one. Tested on every market from Aug 21 to
+  // Nov 20 (63,000 first chances to buy a leader at 85c to 96c), each of these lowered the win rate against the price paid,
+  // inside every cushion band and in both the first 60 days and the last 30:
+  //   dp    the furthest the coin was on the wrong side of the target in the last 30 minutes, in usual 10-minute moves. A swing of
+  //         2 or more the other way: 84% won against 88% (the tracker's own dip reading, same formula).
+  //   pv    the last window went the same way: a second window in a row on one side won 86.5% against 88.2%.
+  //   dz    the cushion shrank over the last minute (the coin's own ticks).
+  //   spr   Kalshi's spread over 2c: a thin book, 85.6% won against 87.6%.
+  // nf counts the warnings with a cushion under 1.5 and a straight run (r2 0.7+). Buys with none won 93.5% at 90.5c on average
+  // before the trade check; with four or more, 83.4% at 87.4c. KXHC holds that table, before the check (e) and after it (l).
+  const u=sg>0?sg*Math.sqrt(10):0,ct=KX.v1h[c]?.ct;let dp=null,dz=null,pv=null;
+  if(u>0&&cl&&cl.length>=25)dp=Math.min(0,...[...cl.slice(-30),px].map(v=>sgn(v)/u));
+  {const T=KX.px[c]?.ticks||[],t0=Date.now()/1000-60;let p1=null;for(let i=T.length-1;i>=0;i--)if(T[i][0]<=t0){p1=T[i][1];break}if(u>0&&p1!=null&&T[0][0]<=t0-5)dz=(mg-sgn(p1))/u}
+  if(cl&&ct&&s.open){const at=t=>{const i=ct.indexOf(t);return i>=0?cl[i]:null},o=s.open/1000,a=at(o-960),b=at(o-60);if(a!=null&&b!=null&&a!==b)pv=(b>a)===(side==='yes')}
+  const spr=s.ya!=null&&s.yb!=null?Math.round((s.ya-s.yb)*100):null;
+  const F=[['z',z!=null&&z<1.5],['dp',dp!=null&&dp<=-2],['r2',r2!=null&&r2>=.7],['pv',pv===true],['dz',dz!=null&&dz<=0],['spr',spr!=null&&spr>2]],nf=F.filter(f=>f[1]).length;
+  return {side,z,mg,w:w&&!w.done?w.p:null,ask,r2,same,n:L.length,left:(s.close-Date.now())/60000,dp,dz,pv,spr,F,nf,el:(Date.now()-s.open)/60000}}
+// tested results by warning count (0 to 4+): [buys, % won, average price in cents, $ a $35 trade after fees]
+const KXHC={e:[[649,93.5,90.5,0.95],[7026,89.0,88.0,0.10],[6525,87.2,87.7,-0.50],[4096,86.0,87.7,-0.96],[2326,83.4,87.4,-1.91]],l:[[276,92.8,92.4,-0.04],[15616,89.5,89.2,-0.15],[15491,88.4,89.0,-0.50],[8138,87.6,88.8,-0.77],[3114,86.5,88.4,-1.03]]};
+const kxHcRow=r=>KXHC[r.el<=5.5?'e':'l'][Math.min(4,r.nf)],kxHcCls=n=>n===0?'pos':n===1?'':n===2?'warn':'neg';
+const kxHcTxt=r=>{const t=kxHcRow(r);return `won ${t[1]}% at ${t[2]}¢ in testing`};
+// the six checks as short labels, worst first: [warned, label, what it means]
+function kxHcList(r){const S=r.side.toUpperCase(),f=v=>(v>=0?'+':'')+v.toFixed(1),L=[];
+  if(r.z!=null)L.push([r.z<1.5,`Cushion ${r.z>9.9?'9.9+':r.z.toFixed(1)}`,r.z<1.5?'under 1.5 usual moves past the target; 1.5+ held up best':'1.5+ usual moves past the target']);
+  if(r.dp!=null)L.push([r.dp<=-2,r.dp<=-2?`Swung ${r.dp.toFixed(1)}`:r.dp<=-1?`Dipped ${r.dp.toFixed(1)}`:'No swing against',r.dp<=-2?`in the last 30 min it was ${(-r.dp).toFixed(1)} usual moves on the ${S==='YES'?'NO':'YES'} side; buys after a swing like that won 84%`:'how far it went the other way in the last 30 min']);
+  if(r.r2!=null)L.push([r.r2>=.7,r.r2>=.7?'Straight run':r.r2>=.35?'Steady path':'Choppy path',r.r2>=.7?'a ruler-straight 15 minutes, the kind that won least':'the shape of the last 15 minutes']);
+  if(r.pv!=null)L.push([r.pv,r.pv?`2nd window ${S==='YES'?'up':'down'}`:'Fresh move',r.pv?'the last window went the same way; a second one in a row won less often':'the last window went the other way']);
+  if(r.dz!=null)L.push([r.dz<=0,r.dz<=0?'Cushion shrinking':'Cushion growing',`${f(r.dz)} usual moves over the last minute`]);
+  if(r.spr!=null)L.push([r.spr>2,`Spread ${r.spr}¢`,r.spr>2?'a wide gap between buyers and sellers, a thin book':'buyers and sellers close together']);
+  return L.sort((a,b)=>b[0]-a[0])}
+function kxHcCard(s,side){const r=kxRd(s,side);if(!r||r.z==null||s.close-Date.now()<20000)return '';const L=kxHcList(r),n=r.nf,t=kxHcRow(r);
+  return `<div class="kx-hck"><div class="kx-hckh"><b>Hand-buy check</b><em class="${kxHcCls(n)}">${n===0?'all clear':n+' warning'+(n>1?'s':'')}</em><span title="Every market Aug 21 to Nov 20 with a leader at 85¢ to 96¢, the first time it could be bought: ${n0(t[0])} with ${n>=4?'4 or more':n} warning${n===1?'':'s'} ${r.el<=5.5?'before':'after'} the trade check won ${t[1]}% paying ${t[2]}¢ on average, about ${t[3]>=0?'+':'-'}$${Math.abs(t[3]).toFixed(2)} a $35 trade after fees.">${kxHcTxt(r)}</span></div>
+   <div class="kx-hckl">${L.map(([w,l,d])=>`<span class="${w?'w':''}" title="${esc(d)}"><i>${w?'!':'✓'}</i>${esc(l)}</span>`).join('')}</div></div>`}
 const kxRdZ=z=>z==null?['','no reading yet']:z>=2?['pos','wide']:z>=1?['warn','fair']:z>=0?['neg','thin']:['neg','wrong side'];
 function kxRdChips(s){const r=kxRd(s);if(!r)return '';const [zc,zw]=kxRdZ(r.z),S=r.side.toUpperCase(),split=r.n>=4&&r.same/r.n<.75,edge=r.w!=null&&r.ask!=null?r.w-r.ask:null;
-  return `<span class="kx-rd ${zc}" title="How far the coin is past its target, counted in its own usual 10-minute moves. Under 1 means an ordinary swing could flip it; 2 or more is a wide cushion."><i>Cushion</i><b>${r.z==null?'–':r.z>9.9?'9.9+':r.z<-9.9?'-9.9':r.z.toFixed(1)}</b> ${r.z==null?'':'moves · '+zw}</span>`+
+  const W=kxHcList(r).filter(x=>x[0]).map(x=>x[1]);
+  return (r.z!=null?`<span class="kx-rd ${kxHcCls(r.nf)}" title="Six checks before a hand buy: cushion 1.5+, no swing of 2+ the other way in 30 min, not a straight run, not a second window the same way, cushion not shrinking, spread 2¢ or less.${W.length?' Warnings now: '+W.join(', ')+'.':''} Buys like this ${kxHcTxt(r)}."><i>Check</i><b>${r.nf===0?'all clear':r.nf+' warning'+(r.nf>1?'s':'')}</b></span>`:'')+
+   (r.dp!=null&&r.dp<=-2?`<span class="kx-rd neg" title="In the last 30 minutes it was ${(-r.dp).toFixed(1)} usual moves on the other side of the target. Buys after a swing like that won 84% in testing."><i>Swing</i><b>${r.dp.toFixed(1)}</b> in 30 min</span>`:'')+
+   (r.pv===true?`<span class="kx-rd warn" title="The last window also went ${r.side==='yes'?'up':'down'}. A second window in a row on one side won less often in testing."><i>Last window</i><b>same way</b></span>`:'')+`<span class="kx-rd ${zc}" title="How far the coin is past its target, counted in its own usual 10-minute moves. Under 1 means an ordinary swing could flip it; 2 or more is a wide cushion."><i>Cushion</i><b>${r.z==null?'–':r.z>9.9?'9.9+':r.z<-9.9?'-9.9':r.z.toFixed(1)}</b> ${r.z==null?'':'moves · '+zw}</span>`+
    (r.w!=null?`<span class="kx-rd ${kxPcl(r.w)}" title="A model's chance that ${S} wins from here, counting the time left and the cushion. Kalshi's price is the market's own answer to the same question. A model, not a promise."><i>Win chance</i><b>${kxWpct(r.w)}</b>${r.ask!=null?` vs ${Math.round(r.ask*100)}¢ price${edge!=null&&Math.abs(edge)>=.03?` · <em class="${edge>0?'pos':'neg'}">${edge>0?'cheap':'dear'}</em>`:''}`:''}</span>`:'')+
    (r.r2!=null?`<span class="kx-rd ${r.r2>=.7?'warn':''}" title="How the coin moved over the last 15 minutes. In the backtest the ruler-straight runs won least; a choppy path that still leads did better.">${r.r2>=.7?'<i>Path</i><b>straight run</b> · these won least':r.r2>=.35?'<i>Path</i><b>steady</b>':'<i>Path</i><b>choppy</b>'}</span>`:'')+
    (r.n>=3?`<span class="kx-rd ${split?'warn':r.same===r.n?'pos':''}" title="How many of this window's coins lean the same way as this one. Your own hand buys did far better when the coins all agreed than when they were split.${split?' They are split now.':''}"><i>Coins</i><b>${r.same} of ${r.n}</b> lean ${S}${split?' · split':''}</span>`:'')}
@@ -3157,7 +3205,7 @@ function kxRdChips(s){const r=kxRd(s);if(!r)return '';const [zc,zw]=kxRdZ(r.z),S
 // The cushion and price lines are the ones that held up in testing (at the trade check, cushion 2+ under 95c won 97.7%);
 // away from the trade check it is the same test on live numbers, so it is a strong reading and not a promise.
 function kxRdHot(s){const r=kxRd(s);if(!r||r.z==null||r.w==null||r.ask==null||r.r2==null||s.close-Date.now()<20000)return false;
-  if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)))return false;
+  if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)&&!(r.dp!=null&&r.dp<=-2)))return false;
   return !kxHeld(s)}
 function kxHeld(s){const held=x=>x.tk===s.tk&&x.fill>0,lv=kxLv();return !!(kxOpen().some(o=>o.tk===s.tk)||kxPp(s.tk)||(lv?.recent||[]).some(held)||(lv?.books||[]).some(b=>(b.recent||[]).some(held)))}
 // MC 2026-11-18 asked: after the trade check, a row the running playbook would buy right now should glow green as a buy.
@@ -3172,7 +3220,10 @@ function kxRdBox(s,side){const r=kxRd(s,side);if(!r)return {rows:[],warn:[]};con
   if(r.ask!=null&&r.ask<.85)warn.push(`at ${Math.round(r.ask*100)}¢ the market gives this about a ${Math.round((1-r.ask)*100)}% chance of losing`);
   if(split)warn.push('the coins are split this window, and your hand buys have done far better when they all leaned one way');
   if(r.r2!=null&&r.r2>=.7)warn.push('the coin got here in a straight run, the kind that won least in testing');
-  return {rows,warn}}
+  if(r.dp!=null&&r.dp<=-2)warn.push(`in the last 30 minutes it swung ${(-r.dp).toFixed(1)} usual moves the other way, and buys after a swing like that won 84% in testing`);
+  if(r.pv===true)warn.push(`the last window went ${side==='yes'?'up':'down'} too, and a second window in a row won less often`);
+  if(r.spr!=null&&r.spr>2)warn.push(`the spread is ${r.spr}¢, a thin book`);
+  return {rows,warn,r}}
 const kxWpct=p=>p==null?'–':(p>=.995?'>99':p<=.005?'<1':(p*100).toFixed(p>.9&&p<.99?1:0))+'%',kxPcl=p=>p==null?'':p>=.9?'pos':p>=.7?'warn':'neg';
 // MC 2026-11-08 Coinbase stamps times with microseconds (.497787Z). iPhone Safari can return NaN for that, which left the live line
 // with almost no points on the phone. Trim to milliseconds before parsing and fall back to now if it still fails.
@@ -3562,7 +3613,7 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
   // x in the header, the chart and tiles are shorter on phones, and the buy and sell area is pinned to the bottom of the box so
   // it stays in view even on a short screen.
   modal(`<div class="kx-coinv" data-tk="${esc(tk)}"><div class="kx-cvh"><h2>${esc(s0.coin)}</h2><span data-k="lead"></span><span class="sp"></span><em data-k="left"></em><button class="kx-cvx" data-mx="0" aria-label="Close">×</button></div>
-   <canvas class="kx-coinc"></canvas><div class="kx-cvph"><span>Previous 15 min</span><em data-k="pv">loading</em></div><div class="kx-cvs" data-k="st"></div><div class="kx-air" data-k="ai"></div><div class="kx-cva" data-k="act"></div></div>`);
+   <canvas class="kx-coinc"></canvas><div class="kx-cvph"><span>Previous 15 min</span><em data-k="pv">loading</em></div><div class="kx-cvs" data-k="st"></div><div class="kx-air" data-k="ai"></div><div data-k="hc"></div><div class="kx-cva" data-k="act"></div></div>`);
   const stop=()=>{clearInterval(KX.cvT);KX.cvT=null},shut=()=>{stop();closeModal()};$('#mbox [data-mx="0"]').onclick=shut;$('#modal .bk').onclick=shut;ST.modalEsc=shut;
   const paint=()=>{const box=$('#mbox .kx-coinv');if(!box||box.dataset.tk!==tk||!$('#modal').classList.contains('on')){stop();return}const s=row()||s0,lv=kxLv(),now=Date.now();
     const x=(lv?.recent||[]).find(r=>r.tk===tk&&r.fill>0&&!r.result),ph=kxPp(tk),pp=kxOpen().find(o=>o.tk===tk)||(ph?{side:ph.side,px:ph.px}:null),side=(kxHandOn()?x?.side||pp?.side:ph?.side||pp?.side||x?.side)||s.leader||'yes',S=side.toUpperCase();
@@ -3575,6 +3626,7 @@ function kxCoinView(tk){const row=()=>(KX.live?.scan||[]).find(z=>z.tk===tk),s0=
      <div><span><i class="kx-lg" style="background:var(--kx)"></i>${t?.long?'On that trend by the close':'At this pace by the close'}</span><b>${t?kxFmt(t.proj,tg):'–'}</b><small class="${pw==null?'':pw?'pos':'neg'}">${t?(pw?`${S} would win`:`${S} would lose`):''}</small></div>
      <div><span><i class="kx-lg" style="background:#e0a23a"></i>Likely by the close</span><b>${t?.est?kxFmt(t.est.proj,tg):'–'}</b><small class="${t?.est?.p==null?'':t.est.p>=.5?'pos':'neg'}">${t?.est?(t.est.p!=null?`${S} about ${Math.round(Math.min(.95,Math.max(.05,t.est.p))*100)}% · `:'')+(t.est.hi>t.est.lo?`${kxFmt(t.est.lo,tg)} to ${kxFmt(t.est.hi,tg)}`:'pace fading out'):'needs a little more data'}</small></div>`;
     {const w=kxWinP(s.coin,s,side),pl=Math.min(w&&!w.done?w.p:1,r?.tr?.est?.p??1),aiS=pl<.5?(side==='yes'?'no':'yes'):side;kxSlot(box.querySelector('[data-k=ai]'),kxAiRead(s,aiS,r,px,side))}
+    if(!x)kxSlot(box.querySelector('[data-k=hc]'),kxHcCard(s,side));else kxSlot(box.querySelector('[data-k=hc]'),'');
     const act=box.querySelector('[data-k=act]');
     kxSlot(act,!kxHandOn()?`${kxHandRowP(s,1)||'<p class="note tx">Too close to the close to trade.</p>'}<p class="note tx" style="margin-top:8px">Paper view: practice money only, nothing is sent to Kalshi.${lv?.on?' Switch Home to Live to trade by hand with real money.':''}</p>`
       :x?`<div class="kx-hl"><span class="kx-pbtag lv tx">${kxLvNm()} · bought ${x.fill} at ${kxC(x.px)}${x.hand?' · by hand':x.late?' · later watched':''}${x.sold?` · sold ${x.sold.fill}`:''}</span></div>${kxSellRow({...s,side:x.side})||'<p class="note tx">Too close to the close to sell.</p>'}`
@@ -3608,6 +3660,7 @@ async function kxBuyOne(tk,side,paper){if(!paper&&!ST.me.control){unlockFlow();r
   // account list with the full and protected amounts side by side (the tick boxes are the same KX.hsel ones), a short warning,
   // and the two hold buttons next to each other.
   const s0=(KX.live?.scan||[]).find(z=>z.tk===tk),rr=s0?kxRd(s0,q.side):null,chips=[];
+  if(rr&&rr.z!=null)chips.push(`<span class="${kxHcCls(rr.nf)}"><b>${rr.nf===0?'All checks clear':rr.nf+' warning'+(rr.nf>1?'s':'')}</b> · ${kxHcTxt(rr)}</span>`);
   if(rr){if(rr.z!=null){const [zc,zw]=kxRdZ(rr.z);chips.push(`<span class="${zc}">${rr.z.toFixed(1)} moves · ${zw}</span>`)}if(rr.w!=null)chips.push(`<span class="${kxPcl(rr.w)}">${kxWpct(rr.w)} win chance</span>`);if(rr.n>=3)chips.push(`<span>${rr.same} of ${rr.n} lean ${S}</span>`)}
   const A=q.accts||[],prc=x=>{const p=x.prot;if(!p)return '<em class="na">not set</em>';if(!p.active)return `<em title="Protection starts at +$${n0(p.at)} today">${f2(x.size)}<small>not on yet</small></em>`;if(p.room<p.min)return '<em class="neg">skips<small>no room left</small></em>';return `<em class="pos">${f2(Math.min(x.size,p.room))}<small>keeps ${f2(p.floor)}</small></em>`};
   KX.hsel={};for(const x of A)if(x.ok)KX.hsel[x.id]=true;
@@ -5519,7 +5572,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.45',KR_DATE='Nov 20, 2026';
+const KR_VERSION='1.3.46',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

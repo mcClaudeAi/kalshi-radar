@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.46 (Nov 21, 2026): Hand-buy check
+- [new] A hand-buy check on every coin: six readings that each lowered the win rate in testing (every market Aug 21 to Nov 20, 63,000 first chances to buy a leader at 85¢ to 96¢). Cushion under 1.5, a swing of 2 usual moves or more the other way in the last 30 minutes, a straight run, the last window going the same way, the cushion shrinking over the last minute, and a spread over 2¢. The check counts the warnings and shows how buys like it did: before the trade check, none won 93.5% paying 90.5¢ on average; four or more won 83.4% paying 87.4¢.
+- [new] The check is on each scanner row (with a Swing chip and a Last window chip when those warn), in the coin box as a short list with a tick or a warning for each, and at the top of the buy box. Its warnings are added to the buy box's caution.
+- [improved] Strong setup is not shown after a swing of 2 or more the other way.
+
 ## 1.3.45 (Nov 20, 2026): Trade cards name the account, not "Live"
 - [fixed] A trade card said "Live skipped" while two subaccounts had bought it. "Live" meant the main account only. With subaccounts the tags now say Main, list the accounts that bought first, and put the accounts that passed together on one short tag, for example "Main and Fun Money skipped: protecting today's profit, done for today".
 
