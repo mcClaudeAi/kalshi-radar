@@ -1371,7 +1371,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @media(prefers-reduced-motion:no-preference){.lh-live.on i{animation:lhPulse 2.4s ease-out infinite}}@keyframes lhPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 50%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
 .lh-chip{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:99px;font-size:12px;color:var(--mute);border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);white-space:nowrap}.lh-chip b{color:var(--ink);font-family:var(--mono);font-weight:600;margin-right:4px}
 .kx-hero2.lh .kx-next{padding:8px 16px 8px 8px;border-radius:99px;gap:11px}.kx-hero2.lh .kx-ring,.kx-hero2.lh .kx-ring svg{width:46px;height:46px}.kx-hero2.lh .kx-ring b{font-size:11.5px}.kx-hero2.lh .kx-next span{margin-top:1px}
-.lh-warn{display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:12px;font-size:13px;color:var(--ink);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);background:color-mix(in srgb,var(--bad) 9%,transparent)}.lh-warn.soft{border-color:var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);color:var(--mute)}.lh-warn.soft i{background:var(--faint)}.lh-warn i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bad)}
+.lh-warn{display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:12px;font-size:13px;color:var(--ink);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);background:color-mix(in srgb,var(--bad) 9%,transparent)}.lh-warn.soft{border-color:var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);color:var(--mute)}.lh-warn.soft i{background:var(--faint)}.lh-warn i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bad)}.lh-warn.multi{align-items:flex-start}.lh-warn.multi>i{margin-top:6px}.lh-wl p{margin:0;line-height:1.45}.lh-wl p+p{margin-top:4px}.lh-wl b{color:var(--ink);font-weight:650}.lh-warn.soft .lh-wl{color:var(--ink2,var(--ink))}.lh-wl p.go{color:var(--mute)}.lh-wl p.go b{color:var(--good)}
 .lh-main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:22px;align-items:stretch}
 .lh-cash{display:flex;flex-direction:column;justify-content:center;min-width:0}
 .kx-hero2.lh .kx-bal{font-size:clamp(44px,5.4vw,68px);font-weight:600;letter-spacing:-.04em;line-height:1;margin-top:8px;white-space:nowrap}
@@ -3425,6 +3425,14 @@ function kxPlain(r){r=String(r||'');let m;
   if(m=r.match(/^protecting today's profit: \$([\d.]+) of room left, \$([\d.]+) riding/))return `it is protecting today's profit. The trade already open this window ($${m[2]}) used the room above the level you chose to keep, so other coins wait until it settles. A win opens room again`;
   if(m=r.match(/^protecting today's profit: \$([\d.]+) of room left/))return `it is protecting today's profit. Today's result is at the level you chose to keep (only $${m[1]} of room left), so it stops buying for the rest of the day`;
   return r.replace(/(\d)c\b/g,'$1¢')}
+// the same reasons, shortened to follow an account's name when Home lists several accounts
+function kxStopShort(r){r=String(r||'');let m;
+  if(m=r.match(/^protecting today's profit: \$([\d.]+) of room left/))return `is protecting today's profit and is done for today ($${m[1]} of room left)`;
+  if(m=r.match(/^daily loss cap hit \((-?[\d.]+)\)/))return `hit today's loss limit (${usd(+m[1])}) and is done for the day`;
+  if(m=r.match(/^daily profit target hit \(\+?\$?([\d.]+)\)/))return `hit today's profit target (+$${m[1]}) and is done for the day`;
+  if(m=r.match(/^give-back stop: today peaked at \+?\$?([\d.]+)/))return `gave back too much of today's best (+$${m[1]}) and is done for the day`;
+  if(r==='automatic buying is paused')return 'has automatic buying paused (buying by hand still works)';
+  return 'is not buying right now: '+kxPlain(r)}
 // MC 2026-11-14 a card read "Skipped · daily profit target hit" while live was still well short of its own target: the tag was
 // paper's (paper had hit its target) and nothing said so. With live on, the paper tag is labelled Paper and a second tag says what
 // the live account did with the same market: bought (how many, at what), sending, skipped and why, no fill, or not taken because
@@ -4735,11 +4743,17 @@ function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div c
   // cash in every account as the one big figure with each account under it, beside today's card with the target inside it; a
   // ledger (put in, worth now, all time, trades logged) in place of the sentence; then the five stats. Same data, same ids.
   const st=lv.on?(lv.autoPause?['hand','Live · by hand only']:['on','Live · on']):['off','Live · off'],bk=kbBooks(),onB=bk.filter(b=>b.on);
-  const soft=!lv.err&&lv.on&&lv.stopped&&lv.stoppedDay===false,warn=lv.err?`Last error: ${esc(lv.err)}`:lv.on&&lv.stopped?(soft?`This window: passed on a coin, ${esc(kxPlain(lv.stopped))}. Trading carries on at the next trade check.`:`Not trading right now: ${esc(kxPlain(lv.stopped))}.`):'';
+  let soft=!lv.err&&lv.on&&lv.stopped&&lv.stoppedDay===false,warn=lv.err?`Last error: ${esc(lv.err)}`:lv.on&&lv.stopped?(soft?`This window: passed on a coin, ${esc(kxPlain(lv.stopped))}. Trading carries on at the next trade check.`:`Not trading right now: ${esc(kxPlain(lv.stopped))}.`):'';
+  // MC 2026-11-20 asked: Main stopped to protect its profit and this said "Not trading right now" while two other accounts were
+  // still buying. It only read Main. With more than one account it now names each account that has stopped for the day and says
+  // which are still trading; the red box is only for when every account that is on has stopped.
+  const onA=kxAccts().filter(x=>x.on),hardA=onA.filter(x=>x.stopped),goA=onA.filter(x=>!x.stopped),warnM=bk.length&&!lv.err&&hardA.length&&(onA.length>1||!hardA[0].main);
+  if(warnM){const nm=L=>L.length<3?L.join(' and '):L.slice(0,-1).join(', ')+' and '+L[L.length-1];soft=goA.length>0;
+    warn=`<div class="lh-wl">${goA.length?'':'<p><b>Not trading right now.</b></p>'}${hardA.map(x=>`<p><b>${esc(x.name)}</b> ${esc(kxStopShort(x.stopped))}.</p>`).join('')}${goA.length?`<p class="go"><b>Still trading:</b> ${esc(nm(goA.map(x=>x.name)))}.</p>`:''}</div>`}
   return `<section class="kx-hero2 kx-hlive lh" style="--hero:${net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
    <div class="lh-top"><div class="lh-status"><span class="lh-live ${st[0]}"><i></i>${st[1]}</span><span class="lh-chip lh-rm">Real money on Kalshi</span>${lv.on?`<span class="lh-chip"><b>$${lv.size}</b> a trade</span>`:''}${bk.length?`<span class="lh-chip">${[lv.on?'Main':null,...onB.map(b=>esc(b.name))].filter(Boolean).join(' + ')||'No account trading'}${bk.length>onB.length?` · ${bk.length-onB.length} off`:''}</span>`:''}</div>
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
-   ${warn?`<div class="lh-warn${soft?' soft':''}"><i></i>${warn}</div>`:''}
+   ${warn?`<div class="lh-warn${soft?' soft':''}${warnM?' multi':''}"><i></i>${warn}</div>`:''}
    <div class="lh-main"><div class="lh-cash"><div class="kx-ml">Kalshi cash${bk.length?` · ${bk.length+1} accounts`:''}</div><div class="kx-bal" data-kxtot>${kxTotH()}</div><div class="lh-accs" data-kxall>${kxAllBoxH()}</div></div>
     ${(()=>{const T=kxLhToday(lv),u=T.t;return `<div class="lh-today"><div class="lh-th"><span class="kx-ml">Today${T.name?' · '+esc(T.name):''}</span>${T.main&&stopPct>=1?'<em class="neg">stop hit</em>':u.open?`<em>${u.open} open</em>`:''}</div><b class="${cls(u.net)}">${usd(u.net||0)}</b>
      ${kxTodayRec(u)}${kxGoal(u.net||0,0,1,T.cc)}</div>`})()}</div>
@@ -5468,7 +5482,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.41',KR_DATE='Nov 20, 2026';
+const KR_VERSION='1.3.42',KR_DATE='Nov 20, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

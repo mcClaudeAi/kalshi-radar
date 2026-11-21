@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.42 (Nov 20, 2026): Home names which accounts have stopped
+- [fixed] With Main protecting its profit, Home said "Not trading right now" while other accounts were still buying. It only read Main. It now names each account that is done for the day and why, then lists the accounts still trading. The red box is only for when every account that is on has stopped.
+
 ## 1.3.41 (Nov 20, 2026): Live analytics counts every account
 - [fixed] Analytics on Live now adds up the trades of every account, not just Main. Chips above it pick All accounts or one account, and the heading, the cash line, the profit take and stop loss lines on Daily P&L and the Execution card all follow that pick. All uses the sum of the limits of the accounts that are on.
 - [fixed] Tapping a coin's row opens its box in the middle of the screen, like the buy box, instead of at the very top. It is placed once when it opens, so it still does not jump as its numbers refresh.
