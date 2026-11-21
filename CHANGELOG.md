@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.51 (Nov 21, 2026): Plainer price words
+- [improved] The Win chance chip on scanner rows says "overpriced" and "underpriced" instead of "dear" and "cheap": overpriced when Kalshi's price is 3 or more points above the model's win chance, underpriced when it is 3 or more below.
+
 ## 1.3.50 (Nov 21, 2026): Open totals on the Live board
 - [new] The bottom right of the window bar on the Live board shows everything open: how many trades, what they pay back if they all win (green) and what they cost if they all lose (red). On Live it adds up Main and every subaccount, fees included, counting any part already sold; on Paper it is the paper book's open trades. Hover or press it for the total put in.
 
