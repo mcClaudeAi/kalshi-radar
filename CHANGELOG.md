@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.44 (Nov 20, 2026): Eight new themes
+- [new] Eight more themes made for trading. Dark: Dim (soft blue-grey for a lit room), Blackout (true black for OLED phones), Amber (the classic market terminal), Bullion (black and gold), Greenback (money green with gold) and Neon (crypto at night). Light: Paper (newsprint with ink blue) and Mint. Every one was checked so small text, gains and losses stay easy to read on its cards.
+- [improved] The theme picker is split into Dark and Light.
+
 ## 1.3.43 (Nov 20, 2026): Display clean-up on the web and phones
 - [fixed] Tapping an account: the last line of its header sat under the yellow "protecting" note. The note also reads as a sentence now, here, on Live account and on each account's card.
 - [fixed] Analytics, Daily P&L: the day labels under the bars ran together on a phone ("Nov 2Nov 3"), and the amounts on the left lost their "$" and minus sign at the edge. Labels are thinned to what fits, and the side amounts are whole dollars ($1.1k past a thousand). Same for the drawdown amount under Equity.
