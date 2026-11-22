@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.85 (Nov 22, 2026): Cards say who bought: Mitch pick, the playbook, or you
+- [improved] The tags on an open trade's card and on the scanner now end with who bought it: "Mitch pick" (in purple), the playbook ("Claude's pick", with "later buy" when it was bought after the trade check), or "by hand". Before, a Mitch pick buy read "later watched" like a later buy. Each subaccount's tag says it too.
+
 ## 1.3.84 (Nov 22, 2026): The scanner says why a purple coin was or was not bought
 - [new] With "Buy Mitch picks" on, a purple coin on the scanner now carries an Auto-buy tag with the tracker's own answer from its last look: bought (how many, at what price), or the one thing that stopped it (cushion under 1 on the tracker's reading, the real offer outside the price range, the check under +1¢ at the real offer, fewer than 7 coins leaning its way, protect profit, an order already in the market, and so on). The purple tag is the browser's reading and the buy is the tracker's, on its own prices and the real order book, so the two can differ by a hair; before, nothing said so.
 
