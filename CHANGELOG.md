@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.66 (Nov 21, 2026): No more straight slope across the middle of a chart
+- [fixed] A coin's chart could show a dead straight slope across several minutes in the middle of the window, with the page open the whole time. The live price feed had gone quiet for that coin, and the chart joined the last price before the hole to the first one after it. Earlier fixes only refilled the part before the page opened or after coming back to the app. Any hole of 30 seconds or more in the live prices is now filled from Coinbase's trade history, which is fetched again when it does not reach the hole. A coin that really did not trade for a while still draws flat.
+
 ## 1.3.65 (Nov 21, 2026): Sections can span 2 or 3 columns
 - [new] In Arrange on the web Home, every section has a Width choice next to its name: 1, 2 or 3 (up to the number of columns picked). A full-width section sits in a band across the top. With 3 columns, a 2-wide section sits across the top of two columns, the two carry on underneath it and the third runs beside it. It takes the left two columns unless you drag it to the third, then it takes the right two. Setting it back to 1 returns it to its column. Saved in this browser; Reset layout clears it.
 
