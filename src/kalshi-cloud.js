@@ -393,7 +393,10 @@ function volCalc(all, rows, px, strike, side, age, src) {
       const Q = src === 'candle' || src === 'history' ? rows.slice(-31).map(k => k[4]) : rows.slice(-30).map(k => k[4]).concat([px]); if (src === 'candle' || src === 'history') Q[Q.length - 1] = px;
       if (u > 0 && Q.length >= 25 && src !== 'stale') { const P = Q.map(v => sgn(v) / u); dp = +Math.min(0, ...P).toFixed(3);
         const Y = P.slice(-15), n = Y.length, mx = (n - 1) / 2, my = Y.reduce((a, b) => a + b, 0) / n; let sxy = 0, sxx = 0, syy = 0; Y.forEach((y, i) => { sxy += (i - mx) * (y - my); sxx += (i - mx) ** 2; syy += (y - my) ** 2; }); r2 = syy > 0 ? +(sxy * sxy / (sxx * syy)).toFixed(3) : 0; } }
-    return { tl, lk, sw, dp, r2, px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2), sigma10: sigma10 == null ? null : +sigma10.toExponential(3), z10, age, src };
+    // MC 2026-11-22 for the flags kept with a buy: did the window before this one go our way too (the scanner's "Last window:
+    // same way"). Same reading as the page: the close a minute before this window opened against the one 15 minutes earlier.
+    let pv = null; { const o = Math.floor((rows[rows.length - 1][0] + 60) / 900) * 900, at = t => { for (let i = all.length - 1; i >= 0 && all[i][0] >= t; i--) if (all[i][0] === t) return all[i][4]; return null; }, a = at(o - 960), b = at(o - 60); if (a != null && b != null && a !== b) pv = (b > a) === (side === 'yes') ? 1 : 0; }
+    return { pv, tl, lk, sw, dp, r2, px, sigma: +sigma.toExponential(3), margin: +margin.toFixed(6), z: z == null ? null : +z.toFixed(2), sigma15: +sigma15.toExponential(3), drift: +drift.toFixed(6), z2: z2 == null ? null : +z2.toFixed(2), sigma10: sigma10 == null ? null : +sigma10.toExponential(3), z10, age, src };
 }
 
 
@@ -552,7 +555,7 @@ export function createKalshi(state, env, keep) {
   async function kreq(method, p, body) { for (let a = 0; a < 4; a++) { const r = await kreq1(method, p, body); if (r?.status !== 429 || a === 3) return r; await sleep(700 * (a + 1)); } }
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
   // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
-  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
+  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
   const vq = [];   // vault notices waiting for the next push
   const vault = createVault({ kv, say, XI, etDay, etHour, fail, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(),
@@ -683,7 +686,7 @@ export function createKalshi(state, env, keep) {
     const body = r.side === 'yes'
       ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: `cr-${r.ticker}` }
       : { ticker: r.ticker, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: `cr-${r.ticker}` };
-    const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, limWhy: lim.why, size: sizeUsd, fill: 0, strat: lab?.id || 'rule', pend: 1 };
+    const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, limWhy: lim.why, size: sizeUsd, fill: 0, strat: lab?.id || 'rule', pend: 1, fl: flOf(r) };
     L.set(r.ticker, row); saveL(row); resv += sizeUsd;
     const send = async () => {
       // sent: ms from reading the price to sending the order; rtt: how long Kalshi took to answer
@@ -899,7 +902,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-14 limWhy: what set the order's top price (the room, or a cap that held it lower)
       // MC 2026-11-14 with the order's limit, the ask it was based on, how fast it went out, what a miss saw after, the fees, and
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
-      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, mres: rr?.result === 'yes' || rr?.result === 'no' ? rr.result : null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, late: x.late || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
+      recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { fl: x.fl || flOf(rr) || null, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, mres: rr?.result === 'yes' || rr?.result === 'no' ? rr.result : null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, late: x.late || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
         ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
       playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view(), logos: Object.fromEntries(Object.entries(klogos).map(([k, x]) => [k, x.at])) };
   }
@@ -1006,6 +1009,13 @@ export function createKalshi(state, env, keep) {
   }
 
   let scanPbOf = null;
+  // MC 2026-11-22 Mitchell asked for the scanner's check flags to be on a trade as they stood at the buy. The readings were
+  // already taken for the playbook (cushion, swing, path); this keeps them with the price, spread, minutes left, the window
+  // before and how many of the window's coins leaned the same way, small enough to sit on every live row. The page turns
+  // them into the same chips the scanner shows. An older row gets what its paper record still has (no coins count).
+  const flOf = (r, v) => { v = v || r?.vol; if (!r || !v || v.z == null) return null; const W = scan.filter(z => z.leader && z.close === r.close), n2 = x => x == null ? null : +(+x).toFixed(2);
+    return { z: n2(v.z), dp: n2(v.dp), r2: n2(v.r2), pv: v.pv ?? null, spr: r.ya != null && r.na != null ? Math.round((r.ya + r.na - 1) * 100) : null, ask: r.ask ?? null, left: r.left != null ? n2(r.left) : null, same: W.length >= 3 ? W.filter(z => z.leader === r.side).length : null, n: W.length >= 3 ? W.length : null }; };
+  const flTk = tk => L?.get(tk)?.fl || flOf(rec?.get(tk)) || null;
   async function scanPbRead(out, now) {
     const c = ctl(), live = !!c.enabled && hasKeys(), cfg = live ? cfgL : cfgP, sid = stratAt(live ? c.strat : cfg.strat, now), lab = labDefs(cfg).find(l => l.id === sid);
     // MC 2026-11-18 lo and hi: the price band the answer holds for. The page gets fresh prices between the minute readings, and a
@@ -1806,7 +1816,7 @@ export function createKalshi(state, env, keep) {
   // request allowance as the repair pass (the candles of one coin are shared between its trades). Two tries a trade.
   // the readings kept on a live row: distance from the target in usual moves and as a share of the price, the 10-minute move,
   // and the chart readings
-  const volPick = v => ({ z: v.z ?? null, margin: v.margin ?? null, sigma: v.sigma ?? null, z10: v.z10 ?? null, tl: v.tl ?? null, lk: v.lk ?? null, sw: v.sw ?? null, dp: v.dp ?? null, r2: v.r2 ?? null, src: v.src || null });
+  const volPick = v => ({ z: v.z ?? null, margin: v.margin ?? null, sigma: v.sigma ?? null, z10: v.z10 ?? null, tl: v.tl ?? null, lk: v.lk ?? null, sw: v.sw ?? null, dp: v.dp ?? null, r2: v.r2 ?? null, pv: v.pv ?? null, src: v.src || null });
   // every live trade with a fill, Main's and the books', for the export under Trades
   // MC 2026-11-19 a later-watched buy exported the trade check's readings (cushion 0.41 on a buy made at 1.0 or more), which
   // made it look like the tracker bought under its own bar. It now exports the readings taken when it was bought.
@@ -1995,7 +2005,7 @@ export function createKalshi(state, env, keep) {
       if (!capped && isFinite(lockRem[w] ?? Infinity)) lockRem[w] -= cost;
       const t = { stopSk: stopSk ? 1 : 0, wcap: wcap ? 1 : 0, lock: lockCut ? 1 : 0, lockBy: lockCut || (!capped && szUse < sizeUsd) ? lockBy[w] || null : null, lockSz: !capped && szUse < sizeUsd ? +szUse.toFixed(2) : null, late: late ? 1 : 0, lw: r.lw ? 1 : 0, hc: r.hc ? 1 : 0, mk: r.ticker, tk: hand ? r.ticker + ':h' : late ? r.ticker + ':2' : r.ticker, t: r.at, close: r.close, coin: coin(r.series), side: r.side, px: +px.toFixed(3), n, cost, capped, halted, haltWhy, off, run: inRun, done: !!r.result, won: !!r.won, pnl: null, strat, stratWhy: strat ? (f === null ? (sid === 'learn' ? 'no model reading' : 'no volatility reading') : sid === 'kelly' ? 'Kelly: no edge at this price yet' : lab.name) : null, why: strat ? labWhy(sid, { px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: ko.kf, pl: r.lp ?? null }, K) : null, book: sid,
         left: r.left, ask: r.ask, ya: r.ya ?? null, na: r.na ?? null, dAsk: r.depthAtAsk ?? null, depth: r.depth ?? null, bookAvg: r.avgN != null, fee: fee(px, n),
-        title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null,
+        fl: flTk(r.ticker), title: r.title || null, sub: r.sub || null, kq: ko.kq, kf: ko.kf, kn: ko.kn, strike: r.strike ?? null, final: r.final ?? null, res: r.result || null, cold, net30: +c30.x.toFixed(2), path: thin(late ? rec.get(r.ticker)?.path : r.path), z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, vpx: r.vol?.px ?? null, vmg: r.vol?.margin ?? null, vage: r.vol?.age ?? null, vsrc: r.vol?.src ?? null, vfix: r.vol?.fixed ? 1 : 0, vwas: r.vol?.was?.margin ?? null, vsg: r.vol?.sigma ?? null, vsg15: r.vol?.sigma15 ?? null, vdr: r.vol?.drift ?? null, z10: r.vol?.z10 ?? null, vsg10: r.vol?.sigma10 ?? null, pl: r.lp ?? null,
         // MC 2026-11-16 the chart readings went on the trade record but not on this copy, so the Labs lines for the playbooks that
         // read them (AI checked v1, no late swing, chart checked) found no reading on any trade and drew nothing
         tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null };
@@ -2303,7 +2313,7 @@ export function createKalshi(state, env, keep) {
       L.set(tk, row); saveL(row); resv += size;
       // MC 2026-11-16 asked to find a pattern in the hand buys that won: keep the chart readings at the moment of the buy, read
       // after the order is sent so the order is not held up
-      if (row.strike > 0) volAt(cn, row.strike, side).then(v => { if (v) { row.vol = volPick(v); saveL(row); } }).catch(() => { });
+      if (row.strike > 0) volAt(cn, row.strike, side).then(v => { if (v) { row.vol = volPick(v); row.fl = flOf({ close, side, ask: row.ask, left: (close - row.at) / 60000 }, v); saveL(row); } }).catch(() => { });
       const t0 = Date.now(); let res; try { res = await kreq('POST', '/portfolio/events/orders', body); } finally { delete row.pend; resv = Math.max(0, resv - size); }
       row.rtt = Date.now() - t0;
       if (!res?.ok) { const e = `${res?.status} ${errOf(res)}`.slice(0, 200); undo(); fail(`hand buy ${tk} refused: ${e}`); await publish(true); return { ok: false, msg: `Kalshi refused the order: ${e}` }; }

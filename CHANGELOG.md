@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.70 (Nov 22, 2026): Check flags saved with every buy, shorter trade stories, All accounts readable on a phone
+- [new] The tracker now keeps the scanner's check flags with every buy, as they stood at that moment: Check, Swing, Last window, Cushion, Path, Coins and the minutes left. They show under a trade in Trades as "At the buy", for Main and every subaccount, paper and live. Trades from before this update show the ones their record still has (cushion, swing and path). Win chance is not kept: it is worked out from the live prices in the browser.
+- [improved] A trade's story is much shorter. It leads with one line for the market and target, the flags at the buy, one line for the trade (contracts, price, cost, payout) and the result. The long paragraphs (order, fill, each check) are folded under "Full details", which stays open once you open it.
+- [fixed] The All accounts tab in Trades was unreadable on a phone: one long skip reason under a trade made the whole table several screens wide and the text huge. The line for each account now wraps inside the screen, one account a line, and the story fits the screen width.
+
 ## 1.3.69 (Nov 22, 2026): Replay plays again, and draws the trend and the buy
 - [fixed] The play button under "How it played out" did nothing on a live trade that had no paper copy loaded, and the scrub bar did nothing either. The replay now keeps the trade it was opened with.
 - [new] The replay draws the trend line as it happens: from minute 5 it is fitted to the prices so far, so it swings while the move forms and locks at minute 10, then a dashed line carries it on to where it pointed at the close. The readout says which way the trend is running, and the replay holds for a moment when it locks.

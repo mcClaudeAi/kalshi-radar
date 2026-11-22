@@ -1204,6 +1204,12 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
  .kx-cvs{gap:6px;margin:8px 0}.kx-cvs>div{padding:7px 9px}.kx-cvs span{font-size:10.5px}.kx-cvs b{font-size:14px}.kx-cvs small{min-height:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .kx-air{min-height:0;padding:8px 10px;margin-bottom:6px}.kx-airh strong{font-size:14px}.kx-airh span{font-size:11.5px}.kx-aird{margin-top:4px}.kx-cva{min-height:0}}
 .kx-pap .btn,.kx-buyrow.kx-pap .btn{color:var(--kx);border:1px solid color-mix(in srgb,var(--kx) 50%,transparent);background:transparent}.kx-buyrow.kx-pap .btn:hover{background:color-mix(in srgb,var(--kx) 10%,transparent)}
+.kx-wd{border:1px solid var(--line);border-radius:10px;padding:0 10px}.kx-wd summary{cursor:pointer;padding:8px 0;font-size:12px;font-weight:700;color:var(--ink2)}.kx-wd summary span{font-weight:500;color:var(--faint);margin-left:8px}.kx-why.kx-wdin{padding:2px 0 10px}.kx-why .kx-flr{grid-column:auto}.kx-flr .kx-rd{cursor:default}
+/* MC 2026-11-22 the All accounts tab was unreadable on a phone: the line of what each account did under a trade could not wrap
+   (table cells do not), so one long skip reason made the whole table three screens wide and Safari blew the text up to match.
+   Those lines and the story now wrap inside the screen, one account a line on a phone, and Safari is told not to resize text. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.kx-bkr td,.kx-bkr td *{white-space:normal}.kx-bkl{min-width:0;overflow-wrap:anywhere}
+@media(max-width:700px){.kx-bkr div{flex-direction:column;gap:4px}.kx-bkl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.kx-wd summary span{display:block;margin:2px 0 0}}
 .kx-bkr td{padding:0 10px 8px!important;border-top:0!important}.kx-bkr div{display:flex;flex-wrap:wrap;gap:6px 14px;padding:6px 10px;border-left:2px solid rgba(255,77,94,.45);background:color-mix(in srgb,var(--ink) 3%,transparent);border-radius:0 8px 8px 0;font-size:12px;color:var(--ink2)}
 .kx-bkr .kx-bkm{display:none}.kx-bkl b{color:var(--ink);font-weight:600}.kx-bkl i{font-style:normal;color:var(--mute)}.kx-bkl em{font-style:normal;font-weight:600}.kx-bkl em.pos{color:var(--good)}.kx-bkl em.neg{color:var(--bad)}.kx-bkr{cursor:pointer}
 .kx-where{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--s1)}.kx-where h4{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}.kx-where h4 span{font-size:11.5px;font-weight:500;color:var(--faint)}
@@ -3355,7 +3361,12 @@ function kxHcCard(s,side){const r=kxRd(s,side);if(!r||r.z==null||s.close-Date.no
   return `<div class="kx-hck"><div class="kx-hckh"><b>Hand-buy check</b>${side===s.leader&&kxMitch(s)?`<i class="kx-mmb" title="${esc(KXMM)}">Mitch pick</i>`:''}<em class="${kxHcCls(h)}" title="${esc(kxHcTip(r,h))}">${kxHcE(h)}</em><span title="${esc(kxHcTip(r,h))}">${kxHcTxt(h)}</span></div>
    <div class="kx-hckl">${L.map(([v,l,d])=>{const c=v==null?'':v<=-.5?'w':v>=.5?'g':'';return `<span class="${c}" title="${esc(d+(v!=null?`. Worth ${kxEc(v)} a contract against a typical buy at this price.`:'.'))}"><i>${c==='w'?'!':c==='g'?'✓':'·'}</i><b>${esc(l)}</b>${v!=null?`<em>${kxEc(v)}</em>`:''}</span>`}).join('')}</div></div>`}
 const kxRdZ=z=>z==null?['','no reading yet']:z>=2?['pos','wide']:z>=1?['warn','fair']:z>=0?['neg','thin']:['neg','wrong side'];
-function kxRdChips(s){const r=kxRd(s);if(!r)return '';const [zc,zw]=kxRdZ(r.z),S=r.side.toUpperCase(),split=r.n>=4&&r.same/r.n<.75,edge=r.w!=null&&r.ask!=null?r.w-r.ask:null;
+// of the long paragraphs in a trade's story. The tracker now keeps the readings with each buy (fl, see flOf in kalshi-cloud.js)
+// and kxFlChips draws them with the scanner's own chips. Win chance is not kept: it is worked out from the live ticks in the
+// browser and the tracker has no copy of it.
+const kxRdChips=s=>kxRdChipsR(kxRd(s));
+const kxFlChips=(fl,side)=>fl&&fl.z!=null?kxRdChipsR({side,z:fl.z,dp:fl.dp??null,pv:fl.pv==null?null:!!fl.pv,spr:fl.spr??null,r2:fl.r2??null,same:fl.same??0,n:fl.n??0,left:fl.left??10,ask:fl.ask??null,w:null,mg:null}):'';
+function kxRdChipsR(r){if(!r)return '';const [zc,zw]=kxRdZ(r.z),S=r.side.toUpperCase(),split=r.n>=4&&r.same/r.n<.75,edge=r.w!=null&&r.ask!=null?r.w-r.ask:null;
   const h=kxHcEst(r),W=kxHcList(r,h).filter(x=>x[0]!=null&&x[0]<=-.5).map(x=>x[1]);
   return (r.z!=null?`<span class="kx-rd ${kxHcCls(h)}" title="${esc(`The hand-buy check for ${S}: an edge after fees from the price, the cushion, any swing the other way, the time left, the last window and the spread.${W.length?' Costing it now: '+W.join(', ')+'.':''} ${kxHcTip(r,h)}`)}"><i>Check</i><b>${kxHcE(h)}</b></span>`:'')+
    (r.dp!=null&&r.dp<=-2?`<span class="kx-rd neg" title="In the last 30 minutes it was ${(-r.dp).toFixed(1)} usual moves on the other side of the target. Buys after a swing like that won 84% in testing."><i>Swing</i><b>${r.dp.toFixed(1)}</b> in 30 min</span>`:'')+
@@ -4388,7 +4399,9 @@ async function kxLateOffer(){if(!ST.me.control)return;try{await kxPoll()}catch{}
   if(lv.cfg?.lateBuy!==1)await cmd('kalshiSet',{book:'live',lateBuy:1},'Later buys on');for(const b of own)await cmd('kalshiSet',{book:'live',sub:b.id,lateBuy:1},'Later buys on, '+b.name);if(KX.on)setTimeout(kxPoll,500)}
 function kxWhy(t,c){const S=t.side.toUpperCase(),O=t.side==='yes'?'NO':'YES',other=t.side==='yes'?t.na:t.ya,L=[];
   const q=t.title||`${t.coin} up or down in 15 minutes`;L.push(`<div><b>Market</b><span>${esc(q)}${t.sub?` · <span style="color:var(--mute)">${esc(t.sub)}</span>`:''}</span></div>`);
-  const tgt=t.strike!=null?kxFmt(t.strike,t.strike):null;if(tgt)L.push(`<div><b>Target</b><span>YES pays if ${esc(t.coin)}'s 60-second average at the close is at or above ${tgt}; NO pays if it is below.</span></div>`);
+  const tgt=t.strike!=null?kxFmt(t.strike,t.strike):null;if(tgt)L[0]=L[0].replace(/<\/span><\/div>$/,` Target ${tgt}: YES at or above, NO below.</span></div>`);
+  {const fl=t.fl||(t.z!=null?{z:t.z,ask:t.ask??t.px,left:t.left??10}:null),fr=kxFlRow(fl,t.side,fl?.left??t.left);if(fr)L.push(fr)}
+  if(t.n&&!t.capped&&!t.strat)L.push(`<div><b>Trade</b><span>${t.n} ${S} at <b>${kxC(t.px)}</b> · cost $${Number(t.cost).toFixed(2)} · pays $${t.n}.00 if ${S} wins</span></div>`);
   L.push(`<div><b>Why we bought</b><span>With ${t.left!=null?Number(t.left).toFixed(1):'10'} min left, ${S} was leading at ${Math.round((t.ask??t.px)*100)}¢${other!=null?` (${O} cost ${Math.round(other*100)}¢)`:''}. The rule buys the leader when it costs ${kxCt(c.minAsk||.9)}¢ or more, so the market had it at about ${Math.round((t.ask??t.px)*100)}% to hold.</span></div>`);
   L.push(`<div><b>Fill</b><span>${t.n} contracts at ${(t.px*100).toFixed(1)}¢${t.bookAvg?` (100-contract book average; best ask ${Math.round(t.ask*100)}¢${t.dAsk!=null?` with ${Math.round(t.dAsk)} contracts there`:''})`:' (best ask)'}${t.fee!=null?`, fee $${Number(t.fee).toFixed(2)}`:''}, cost $${Number(t.cost).toFixed(2)}. Pays $${t.n}.00 if ${S} wins.</span></div>`);
   if(t.run===false)L.push(`<div><b>Previous run</b><span>Settled before the current paper run started, so it is in the history and Analytics but not in the bank or win rate on Home.</span></div>`);
@@ -4413,7 +4426,7 @@ function kxWhy(t,c){const S=t.side.toUpperCase(),O=t.side==='yes'?'NO':'YES',oth
   else L.push(`<div><b>Settles</b><span>${tm(t.close/1000)}, in about ${Math.max(0,Math.round((t.close-Date.now())/60000))} min. It is on the live board above.</span></div>`);
   if(t.strike!=null)L.push(`<div><b>How it played out</b><div class="kx-play" data-play="${esc(t.tk)}"></div></div>`);
   if(t.tk)L.push(`<div class="kx-tk" style="color:var(--faint)">${esc(t.tk)}</div>`);
-  return `<div class="kx-why">${L.join('')}</div>`}
+  return kxWhyOut(L,'P:'+(t.tk||t.t))}
 // MC 2026-11-03 live trading panel. The tracker places the orders (MC 2026-11-07: from the cloud, kalshi-cloud.js); this only shows what it reports
 // and sends the switch through the bot (kalshiLive command, device unlock + confirm). Turning on and selling all are hold-to-confirm.
 function kxLv(){return KX.live?.live||ST.D?.kalshi?.live?.live||null}
@@ -4433,6 +4446,15 @@ function kxLiveDyn(lv){if(!lv)return `<div class="empty">No live status from the
 // limit, how fast it went out, what it filled at or the ask it missed, the minute-10 sale price against how it ended, and the same
 // replay as the paper trade (fetched from the paper record of that market when it is not on the page already).
 const kxFeeC=(p,n)=>Math.ceil(.07*n*p*(1-p)*100-1e-9)/100;
+// MC 2026-11-22 the story under a trade had grown to a screen and a half on a phone. It now leads with one line for the market
+// and target, the flags at the buy, one line for the trade and the result; the long paragraphs (order, fill, each check)
+// are folded under "Full details". Whether that is open is remembered per trade, since the story is redrawn on every refresh.
+const KXWD=new Set(),KXWK=new Set(['Market','At the buy','Trade','Skipped','Refused','No fill','Settled','Settles','Sold','Cashed out','Sold by hand','How it played out']);
+function kxWdT(el,id){el.open?KXWD.add(id):KXWD.delete(id)}
+function kxWhyOut(L,id){const top=[],more=[],names=[];let play='',tk='';for(const h of L){const m=/^<div><b>([^<]+)<\/b>/.exec(h),k=m?.[1];if(k==='How it played out')play=h;else if(!m)tk+=h;else if(KXWK.has(k))top.push(h);else{more.push(h);names.push(k)}}
+  const det=more.length?`<details class="kx-wd"${KXWD.has(id)?' open':''} ontoggle="kxWdT(this,'${esc(id)}')" onclick="event.stopPropagation()"><summary>Full details<span>${esc(names.slice(0,4).join(', '))}${names.length>4?' and '+(names.length-4)+' more':''}</span></summary><div class="kx-why kx-wdin">${more.join('')}</div></details>`:'';
+  return `<div class="kx-why">${top.join('')}${det}${play}${tk}</div>`}
+const kxFlRow=(fl,side,left)=>{const h=kxFlChips(fl,side);return h?`<div><b>At the buy</b><div class="kx-sbr kx-flr">${h}${left!=null?`<span class="kx-rd"><i>Left</i><b>${Number(left).toFixed(1)}</b> min</span>`:''}</div></div>`:''};
 function kxPaperOf(x){const K=ST.D?.kalshi;return [...(K?.recent||[]),...(K?.pending||[]),...KXFULL.values()].find(t=>!t.late&&(t.tk===x.tk||(t.close===x.close&&t.coin===x.coin)))||null}
 async function kxLvT(tk,bk){const id='L:'+(bk?bk+':':'')+tk;KXO.has(id)?KXO.delete(id):KXO.add(id);const on=KXO.has(id);document.querySelectorAll(`[data-kx="${CSS.escape(id)}"]`).forEach(e=>e.classList.toggle('on',on));if(!on)return;
   const x=((bk?kbB(bk)?.recent:kxLv()?.recent)||[]).find(o=>o.tk===tk);if(!x)return;
@@ -4443,8 +4465,9 @@ function kxM10(px,best,n,cost,held,side,dir,pct){if(px==null)return '';const sal
 // MC 2026-11-16 a hand buy in a market the tracker never recorded had no target here, so no replay. The live row keeps the
 // market's own target now; use it when the paper record is missing.
 function kxLvWhy(x){const S=x.side.toUpperCase(),L=[],t=kxPaperOf(x)||(x.strike!=null?{strike:x.strike,title:x.title}:null),pb=x.strat&&x.strat!=='rule'&&x.strat!=='hand'?kxLabOf(ST.D?.kalshi,x.strat).name:null,ft=v=>new Date(v).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit',second:'2-digit'});
-  L.push(`<div><b>Market</b><span>${esc(t?.title||x.coin+' up or down in 15 minutes')}, closing ${tm2s(x.close)}.</span></div>`);
-  if(t?.strike!=null)L.push(`<div><b>Target</b><span>YES pays if ${esc(x.coin)}'s 60-second average at the close is at or above ${kxFmt(t.strike,t.strike)}; NO pays if it is below.</span></div>`);
+  L.push(`<div><b>Market</b><span>${esc(t?.title||x.coin+' up or down in 15 minutes')}, closing ${tm2s(x.close)}.${t?.strike!=null?` Target ${kxFmt(t.strike,t.strike)}: YES at or above, NO below.`:''}</span></div>`);
+  {const fr=kxFlRow(x.fl||t?.fl,x.side,(x.fl||t?.fl)?.left??(x.close&&x.at?(x.close-x.at)/60000:null));if(fr&&!x.skipped)L.push(fr)}
+  if(x.fill>0)L.push(`<div><b>Trade</b><span>${x.fill}${x.want&&x.fill<x.want?' of '+x.want:''} ${S} at <b>${kxC(x.px)}</b> · cost $${Number(x.cost||0).toFixed(2)} · pays $${x.fill}.00 if ${S} wins${x.hand?' · by hand':pb?' · '+esc(pb):''}</span></div>`);
   if(x.skipped){L.push(`<div><b>Skipped</b><span>${esc(kxPlain(x.skipped))}.${x.mres?` It would have ${x.mres===x.side?'<b class="pos">won</b>':'<b class="neg">lost</b>'}.`:''} No order was sent${x.paperPx?`; the paper price was ${kxC(x.paperPx)}`:''}.</span></div>`)}
   else{const lim=x.limit!=null?kxC(x.limit):'–';
     L.push(`<div><b>Order</b><span>${x.want?`${x.want} ${S} contracts`:`${S}`}${x.size?` for about $${Number(x.size).toFixed(2)}`:''}${pb?`, following the ${esc(pb)} playbook`:''}.${x.hand?` Bought by hand from the scanner${x.was?` (the rule had passed: ${esc(x.was)})`:''}. The best ask when you confirmed was ${kxC(x.ask)}; the order`:` The ask read at the trade check was ${kxC(x.ask??x.paperPx)}; the order`} took anything up to ${lim}${x.limWhy?` (${esc(x.limWhy)})`:''} and cancelled the rest at once. Placed ${ft(x.at)}${x.sent!=null?`, ${(x.sent/1000).toFixed(2)}s after the price was read`:''}${x.rtt!=null?`; Kalshi answered in ${(x.rtt/1000).toFixed(2)}s`:''}.</span></div>`);
@@ -4459,7 +4482,7 @@ function kxLvWhy(x){const S=x.side.toUpperCase(),L=[],t=kxPaperOf(x)||(x.strike!
       else if(!x.result)L.push(`<div><b>Settles</b><span>${tm2s(x.close)}, in about ${Math.max(0,Math.round((x.close-Date.now())/60000))} min.${Date.now()<x.close&&!x._bk?` <button class="btn sm dng" style="margin-left:8px" onclick="event.stopPropagation();kxSellOne('${esc(x.tk)}')">Sell now</button>`:''}</span></div>`)}}
   if(t?.strike!=null)L.push(`<div><b>How it played out</b><div class="kx-play" data-play="${esc(x.tk)}"></div></div>`);
   L.push(`<div class="kx-tk" style="color:var(--faint)">${esc(x.tk)}</div>`);
-  return `<div class="kx-why">${L.join('')}</div>`}
+  return kxWhyOut(L,'L:'+(x._bk||'')+x.tk)}
 // date and time for the all-days trade tables; on a phone the date sits above the time so the table fits
 const kxDT=x=>`<span class="kx-dt">${new Date(x).toLocaleDateString('en-US',{...ET,month:'short',day:'numeric'})},</span> ${new Date(x).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'})}`;
 const tm2s=x=>new Date(x).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'});
@@ -6077,7 +6100,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.69',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.70',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
