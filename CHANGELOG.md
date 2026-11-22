@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.93 (Nov 22, 2026): no false error while moving money
+
+- [fixed] Moving money out of an account could leave it showing a red "Could not move ... to the crypto shard: insufficient balance" for a minute. The automatic top-up was running in the middle of the move. It now waits for the move to finish, and a refusal right after a move is retried quietly the next minute.
+
 ## 1.3.92 (Nov 22, 2026): a purple coin that was not bought always says why
 
 - [fixed] A purple coin could say "the tracker has not looked at it yet" when it had. The answer was lost each minute when the scanner refreshed, and a coin the tracker priced just outside 85¢ to 96.5¢ left no answer at all. The note now stays on the row and names the tracker's own price when that is the reason.

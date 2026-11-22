@@ -182,8 +182,13 @@ export function createBooks(D) {
   // almost never took the whole balance, which is why this had not shown. The top-up now leaves 2 cents behind. If Kalshi
   // still says there is not enough, the balances are read fresh and it tries once more leaving $1, and the account only
   // shows an error when the crypto side cannot cover the next order.
+  // MC 2026-11-22 Mitchell moved money between accounts and The Retirement Plan showed "Could not move $479.99 to the crypto
+  // shard: 400 insufficient balance" in red until the next minute, when it went through. A move out takes several seconds (the
+  // crypto balance comes back first, then the transfer), and the minute's top-up ran in the middle of it on balances that
+  // were already on their way out. The top-up now stands back while a move is under way and for 15 seconds after, and a
+  // refusal in the three minutes after a move is logged and tried again next minute, not shown as an error.
   async function fund(b, again) {
-    const s = S[b.id]; if (!again && Date.now() - s.xferAt < 60000) return;
+    const s = S[b.id]; if (!again && Date.now() - s.xferAt < 60000) return; if (Date.now() - (s.moveAt || 0) < 15000) return;
     const have = s.shard[D.XI] ?? 0, src = s.shard[0] ?? 0, want = Math.round(b.size * 12), low = b.size * 9;
     if (have >= low || src < 1) return; const amt = Math.floor(Math.min(src - (again ? 1 : 0.02), want - have) * 100) / 100; if (amt < 1) return;
     s.xferAt = Date.now();
@@ -194,7 +199,7 @@ export function createBooks(D) {
     if (!res?.ok) {
       if (!again && res?.status === 400 && /insufficient/i.test(errOf(res) || '')) { s.balAt = 0; s.shAt = 0; try { await balance(b, true); } catch { } return fund(b, true); }
       const m = `could not move $${amt.toFixed(2)} to the crypto shard: ${res?.status} ${errOf(res)}`; s.balAt = 0;
-      if (have >= b.size + 1) D.say(`BOOK ${b.name}: ${m} (the crypto side still covers the next order)`); else fail(b, m); return; }
+      if (have >= b.size + 1) D.say(`BOOK ${b.name}: ${m} (the crypto side still covers the next order)`); else if (Date.now() - (s.moveAt || 0) < 180000) D.say(`BOOK ${b.name}: ${m} (money was just moved, trying again next minute)`); else fail(b, m); return; }
     s.lastXfer = { at: Date.now(), amt: +amt.toFixed(2) }; s.balAt = 0; if (/crypto shard/.test(s.err || '')) s.err = null; D.say(`BOOK ${b.name} moved $${amt.toFixed(2)} to the crypto shard`);
   }
 
@@ -561,6 +566,7 @@ export function createBooks(D) {
     }
     if (op === 'fund' || op === 'withdraw') {
       if (!D.mainKeys()) return { ok: false, msg: 'Money moves with the main Kalshi key, and it is not connected.' };
+      S[b.id].moveAt = Date.now();   // a move is under way: the crypto top-up stands back (see fund)
       let amt;
       if (op === 'withdraw') {
         // the book's money sits partly on the crypto shard; with nothing open, it is brought back to shard 0 (the book's own key)
@@ -594,7 +600,7 @@ export function createBooks(D) {
       const res = await D.mainReq('POST', '/portfolio/subaccounts/transfer', { client_transfer_id: crypto.randomUUID(), from_subaccount: op === 'fund' ? 0 : b.sub, to_subaccount: op === 'fund' ? b.sub : 0, amount_cents: amt });
       if (!res?.ok) { let seen = ''; if (op === 'fund' && D.mainShards) { try { const s3 = await D.mainShards(); if (s3) seen = ` Kalshi shows $${(s3[0] ?? 0).toFixed(2)} on the main balance and $${(s3[D.XI] ?? 0).toFixed(2)} on crypto trading.`; } catch { } }
         D.say(`BOOK ${b.name}: transfer of $${(amt / 100).toFixed(2)} refused: ${res?.status} ${errOf(res)}${seen}`); return { ok: false, msg: `Kalshi refused the transfer: ${errOf(res)} (code ${res?.status}).${seen}` }; }
-      S[b.id].balAt = 0; try { await balance(b, true); } catch { } if (D.mainShards) try { await D.mainShards(); } catch { }
+      S[b.id].balAt = 0; S[b.id].shAt = 0; S[b.id].moveAt = Date.now(); try { await balance(b, true); } catch { } if (D.mainShards) try { await D.mainShards(); } catch { }
       D.say(`BOOK ${b.name}: ${op === 'fund' ? 'moved in' : 'moved out'} $${(amt / 100).toFixed(2)}`);
       return { ok: true, msg: `$${(amt / 100).toFixed(2)} moved ${op === 'fund' ? `from the main account to ${b.name}` : `from ${b.name} back to the main account`}.` };
     }
