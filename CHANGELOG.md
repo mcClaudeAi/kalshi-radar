@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.72 (Nov 22, 2026): The last minute says which prices it is counting
+- [improved] On a phone the last-minute chart's footnote was too narrow to say whether it was counting Kalshi's index or Coinbase. The label over the average now reads "Settle avg · Kalshi index" or "Settle avg · Coinbase", and the short footnotes name the source too.
+- [improved] When the index is in, the call after the close is made on Kalshi's own settlement average ("Won on Kalshi's index" or "Lost on Kalshi's index"), however close it finished. "Too close to call" is only for a Coinbase average.
+
 ## 1.3.71 (Nov 22, 2026): The last minute is judged on the index Kalshi settles on
 - [new] A card could show a coin winning through the whole last minute and Kalshi would settle it lost. The page judged the last minute on Coinbase's price alone; Kalshi settles on CF Benchmarks' index, an average across several exchanges, and on a coin that trades thinly on Coinbase the two can end on opposite sides of the target. The tracker now reads that index from Kalshi itself for the 75 seconds around each close, while a dashboard is open. The last-minute chart, the 60-second average, the win chance and the won or lost call use the index and Kalshi's own running settlement average while it is arriving. The chart's footnote says whether it is counting on Kalshi's index or on Coinbase.
 - [new] Live account, under Kalshi API level, shows whether the settlement index feed is working, or the reason Kalshi gave for refusing it. If it is refused, the last minute stays on Coinbase prices as before and it is tried again every 10 minutes.
