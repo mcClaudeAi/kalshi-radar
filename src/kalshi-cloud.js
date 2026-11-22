@@ -1265,10 +1265,14 @@ export function createKalshi(state, env, keep) {
     const W = out.filter(s => s.leader && s.lask != null && s.strike > 0); let reads = 0; const no = (s, why) => { s.mpWhy = why; s.mpAt = Date.now(); };
     for (const s of W) {
       const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13) continue; if (!fast && el > 285000 && el < 345000) { no(s, 'waiting out the trade check'); continue; } if (mpDone.has(s.tk)) { no(s, mpDone.get(s.tk).why || 'already tried this market once'); continue; }   // the minute scan sits out the check's minute; the 10-second look has its own pause (fastWant)
-      if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) continue;
+      // MC 2026-11-22 Mitchell: purple rows that did not buy said "the tracker has not looked at it yet" when it had. A coin the
+      // tracker's own price put outside the band left no note at all, and the notes were dropped each minute when the scanner
+      // rows were rebuilt (tick now carries them over). A price outside the band is said only when it is close enough to
+      // have glowed (80c and up), so the other coins' rows stay clean.
+      if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) { if (s.lask >= 0.8) no(s, `the tracker has it at ${(s.lask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; }
       const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) { no(s, `only ${same} of ${W.filter(o => o.close === s.close).length} coins lean its way on the tracker's prices`); continue; }
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
-      const mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
+      const mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
       if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < 1) { no(s, `cushion ${v.z} on the tracker's reading, needs 1`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
@@ -1339,6 +1343,7 @@ export function createKalshi(state, env, keep) {
     // reading. Not read in the last 50 seconds before the check, so these calls never compete with the check's own readings;
     // the last answer is carried over.
     try { await scanPbRead(out, now); } catch (e) { say('scanner playbook read error: ' + e.message); }
+    { const was = new Map(scan.map(x => [x.tk, x])); for (const x of out) { const o = was.get(x.tk); if (o?.mpWhy && x.mpWhy == null) { x.mpWhy = o.mpWhy; x.mpAt = o.mpAt; } } }   // keep the Mitch pick look's last answer on the row
     scan = out; scanAt = now;
     try { await mpLive(out, now); } catch (e) { say('Mitch pick buy error: ' + e.message); }
     // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend

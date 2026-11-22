@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.92 (Nov 22, 2026): a purple coin that was not bought always says why
+
+- [fixed] A purple coin could say "the tracker has not looked at it yet" when it had. The answer was lost each minute when the scanner refreshed, and a coin the tracker priced just outside 85¢ to 96.5¢ left no answer at all. The note now stays on the row and names the tracker's own price when that is the reason.
+- [improved] Around the trade check the note says the 10-second look is paused (from 45 seconds before the check to 30 seconds after) and when it looks again. A half hour that is switched off now says it is the live schedule that has it off.
+
 ## 1.3.91 (Nov 22, 2026): fixes the blank page in 1.3.88 to 1.3.90
 
 - [fixed] Versions 1.3.88, 1.3.89 and 1.3.90 opened to a blank page under the header. Two mistakes in how the page was put together for release stopped it from loading at all. Nothing was lost: the tracker kept running, trading and saving the whole time, only the page could not draw. Update to this version and reload.

@@ -3426,7 +3426,7 @@ function kxMitch(s){if(!s?.leader||s.lask==null||s.lask<.85||s.lask>=.965-1e-9)r
 function kxMpChip(lv){const A=[lv.on?{nm:'Main',on:lv.cfg?.mpBuy===1}:null,...(lv.books||[]).filter(b=>b.on).map(b=>({nm:b.name,on:(b.cfg?b.cfg.mpBuy:lv.cfg?.mpBuy)===1}))].filter(Boolean),n=A.filter(a=>a.on).length,off=A.filter(a=>!a.on);
   return n?`<span class="lh-chip lh-mp" title="Buy Mitch picks is on: a coin that glows purple is bought automatically${off.length?'. Off on '+esc(off.map(a=>a.nm).join(', '))+': turn it on under Settings, with that account picked':''}"><i></i>Mitch picks on${off.length?(off.length<=2?` · not ${esc(off.map(a=>a.nm).join(' or '))}`:` · ${n} of ${A.length}`):''}</span>`:''}
 function kxMpNote(s,mm){const lv=kxLv(),on=lv?.on&&(lv.cfg?.mpBuy===1||(lv.books||[]).some(b=>b.on&&(b.cfg?b.cfg.mpBuy===1:lv.cfg?.mpBuy===1)));if(!on)return '';const fresh=s.mpWhy&&s.mpAt&&Date.now()-s.mpAt<45000;
-  if(!mm&&!(fresh&&/^(bought|order|not bought)/.test(s.mpWhy)))return '';const w=fresh?s.mpWhy:lv.autoPause?'automatic buying is paused':'the tracker has not looked at it yet (it looks every 10 seconds)',good=/^bought/.test(w);
+  if(!mm&&!(fresh&&/^(bought|order|not bought)/.test(s.mpWhy)))return '';const el=s.open?Date.now()-s.open:0,w=fresh?s.mpWhy:lv.autoPause?'automatic buying is paused':el>250000&&el<335000?'paused around the trade check, looks again 30 seconds after it':'the tracker has not looked at it yet (it looks every 10 seconds)',good=/^bought/.test(w);
   return `<span class="kx-rd${good?' pos':''}" title="What the tracker's own check said the last time it looked. The purple tag is this browser's reading; the tracker buys on its own prices and the real order book, so the two can differ by a hair."><i>Auto-buy</i><b>${esc(w)}</b></span>`}
 function kxRdHot(s){const r=kxRd(s);if(!r||r.z==null||r.w==null||r.ask==null||r.r2==null||s.close-Date.now()<20000)return false;
   if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)&&!(r.dp!=null&&r.dp<=-2)))return false;
@@ -6166,7 +6166,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.91',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.92',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
