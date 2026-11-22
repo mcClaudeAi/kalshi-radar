@@ -55,7 +55,7 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
-const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'lateZ', 'chkZ', 'lateCrowd', 'lateM', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'lockAt2', 'lockKeep2', 'lockAt3', 'lockKeep3', 'lossTaper', 'skipSlots', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
+const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'mpBuy', 'lateZ', 'chkZ', 'lateCrowd', 'lateM', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'lockAt2', 'lockKeep2', 'lockAt3', 'lockKeep3', 'lossTaper', 'skipSlots', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockAt: 0, lockKeep: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, trendExit: 0, trendKeep: 50, winCap: 9, lateZ: 1, chkZ: 1, labAccts: 1, lateCrowd: 1, lateM: 0.2 };
@@ -98,7 +98,17 @@ function labWhy(id, t, K = {}) {
   if (id === 'mix') return 'it did not pass the checks you set in Your mix';
   return null;
 }
-const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, cpl: 0.95, cpe: 0.95, cph: 0.95, all: 0.95, mv96: 0.96 };
+const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, cpl: 0.95, cpe: 0.95, cph: 0.95, all: 0.95, mv96: 0.96, mp: 0.965 };
+// MC 2026-11-22 the hand-buy check's edge (page.html KXM, kxHcEst), here for the Mitch pick buy: its win chance for a leader
+// less the price and Kalshi's fee, in cents a contract. r: ask, z cushion, dp deepest dip, pv last window same way, spr spread
+// in cents, left minutes. A reading that is missing takes its usual value at that price.
+const HCM = { c0: .2929, lp: .7726, z: .6225, spr: -.0336, pv: -.0535, dp: .0956, lf: -.0397 }, HCR = { z: [.1914, .3266], spr: [2.7108, -.69], pv: [.4947, 0], dp: [-1.0711, .0482] };
+export function hcEdge(r) {
+  const p = r.ask; if (!(p > 0 && p < 1) || r.z == null) return null; const lp = Math.log(p / (1 - p)), cl = (v, lo, hi) => Math.min(hi, Math.max(lo, v)), rf = k => HCR[k][0] + HCR[k][1] * lp;
+  const X = { z: cl(r.z, -1, 3), dp: r.dp == null ? rf('dp') : cl(r.dp, -4, 0), pv: r.pv == null ? rf('pv') : r.pv ? 1 : 0, spr: r.spr == null ? rf('spr') : cl(r.spr, 0, 5) };
+  const w = 1 / (1 + Math.exp(-(HCM.c0 + HCM.lp * lp + HCM.lf * cl(r.left, 3, 13) + ['z', 'dp', 'pv', 'spr'].reduce((a, k) => a + HCM[k] * X[k], 0))));
+  return (w - p - .07 * p * (1 - p)) * 100;
+}
 function orderLimit(r, labId, cfg) {
   const room = Math.max(0, Math.min(3, cfg.slipC ?? 1)) / 100, tick = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01;
   let top = Math.min(0.99, cfg.maxAsk ?? 0.99, +(r.ask + room).toFixed(4)), why = room ? `${(room * 100).toFixed(1).replace(/\.0$/, '')}c of room` : 'no room';
@@ -115,7 +125,7 @@ const COINS = SERIES.map(s => s.replace(/^KX|15M$/g, ''));
 // MC 2026-11-13 a price as cents for copy: whole cents as before, and a tenth when the setting has one (94.5). Request 10 let
 // the minimum and maximum price take a tenth of a cent, because about half the leaders in the history sit between two cents.
 const cts = p => { const c = Math.round(p * 1000) / 10; return Number.isInteger(c) ? String(c) : c.toFixed(1); };
-const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], lockAt2: [0, 5000], lockKeep2: [0, 90], lockAt3: [0, 5000], lockKeep3: [0, 90], lossTaper: [0, 1], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1], retryFill: [0, 1], lateBuy: [0, 1], lateZ: [1, 3], chkZ: [1, 3], labAccts: [1, 4], lateCrowd: [0, 1], lateM: [0, 0.3] };
+const BOUNDS = { sizeUsd: [5, 500], dailyLossUsd: [25, 2000], minAsk: [0.85, 0.98], maxAsk: [0.86, 0.99], coldDays: [0, 90], startUsd: [100, 1000000], mixSame: [1, 9], mixSameMax: [1, 9], mixMaxPx: [0.91, 1], mixVol: [0, 1], mixPct: [1, 10], giveBackPct: [0, 90], giveBackMin: [5, 1000], dailyWinUsd: [0, 5000], bankDdPct: [0, 50], ratchetAdd: [1, 100], ratchetEvery: [25, 5000], lockAt: [0, 5000], lockKeep: [0, 90], lockAt2: [0, 5000], lockKeep2: [0, 90], lockAt3: [0, 5000], lockKeep3: [0, 90], lossTaper: [0, 1], trendExit: [0, 1], trendKeep: [5, 95], winCap: [1, 9], slipC: [0, 3], capPb: [0, 1], retryFill: [0, 1], lateBuy: [0, 1], mpBuy: [0, 1], lateZ: [1, 3], chkZ: [1, 3], labAccts: [1, 4], lateCrowd: [0, 1], lateM: [0, 0.3] };
 // MC 2026-11-08 the lab definitions live here so the paper book and the live gate can run any of them as the active playbook.
 // filter(t) gets {px, win, z}: true take, false skip, null can't tell (no volatility reading). size(bank) only for sizing labs.
 function mixDesc(K) { const p = [], sz = K.mixSize || 'fixed';
@@ -1186,6 +1196,48 @@ export function createKalshi(state, env, keep) {
       r.res = res; r.won = res === r.side ? 1 : 0; days.add(etDay(r.close)); }
     for (const d of days) xSave(d); if (days.size) viewDirty = true;
   }
+  // MC 2026-11-22 Mitchell asked for a switch that buys a Mitch pick (the scanner's purple glow) with real money, on top of the
+  // playbook the account runs. Off unless turned on (live setting mpBuy; a book with its own rules has its own). The rule, the
+  // one backtested the same day: leader at 85c to under 96.5c, 13 down to 2 minutes left, cushion 1 or more, likely line on
+  // its side, at least 7 of the window's leaders on the same side, and the hand-buy check at +1c a contract or better. It is
+  // looked for once a minute on the minute scan, before and after the trade check but not on the check's own minute (the
+  // playbook's orders go out then, and two buyers in the same second could both take one market). The first minute a market
+  // passes, the order book is read, the rule is checked again on the real ask, and the order goes through the same path as
+  // every other live order (onRule, and buy in books.js): size, daily stops, protect profit, cash floor, window cap, bench,
+  // off hours and the coin list all hold, and the limit stays under 96.5c. One go a market: bought or refused, it is not
+  // tried again, and an account that already has an order in the market is left alone. Nothing here touches paper.
+  const MPL = { id: 'mp', name: 'Mitch pick' }, mpDone = new Map();
+  const mpOk = (cfg, cn, now) => cfg.mpBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && !offSlots(cfg).has(slotOf(now, etHour));
+  async function mpLive(out, now) {
+    const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys() || entryBusy) return;
+    if (cfgL.mpBuy !== 1 && !books.mpAny(cfgL)) return;
+    for (const [k, t] of mpDone) if (t < now) mpDone.delete(k);
+    const W = out.filter(s => s.leader && s.lask != null && s.strike > 0); let reads = 0;
+    for (const s of W) {
+      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13 || (el > 285000 && el < 345000) || mpDone.has(s.tk)) continue;
+      if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) continue;
+      const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) continue;
+      const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
+      const mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) continue;
+      let v = s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { if (++reads > 6) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); }
+      if (!v || v.src === 'stale' || v.z == null || v.z < 1 || !(v.lk > 0)) continue;
+      const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
+      if (!(edge(s.lask) >= 1)) continue;
+      const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null) continue;
+      if (!(ask >= 0.85 && ask < 0.965 - 1e-9) || !(edge(ask) >= 1)) continue;   // the real ask moved it out of the rule: look again next minute
+      mpDone.set(s.tk, s.close + 60000);
+      const avgN = walk(asks, BOOK_N), ser = series || scanSeries().find(x => coin(x) === s.coin);
+      const r = { lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]), ticker: s.tk, late: 1, mp: 1, series: ser, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya: b.yesAsks[0]?.[0] ?? null, na: b.noAsks[0]?.[0] ?? null, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };
+      say(`${s.tk} ${s.leader.toUpperCase()} at ${(ask * 100).toFixed(1)}c <- Mitch pick: ${v.z} moves clear, ${same} of ${W.filter(o => o.close === s.close).length} on its side, edge +${edge(ask).toFixed(1)}c, ${left.toFixed(1)} min left`);
+      const sends = [], missed = [];
+      if (mainWants) { const prev = L.get(s.tk); if (!prev || prev.skipped) { if (prev) L.delete(s.tk);
+        try { await onRule(r, MPL, sends, missed); } catch (e) { fail('Mitch pick order error: ' + e.message); }
+        const x = L.get(s.tk); if (!x) { if (prev) L.set(s.tk, prev); } else { x.late = 1; x.mp = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
+      await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('Mitch pick order error: ' + e.message)))), books.onLate(r, now, MPL, cfgL, cfg => mpOk(cfg, s.coin, now), cfg => coldSet(now, cfg), missed, '*').catch(e => say('books error: ' + e.message))]);
+      try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
+      resv = 0; viewDirty = true;
+    }
+  }
   // ---------- every minute: scanner, price paths, settlement ----------
   async function tick() {
     await load();
@@ -1218,6 +1270,7 @@ export function createKalshi(state, env, keep) {
     // the last answer is carried over.
     try { await scanPbRead(out, now); } catch (e) { say('scanner playbook read error: ' + e.message); }
     scan = out; scanAt = now;
+    try { await mpLive(out, now); } catch (e) { say('Mitch pick buy error: ' + e.message); }
     // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend
     // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
     const toClose = Q - (now % Q);
@@ -2258,7 +2311,7 @@ export function createKalshi(state, env, keep) {
       // MC 2026-11-13 the minimum and maximum price keep a tenth of a cent (request 10); the other prices stay whole cents
       // MC 2026-11-18 price room keeps a tenth of a cent: 1.5 was saved as 2, because every setting without its own rule is
       // rounded to a whole number. Kalshi prices move in tenths at 90c and up, so tenths are real steps here.
-      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (!isL && (k === 'slipC' || k === 'capPb' || k === 'lateBuy')) continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' || k === 'lateZ' || k === 'chkZ' || k === 'lateM' ? Math.round(v * 100) / 100 : k === 'slipC' ? Math.round(v * 10) / 10 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
+      for (const k of Object.keys(BOUNDS)) { if (isL && !LIVE_KEYS.includes(k)) continue; if (!isL && (k === 'slipC' || k === 'capPb' || k === 'lateBuy' || k === 'mpBuy')) continue; if (a[k] == null || a[k] === '') continue; const v = Number(a[k]); if (!isFinite(v)) continue; const x = Math.min(BOUNDS[k][1], Math.max(BOUNDS[k][0], k === 'minAsk' || k === 'maxAsk' ? Math.round(v * 1000) / 1000 : k === 'mixMaxPx' || k === 'lateZ' || k === 'chkZ' || k === 'lateM' ? Math.round(v * 100) / 100 : k === 'slipC' ? Math.round(v * 10) / 10 : Math.round(v))); if (x !== cur[k]) { out[k] = x; ch.push(`${k} ${cur[k]} -> ${x}`); } }
       if (Array.isArray(a.coins)) { const want = COINS.filter(x => a.coins.includes(x)); if (!want.length) return { ok: false, msg: 'Pick at least one coin.' }; const v = want.length === COINS.length ? null : want, was = cur.coins || null; if (JSON.stringify(v) !== JSON.stringify(was)) { out.coins = v; ch.push(`coins ${v ? v.join(', ') : 'all nine'}`); } }
       if (out.minAsk != null || out.maxAsk != null) { const lo = out.minAsk ?? cur.minAsk, hi = out.maxAsk ?? cur.maxAsk ?? 0.99; if (lo > hi) return { ok: false, msg: 'The maximum price can\'t be below the minimum price.' }; }
       if (out.mixSame != null || out.mixSameMax != null) { const lo = out.mixSame ?? cur.mixSame ?? 3, hi = out.mixSameMax ?? cur.mixSameMax ?? 9; if (lo > hi) return { ok: false, msg: 'Coins on the same side: the most can\'t be below the least.' }; }

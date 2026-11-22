@@ -26,7 +26,7 @@ export const BOOK_MAX = 50, BOOK_MIN = 5;
 // is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
 // day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
 // as the high does, whatever order the tiers were typed in.
-export const OWN_NEW = { lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
+export const OWN_NEW = { mpBuy: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
 export const lockTiers = c => [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
 // the level today keeps with a high of pk: null with no tiers set, on:false under the first tier, else the floor and the next tier
 export function lockLevel(c, pk) {
@@ -307,9 +307,13 @@ export function createBooks(D) {
   // already sent is left alone.
   // a book that runs later watched with the setting on and has no order in this market yet (kalshi-cloud.js lateWants)
   const lateOpen = (tk, now, cfg0, pb = 'cpl') => (list || []).some(b => { if (!b.on || D.stratAt(b.strat, now) !== pb || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
+  // MC 2026-11-22 the Mitch pick buy (kalshi-cloud.js mpLive) uses onLate with pb '*': any playbook, the book only has to have
+  // the setting on in the rules it follows. mpAny: is it on for any live book; mpOpen: a book that wants this market and has no order in it.
+  const mpAny = cfg0 => (list || []).some(b => b.on && cfgOf(b, cfg0).mpBuy === 1);
+  const mpOpen = (tk, cn, now, cfg0, ok) => (list || []).some(b => { if (!b.on || !ok(cfgOf(b, cfg0), cn, now)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
   async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null, pb = 'cpl') {
     await load();
-    await Promise.all(list.filter(b => b.on && D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb).map(async b => {
+    await Promise.all(list.filter(b => b.on && (pb === '*' || (D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb))).map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
       const prev = Lb.get(r.ticker); if (prev && !prev.skipped) return; if (prev) Lb.delete(r.ticker);
       try { await buy(b, r, lab, cfgP, benchOf(cfgP), sends, missed);
@@ -614,5 +618,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, onSettle, upkeep, afterSettle, payWait, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
+  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, onSettle, upkeep, afterSettle, payWait, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }

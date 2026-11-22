@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.76 (Nov 22, 2026): New purple-glow rule, and a switch to buy it
+- [improved] The purple Mitch pick glow has a stricter rule: the leader costs 85¢ to under 96.5¢, is at least 1 usual move clear (was 0.8), the likely line lands on its side, at least 7 of the 9 coins lean the same way, the Check says +1¢ or better, and there are 2 to 13 minutes left. It glows far less often. The Backtest's Mitch pick row is this rule now: over Aug 21 to Nov 21 at quoted prices it won 92.9% at 90.4¢, positive in every month. The first rule made a small loss over the same months.
+- [new] Live settings has "Buy Mitch picks", off unless you turn it on. With it on, the tracker buys a coin with real money the first minute it meets the purple-glow rule, on top of whatever playbook the account runs. It looks once a minute from 13 minutes left down to 2, before and after the trade check but not on the check's own minute. One buy a market, never a market the account already has an order in, and the order stays under 96.5¢. Size, daily stops, protect profit, cash floor, window cap, bench, coin list, time off and the pause all apply. Subaccounts that follow Main's rules follow this too; one with its own rules has its own switch. These buys show in Trades with the playbook "Mitch pick".
+
 ## 1.3.75 (Nov 22, 2026): The proposed purple-glow rule in the Backtest
 - [new] The Backtest has a "Mitch pick, new rule" row: the rule proposed for the scanner's purple glow, tested before it goes on. It buys the first minute from 13 down to 3 minutes left that the leader costs 85¢ to under 96.5¢, is at least 1 usual move clear, the likely line is on its side, at least 7 of the 9 coins lead the same way and the hand-buy check says +1¢ a contract or better. The glow itself has not changed yet.
 
