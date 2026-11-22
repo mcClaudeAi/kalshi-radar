@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.62 (Nov 21, 2026): Mitch pick in the Backtest
+- [new] The Backtest has a Mitch pick row: the purple coin on the scanner, bought at the first minute from 12 down to 3 minutes left that it qualifies (leader at 85¢ to 96.5¢, at least 0.8 usual moves clear of its target, likely line on its side), one buy a market, at quoted prices from Aug 21 on. It opens by month, week and day like the other rows and exports the same way.
+
 ## 1.3.61 (Nov 21, 2026): Highlight colours mean the same in every theme
 - [fixed] The coin highlight colours followed each theme's accents, so in some themes the key fell apart: in Amber, Bullion, Ember and Greenback "bot would buy" and "bot passes" were both gold, in Terminal "would buy" and "strong setup" were the same green, and in Amethyst "would buy" looked like a Mitch pick. They are now one fixed set in every theme: blue for bot would buy, amber for bot passes, green for strong setup or a bot buy, purple for Mitch pick, with darker shades that read on the light themes. The window bar's ticks follow the same rule (teal for the early checks, blue for the trade check), and the rows, their tags and the key always match.
 
