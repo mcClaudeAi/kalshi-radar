@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.56 (Nov 21, 2026): Mitch pick, and a colour key
+- [new] Mitch pick: a coin glows bright purple on the scanner when it matches the hand buys that kept winning. The leader costs 85¢ to 96¢, it is at least 0.8 usual moves clear of the target, and the likely line lands on its side, with 2 to 13 minutes left and nobody holding it yet. The row also gets a purple Mitch pick tag, the coin box shows one beside the hand-buy check, and purple shows over the row's other colours so it is never hidden. Hiding passed coins keeps a Mitch pick on screen.
+- [new] A colour key under the window bar on the Live board: the early checks, the trade check and now on the bar, and what each coin colour means (bot would buy, bot passes, strong setup or bot buy, Mitch pick). Hover an item on a computer for more.
+
 ## 1.3.55 (Nov 21, 2026): Final-minute prices fit on a phone
 - [fixed] In a position's final minute, the Target, Avg so far and Now prices on the right of the chart were cut off on a phone for Bitcoin (60,163.99 is wider than the space kept for it). That column now widens to fit the longest price.
 
