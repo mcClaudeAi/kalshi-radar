@@ -3901,10 +3901,14 @@ function kxHideP(){KX.hideP=!KX.hideP;try{localStorage.setItem('kx-hidep',KX.hid
 function kxHidePBtn(el){const b=$('#kxhidep');if(!b)return;const n=el.querySelectorAll('.kx-sb.past:not(.qg):not(.tkn):not(.mm)').length;el.classList.toggle('hidep',!!KX.hideP);b.hidden=!n;b.classList.toggle('on',!!KX.hideP);const t=KX.hideP?`Show ${n} passed`:'Hide passed';if(b.textContent!==t)b.textContent=t;b.title=KX.hideP?'Show the coins the trade check passed on or skipped this window':'Hide the coins the trade check passed on or skipped this window'}
 function kxScan(){const el=$('#kxscan');if(!el)return;const L=KX.live,K=ST.D?.kalshi||{},c=K.cfg||{},minAsk=c.minAsk||.9;
   // MC 2026-11-09 board rows sorted by leader price so what is about to qualify floats to the top; alphabetical was the old order
-  // MC 2026-11-21 asked: Mitch picks go to the very top so they are seen first. Read once here (every poll) and kept in KX.mm so
-  // the row's purple and its place in the list always agree.
-  const nowS=Date.now();KX.mm={};for(const s of L?.scan||[])KX.mm[s.tk]=s.close>nowS&&kxMitch(s);
-  const sc=(L?.scan||[]).slice().sort((a,b)=>(KX.mm[b.tk]-KX.mm[a.tk])||((b.lask??-1)-(a.lask??-1))||(a.coin<b.coin?-1:1));
+  // MC 2026-11-21 asked: every highlighted row goes above the plain ones, Mitch picks first: purple, then what the bot holds,
+  // a later buy (buy now), would buy, strong setup, would take (bot passes), then the rest by price. Purple and strong setup are
+  // read here once a poll and kept (KX.mm, KX.hot) so a row's colour and its place always agree.
+  const nowS=Date.now(),own0=new Set(kxOpen().map(o=>o.tk)),rk={};KX.mm={};KX.hot={};
+  for(const s of L?.scan||[]){const op=s.close>nowS,q=s.lask!=null&&s.lask>=minAsk,past=nowS>=s.close-600000,own=s.taken==='rule'&&own0.has(s.tk),buy=q&&!own&&kxPbBuy(s);
+    KX.mm[s.tk]=op&&kxMitch(s);KX.hot[s.tk]=op&&kxRdHot(s);
+    rk[s.tk]=KX.mm[s.tk]?0:own?1:q&&past&&kxLateBuy(s)?2:buy&&!past?3:KX.hot[s.tk]?4:q&&!past?5:6}
+  const sc=(L?.scan||[]).slice().sort((a,b)=>(rk[a.tk]-rk[b.tk])||((b.lask??-1)-(a.lask??-1))||(a.coin<b.coin?-1:1));
   if(!sc.length){el.innerHTML='<div class="empty">Waiting for the tracker\'s first scan…</div>';return}
   const sig=sc.map(s=>s.tk).join(',');
   if(el.dataset.sig!==sig){el.dataset.sig=sig;el.innerHTML=sc.map(s=>`<div class="kx-sb" data-coin="${esc(s.coin)}" data-tk="${esc(s.tk)}" role="button" tabindex="0" title="Open ${esc(s.coin)}'s live chart" onclick="kxCoinView('${esc(s.tk)}')" onkeydown="if(event.key==='Enter'&&event.target===this)kxCoinView('${esc(s.tk)}')"><div class="kx-sbc"><b>${esc(s.coin)}</b><span data-k="t">–</span></div><div class="kx-sbl" data-k="lead"></div><div class="kx-sbs" data-k="sp"></div><div class="kx-sbp"><b data-k="px">–</b><span data-k="mg">–</span></div><div class="kx-sbg"><em class="l">-0.4%</em><em class="c">target ${kxFmt(s.strike,s.strike)}</em><em class="r">+0.4%</em><div class="t"><i data-k="g" style="left:50%;width:0"></i></div></div><div class="kx-sbr" data-k="rd"></div><div class="kx-sbx" data-k="hand"></div></div>`).join('')}
@@ -3975,7 +3979,7 @@ function kxFrame(force){if(!KX.on)return;if($('#kxck'))ckPaint(force);const el=$
   const sel=$('#kxscan');if(sel&&(force||KX.frame%4===0)){for(const s of KX.live?.scan||[]){const t=sel.querySelector(`[data-tk="${CSS.escape(s.tk)}"]`);if(!t)continue;const p=KX.px[s.coin],px=p?.last??s.last??null;const mark=s.close-10*60000,left=mark-now;
       t.querySelector('[data-k=t]').textContent=left>0?'mark in '+kxCd(left):s.close>now?'settles '+kxCd(s.close-now):'settling';const pe=t.querySelector('[data-k=px]');const nt=kxFmt(px,s.strike);
       if(pe.textContent!==nt){const was=parseFloat(pe.dataset.v||'');pe.textContent=nt;if(px!=null&&isFinite(was)&&was!==px){pe.classList.remove('up','dn');void pe.offsetWidth;pe.classList.add(px>was?'up':'dn')}}if(px!=null)pe.dataset.v=px;
-      const re=t.querySelector('[data-k=rd]');if(re&&(force||KX.frame%8===0)){const hot=s.close>now&&kxRdHot(s),mm=s.close>now&&(KX.mm?.[s.tk]??kxMitch(s));t.classList.toggle('mm',!!mm);const h=s.close>now?(mm?`<span class="kx-rd mm" title="${esc(KXMM)}"><b>Mitch pick</b></span>`:'')+(hot?'<span class="kx-rd hot" title="Every reading lines up: a wide cushion, a price from 85¢ to under 95¢, a win chance at least as high as the price, a path that is not a straight run, and the coins agreeing. A strong reading, not a promise."><b>Strong setup</b></span>':'')+kxRdChips(s):'';t.classList.toggle('hot',!!hot);if(re.dataset.h!==h){re.dataset.h=h;re.innerHTML=h}}
+      const re=t.querySelector('[data-k=rd]');if(re&&(force||KX.frame%8===0)){const hot=s.close>now&&(KX.hot?.[s.tk]??kxRdHot(s)),mm=s.close>now&&(KX.mm?.[s.tk]??kxMitch(s));t.classList.toggle('mm',!!mm);const h=s.close>now?(mm?`<span class="kx-rd mm" title="${esc(KXMM)}"><b>Mitch pick</b></span>`:'')+(hot?'<span class="kx-rd hot" title="Every reading lines up: a wide cushion, a price from 85¢ to under 95¢, a win chance at least as high as the price, a path that is not a straight run, and the coins agreeing. A strong reading, not a promise."><b>Strong setup</b></span>':'')+kxRdChips(s):'';t.classList.toggle('hot',!!hot);if(re.dataset.h!==h){re.dataset.h=h;re.innerHTML=h}}
       const g=t.querySelector('[data-k=g]');if(g){const mgv=s.strike&&px!=null?(px-s.strike)/s.strike:0,f=Math.min(1,Math.abs(mgv)/.004)*50;g.className=mgv<0?'neg':'';g.style.left=mgv<0?(50-f)+'%':'50%';g.style.width=f+'%'}
       const mg=s.strike&&px!=null?(px-s.strike)/s.strike:null,me=t.querySelector('[data-k=mg]');me.textContent=mg==null?'':(mg>=0?'+':'')+(mg*100).toFixed(Math.abs(mg)<.001?3:2)+'% vs target';me.className=mg==null?'':mg>=0?'pos':'neg';
       const S=kxSeries(s.coin,s.open);t.querySelector('[data-k=sp]').innerHTML=kxSpark(S,120,26,mg==null?'var(--mute)':mg>=0?'var(--good)':'var(--bad)')}}
@@ -5793,7 +5797,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.57',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.58',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

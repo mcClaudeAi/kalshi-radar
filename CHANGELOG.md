@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.58 (Nov 21, 2026): Every highlighted coin at the top
+- [improved] The scanner puts every highlighted coin above the plain ones: Mitch picks first, then coins the bot holds, later buys (buy now), would buy, strong setups and would take (bot passes). Plain coins follow, sorted by leader price as before.
+
 ## 1.3.57 (Nov 21, 2026): Mitch picks at the top
 - [improved] Coins glowing purple (Mitch pick) move to the top of the scanner, ahead of the rest, which stay sorted by leader price. The glow and the order are read together on every update, so a coin is never purple in the middle of the list.
 
