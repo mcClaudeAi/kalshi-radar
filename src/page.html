@@ -3377,8 +3377,9 @@ function kxLk(s,side){const v=KX.v1h[s.coin],px=KX.px[s.coin]?.last;if(!v?.cl||!
   if(now>T[T.length-1][0])T.push([Math.min(now,T[T.length-1][0]+90),px]);else T[T.length-1][1]=px;
   const A=T.slice(-4),m=A.length,mx=A.reduce((a,q)=>a+q[0],0)/m,my=A.reduce((a,q)=>a+q[1],0)/m;let sxy=0,sxx=0;for(const q of A){sxy+=(q[0]-mx)*(q[1]-my);sxx+=(q[0]-mx)**2}
   if(!(sxx>0))return null;const e=px+sxy/sxx*130*(1-Math.exp(-600/130));return (side==='yes'?e-s.strike:s.strike-e)/s.strike}
-const KXMM='Mitch pick: the pattern behind the hand buys that kept winning. The leader costs 85¢ to 96¢, is at least 0.8 usual moves clear of the target, and the likely line lands on its side, with 2 to 13 minutes left. A pattern from a week of hand buys, not a promise.';
-function kxMitch(s){if(!s?.leader||s.lask==null||s.lask<.85||s.lask>.965)return false;const left=(s.close-Date.now())/60000;if(left<2||left>13)return false;
+const KXMM='Mitch pick: the pattern behind the hand buys that kept winning. The leader costs 85¢ to under 96.5¢ (never one showing 97¢), is at least 0.8 usual moves clear of the target, and the likely line lands on its side, with 2 to 13 minutes left. A pattern from a week of hand buys, not a promise.';
+// leader read 97¢ with the purple glow on. The top is now under 96.5: nothing that shows as 97¢ can glow.
+function kxMitch(s){if(!s?.leader||s.lask==null||s.lask<.85||s.lask>=.965-1e-9)return false;const left=(s.close-Date.now())/60000;if(left<2||left>13)return false;
   const r=kxRd(s);if(!r||r.z==null||r.z<.8)return false;const lk=kxLk(s,s.leader);return lk!=null&&lk>0&&!kxHeld(s)}
 function kxRdHot(s){const r=kxRd(s);if(!r||r.z==null||r.w==null||r.ask==null||r.r2==null||s.close-Date.now()<20000)return false;
   if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)&&!(r.dp!=null&&r.dp<=-2)))return false;
@@ -5713,7 +5714,7 @@ const KXH={
    ['Path',`How the coin got here: a straight run, steady or choppy. For information only. It did not hold up as a signal.`],
    ['Coins',`How many of the 9 coins lean the same way. All agreeing has been a good sign. "Split" means they disagree.`],
    ['Strong setup',`Every reading lines up at once: wide cushion, a price from 85¢ to under 95¢, a win chance at least as high as the price, and the coins agreeing.`],
-   ['Mitch pick',`The leader costs 85¢ to 96.5¢, is at least 0.8 usual moves clear, its likely line lands on its side, and there are 2 to 13 minutes left.`]]]]],
+   ['Mitch pick',`The leader costs 85¢ to under 96.5¢, is at least 0.8 usual moves clear, its likely line lands on its side, and there are 2 to 13 minutes left.`]]]]],
  kcock:[`One coin, close up, for watching a trade second by second. Pick the coin from the strip on top.`,[
   ['What you are looking at',[
    ['Live price',`The coin's price as it trades on Coinbase, updated all the time.`],
@@ -6038,7 +6039,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.66',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.67',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.67 (Nov 21, 2026): Mitch pick stops under 96.5¢
+- [fixed] A leader at exactly 96.5¢ still got the purple Mitch pick glow, and because the row shows whole cents it read 97¢. The top of the range is now under 96.5¢, so a coin showing 97¢ never glows purple.
+
 ## 1.3.66 (Nov 21, 2026): No more straight slope across the middle of a chart
 - [fixed] A coin's chart could show a dead straight slope across several minutes in the middle of the window, with the page open the whole time. The live price feed had gone quiet for that coin, and the chart joined the last price before the hole to the first one after it. Earlier fixes only refilled the part before the page opened or after coming back to the app. Any hole of 30 seconds or more in the live prices is now filled from Coinbase's trade history, which is fetched again when it does not reach the hole. A coin that really did not trade for a while still draws flat.
 
