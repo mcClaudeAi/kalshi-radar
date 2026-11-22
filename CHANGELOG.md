@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.71 (Nov 22, 2026): The last minute is judged on the index Kalshi settles on
+- [new] A card could show a coin winning through the whole last minute and Kalshi would settle it lost. The page judged the last minute on Coinbase's price alone; Kalshi settles on CF Benchmarks' index, an average across several exchanges, and on a coin that trades thinly on Coinbase the two can end on opposite sides of the target. The tracker now reads that index from Kalshi itself for the 75 seconds around each close, while a dashboard is open. The last-minute chart, the 60-second average, the win chance and the won or lost call use the index and Kalshi's own running settlement average while it is arriving. The chart's footnote says whether it is counting on Kalshi's index or on Coinbase.
+- [new] Live account, under Kalshi API level, shows whether the settlement index feed is working, or the reason Kalshi gave for refusing it. If it is refused, the last minute stays on Coinbase prices as before and it is tried again every 10 minutes.
+
 ## 1.3.70 (Nov 22, 2026): Check flags saved with every buy, shorter trade stories, All accounts readable on a phone
 - [new] The tracker now keeps the scanner's check flags with every buy, as they stood at that moment: Check, Swing, Last window, Cushion, Path, Coins and the minutes left. They show under a trade in Trades as "At the buy", for Main and every subaccount, paper and live. Trades from before this update show the ones their record still has (cushion, swing and path). Win chance is not kept: it is worked out from the live prices in the browser.
 - [improved] A trade's story is much shorter. It leads with one line for the market and target, the flags at the buy, one line for the trade (contracts, price, cost, payout) and the result. The long paragraphs (order, fill, each check) are folded under "Full details", which stays open once you open it.

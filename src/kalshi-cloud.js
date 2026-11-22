@@ -904,7 +904,7 @@ export function createKalshi(state, env, keep) {
       // the minute-10 check from the paper record of the same market (m10: sale price, best bid, trend direction, share of lead kept)
       recent: all.slice(0, 150).map(x => { const rr = rec.get(x.tk), e = rr?.exit || (rr?.m10 ? { ...rr.m10, dir: null } : null); return { fl: x.fl || flOf(rr) || null, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, want: x.want ?? null, fill: x.fill ?? 0, px: x.px ?? null, paperPx: x.paperPx, cost: x.cost ?? null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, err: x.err || null, skipped: x.skipped || null, mres: rr?.result === 'yes' || rr?.result === 'no' ? rr.result : null, sold: x.sold || null, strat: x.strat || null, hand: x.hand || null, late: x.late || null, was: x.was || null, strike: x.strike ?? null, title: x.title || null, final: x.final ?? null,
         ask: x.ask ?? null, limit: x.limit ?? null, limWhy: x.limWhy || null, size: x.size ?? null, fees: x.fees ?? null, sent: x.sent ?? null, rtt: x.rtt ?? null, again: x.again || 0, missAsk: x.missAsk ?? null, missQty: x.missQty ?? null, m10: e ? [e.px ?? null, e.best ?? null, e.dir, e.keep ?? null, e.pct] : null }; }),
-      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), api: apiV, vault: vault.view(), logos: Object.fromEntries(Object.entries(klogos).map(([k, x]) => [k, x.at])) };
+      playbook: { id: stratAt(c.strat, Date.now()), since: stratSince(c.strat, Date.now()), log: (c.strat || []).slice(-12) }, books: books.view(), idx: idxInfo(), api: apiV, vault: vault.view(), logos: Object.fromEntries(Object.entries(klogos).map(([k, x]) => [k, x.at])) };
   }
 
   // ---------- the rule: record the leader at the 10-minute mark ----------
@@ -1343,6 +1343,56 @@ export function createKalshi(state, env, keep) {
   }
   // the next wake: the next 10-minute mark, or sooner when one of our trades just closed or is still waiting on its result
   // ---------- 30 seconds before each close: what every coin's leader could be bought for ----------
+  // MC 2026-11-22 Mitchell: a BNB card showed 100% winning through the last minute and Kalshi settled it lost. The page judges the
+  // last minute on Coinbase's price alone; Kalshi settles on CF Benchmarks' index, an average across several exchanges, and
+  // on a coin that trades thinly on Coinbase the two can sit on opposite sides of the target. Kalshi's API streams that index
+  // itself (websocket channel cfbenchmarks_value: the value about once a second, a trailing 60-second average, and in the
+  // last minute before each quarter hour the running average the market settles on). The tracker reads it for the 75 seconds
+  // around each close, only while a page is asking, and hands it to the page (/api/kidx), which then draws and calls the last
+  // minute from the index. If Kalshi refuses the feed the page stays on Coinbase and says so, and the reason shows on Live account.
+  // The docs give the socket host without a path, so the known Trade API socket is tried first, then the two forms the docs
+  // allow; the one that answers is remembered. Not tried again for 10 minutes after every form is refused.
+  const IDX = { BTC: 'BRTI', ETH: 'ETHUSD_RTI', SOL: 'SOLUSD_RTI', XRP: 'XRPUSD_RTI', DOGE: 'DOGEUSD_RTI', BNB: 'BNBUSD_RTI', HYPE: 'HYPEUSD_RTI', ZEC: 'ZECUSD_RTI', NEAR: 'NEARUSD_RTI' }, IDXC = Object.fromEntries(Object.entries(IDX).map(([c, i]) => [i, c]));
+  const IDXW = [['https://api.elections.kalshi.com/trade-api/ws/v2', '/trade-api/ws/v2'], ['https://external-api-ws.kalshi.com/trade-api/ws/v2', '/trade-api/ws/v2'], ['https://external-api-ws.kalshi.com/', '/']];
+  const ix = { ws: null, st: 'off', why: null, d: {}, until: 0, retryAt: 0, cand: 0, busy: false, tick: 0, ok: 0 };
+  function idxMsg(ev) {
+    let j; try { j = JSON.parse(typeof ev.data === 'string' ? ev.data : new TextDecoder().decode(ev.data)); } catch { return; }
+    if (j.type === 'error') { ix.why = String(j.msg?.msg || j.msg?.code || 'error').slice(0, 140); return; }
+    if (j.type !== 'cfbenchmarks_value' && j.type !== 'cfbenchmarks_value_5hz') return;
+    const m = j.msg || {}, c = IDXC[m.index_id]; if (!c) return; let raw = null; try { raw = typeof m.data === 'string' ? JSON.parse(m.data) : m.data; } catch { }
+    const v = Number(raw?.value), t = Number(raw?.time) || Number(m.received_at) || Date.now(); if (!(v > 0)) return;
+    const o = ix.d[c] || (ix.d[c] = { s: [] }), sec = Math.floor(t / 1000); o.v = v; o.t = t; o.a = Number(m.avg_60s_data?.value) || null;
+    const f = m.last_60s_windowed_average_15min; if (f && Number(f.value) > 0) o.f = { v: Number(f.value), n: Number(f.window_size) || 0, q: Math.round(Number(f.window_end_ts_exclusive || t) / Q) * Q };
+    if (o.s.length && o.s[o.s.length - 1][0] >= sec) o.s[o.s.length - 1][1] = v; else o.s.push([sec, v]); if (o.s.length > 150) o.s.splice(0, o.s.length - 150);
+    ix.tick = Date.now(); ix.st = 'on'; ix.why = null; ix.ok = ix.tick;
+    if (Date.now() > ix.until) idxClose();
+  }
+  function idxClose() { const w = ix.ws; ix.ws = null; if (ix.st !== 'refused') ix.st = 'off'; try { w?.close(1000, 'done'); } catch { } }
+  async function idxOpen(until) {
+    ix.until = Math.max(ix.until, until); if (ix.ws || ix.busy || !hasKeys() || Date.now() < ix.retryAt) return; ix.busy = true; const seen = [];
+    try {
+      for (let i = 0; i < IDXW.length && !ix.ws; i++) { const [url, path] = IDXW[(ix.cand + i) % IDXW.length];
+        try { const r = await fetch(url, { headers: { Upgrade: 'websocket', ...(await sign('GET', path)) }, signal: AbortSignal.timeout(4000) }), w = r.webSocket;
+          if (!w) { seen.push(r.status); continue; }
+          const t0 = Date.now(); w.accept(); ix.ws = w; ix.cand = (ix.cand + i) % IDXW.length; ix.st = 'waiting';
+          w.addEventListener('message', idxMsg); w.addEventListener('close', () => { if (ix.ws === w) { ix.ws = null; if (ix.st !== 'refused') ix.st = 'off'; } }); w.addEventListener('error', () => { if (ix.ws === w) { ix.ws = null; ix.st = 'off'; } });
+          w.send(JSON.stringify({ id: 1, cmd: 'subscribe', params: { channels: ['cfbenchmarks_value'], index_ids: Object.values(IDX) } }));
+          setTimeout(() => { if (ix.ws === w && Date.now() >= ix.until) idxClose(); else if (ix.ws === w) setTimeout(() => { if (ix.ws === w) idxClose(); }, Math.max(1000, ix.until - Date.now())); }, Math.max(1000, ix.until - Date.now()));
+          // connected but nothing in 6 seconds: the account is not let on this channel (or the reason Kalshi sent is in why)
+          setTimeout(() => { if (ix.ws === w && ix.tick < t0) { ix.st = 'refused'; ix.why = ix.why || 'connected, but Kalshi sent no index values'; ix.retryAt = Date.now() + 600000; idxClose(); } }, 6000);
+        } catch (e) { seen.push(String(e.message || e).slice(0, 40)); } }
+      if (!ix.ws) { ix.st = 'refused'; ix.why = 'Kalshi did not open the index feed (' + seen.join(', ') + ')'; ix.retryAt = Date.now() + 600000; say('index feed: ' + ix.why); }
+    } finally { ix.busy = false; }
+  }
+  // what the page asks for once a second in the last minute: the coins it is showing, each with its last value, Kalshi's running
+  // settlement average and the last 90 one-second values
+  function idxView(coins) {
+    const now = Date.now(), c = Math.ceil(now / Q) * Q, left = c - now, prev = now - (c - Q);
+    if (left <= 80000) idxOpen(c + 8000).catch(() => { }); else if (prev <= 8000) idxOpen(c - Q + 8000).catch(() => { });
+    const out = {}; for (const k of String(coins || '').split(',').filter(x => IDX[x]).slice(0, 9)) { const o = ix.d[k]; if (o && now - o.t < 120000) out[k] = { v: o.v, t: o.t, a: o.a, f: o.f || null, s: o.s.slice(-90) }; }
+    return { at: now, st: ix.st, why: ix.why, d: out };
+  }
+  const idxInfo = () => ({ st: ix.st, why: ix.why, ok: ix.ok || null });
   async function lastLook(now, close) {
     const one = async s => { const m = mkMem.get(s); if (!m || Date.parse(m.close_time) !== close || lsRows.some(r => r.tk === m.ticker)) return null;
       const b = book(await get(`/markets/${m.ticker}/orderbook`)), ya = b.yesAsks[0]?.[0], na = b.noAsks[0]?.[0]; if (ya == null || na == null) return null;
@@ -2475,5 +2525,5 @@ export function createKalshi(state, env, keep) {
     return out.sort((a, b) => a.close - b.close); };
   const tradeAt = async (close, coin) => { await load(); if (!tradesMem) kalshiView(); return (tradesMem || []).find(t => t.close === close && t.coin === coin && !t.late) || null; };
   const labRows = async id => { await load(); if (!labRowsMem) kalshiView(); return labRowsMem?.[id] ?? null; };
-  return { buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, logoSet, logoOf, lastLook, lsRows: () => lsRows, xRows: () => xRows, nextAlarmAt: now => nextAlarm(now), paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
+  return { idxView, buyQuote: (tk, side, bk) => bk === 'paper' ? paperBuyQuote(tk, side) : buyQuote(tk, side), sellQuote: (tk, bk) => bk === 'paper' ? paperSellQuote(tk) : sellQuote(tk), pathOf, pathsOf, btRows, logoSet, logoOf, lastLook, lsRows: () => lsRows, xRows: () => xRows, nextAlarmAt: now => nextAlarm(now), paid: PAID, tradeAt, labRows, events, scanQuick, liveJson, liveAll, tick, alarm, entry, command, importRows, publish, load, status, checkKeys, resetKey, coins: COINS, _t: { fund, ctl, volCalc, trendFill, settleSome, settleH, secondLook, l2: () => l2log, onSettle, cashLive, missCheck, pathFill, gapWatch, gapFill, gaps: () => gaps, compact, saveRec, saveRec3, dropT, sql, books, keepFill, trendCheck, minute10, settle3, rec3: () => rec3, volRepair, secondLook, settle2, rec2: () => rec2, kalshiView, kliveBody, liveView, rec: () => rec, L: () => L, st, nextMark, onRule, sign, logs } };
 }
