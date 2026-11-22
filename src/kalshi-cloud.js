@@ -102,8 +102,22 @@ const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw
 // MC 2026-11-22 the hand-buy check's edge (page.html KXM, kxHcEst), here for the Mitch pick buy: its win chance for a leader
 // less the price and Kalshi's fee, in cents a contract. r: ask, z cushion, dp deepest dip, pv last window same way, spr spread
 // in cents, left minutes. A reading that is missing takes its usual value at that price.
-const HCM = { c0: .2929, lp: .7726, z: .6225, spr: -.0336, pv: -.0535, dp: .0956, lf: -.0397 }, HCR = { z: [.1914, .3266], spr: [2.7108, -.69], pv: [.4947, 0], dp: [-1.0711, .0482] };
-export function hcEdge(r) {
+const HCM0 = { c0: .2929, lp: .7726, z: .6225, spr: -.0336, pv: -.0535, dp: .0956, lf: -.0397 }, HCR0 = { z: [.1914, .3266], spr: [2.7108, -.69], pv: [.4947, 0], dp: [-1.0711, .0482] };
+// MC 2026-11-22 Mitchell asked whether the check learns from each day's charts. It did not, the weights above were typed in
+// once. They are now refitted every night on the public repo (research/edge/checkfit.py: readings from the last 60 days, the
+// price curve from the last 30, a rolling window) and read from there once an hour (checkFetch). In a walk-forward test over
+// the last 47 days the typed-in kind made +1.37c a contract on the buys rated +1c or better and faded as it aged (+1.71c the
+// first half, +1.05c the second); refitted nightly it made +1.90c, the same in both halves. Mitchell chose to have it live at
+// once with no setting. Safeguards: the nightly job moves no weight more than 10% a night and writes nothing if the fit is
+// outside its sanity bounds; here a file that is malformed, out of bounds or more than 6 days behind is ignored and the
+// typed-in weights above are used, which is also what happens before the first read. HCL is the fit in use, null for typed-in.
+let HCL = null;
+const hcOk = (j, now) => { const m = j?.m, r = j?.r, fin = v => typeof v === 'number' && isFinite(v); if (j?.v !== 1 || !m || !r || !j.to) return false;
+  if (!['c0', 'lp', 'z', 'spr', 'pv', 'dp', 'lf'].every(k => fin(m[k])) || !['z', 'spr', 'pv', 'dp'].every(k => Array.isArray(r[k]) && fin(r[k][0]) && fin(r[k][1]))) return false;
+  if (!(m.lp >= 0.4 && m.lp <= 1.3 && m.z >= 0.2 && m.z <= 1.2 && m.c0 >= -0.5 && m.c0 <= 1.2 && Math.abs(m.spr) <= 0.3 && Math.abs(m.pv) <= 0.5 && Math.abs(m.dp) <= 0.5 && Math.abs(m.lf) <= 0.2)) return false;
+  return now - Date.parse(j.to + 'T23:59:59Z') < 6 * 86400000; };
+export function hcSet(j, now = Date.now()) { HCL = hcOk(j, now) ? { m: j.m, r: j.r } : null; return !!HCL; }
+export function hcEdge(r) { const HCM = HCL?.m || HCM0, HCR = HCL?.r || HCR0;
   const p = r.ask; if (!(p > 0 && p < 1) || r.z == null) return null; const lp = Math.log(p / (1 - p)), cl = (v, lo, hi) => Math.min(hi, Math.max(lo, v)), rf = k => HCR[k][0] + HCR[k][1] * lp;
   const X = { z: cl(r.z, -1, 3), dp: r.dp == null ? rf('dp') : cl(r.dp, -4, 0), pv: r.pv == null ? rf('pv') : r.pv ? 1 : 0, spr: r.spr == null ? rf('spr') : cl(r.spr, 0, 5) };
   const w = 1 / (1 + Math.exp(-(HCM.c0 + HCM.lp * lp + HCM.lf * cl(r.left, 3, 13) + ['z', 'dp', 'pv', 'spr'].reduce((a, k) => a + HCM[k] * X[k], 0))));
@@ -481,6 +495,7 @@ export function createKalshi(state, env, keep) {
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.key || j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     edgeS = (await kv.get('kedge')) || { seen: {}, mon: {} }; EDGE_FOUND = edgeS.latest?.found || [];
+    checkS = (await kv.get('kcheck')) || {}; hcSet(checkS.j);
     { const l = await kv.get('kcfgL'); if (l) cfgL = { ...pickL(PAPER_DEF), ...l }; else { cfgL = pickL(cfgP); await kv.put('kcfgL', cfgL); } }
     ctlL = { enabled: false, sizeUsd: 10, dailyLossUsd: 100, sellAllAt: 0, ...((await kv.get('kctl')) || {}) };
     apiV = (await kv.get('kapi')) || null;
@@ -1292,6 +1307,7 @@ export function createKalshi(state, env, keep) {
     try { compact(now); } catch (e) { console.log('compact: ' + e.message); }
     try { await gapWatch(now); } catch (e) { console.log('gap watch: ' + e.message); }
     try { await edgeFetch(now); } catch (e) { console.log('edge search: ' + e.message); }
+    try { await checkFetch(now); } catch (e) { console.log('check fit: ' + e.message); }
     // a missed mark (alarm didn't fire) is caught here up to a minute late
     const mk = nextMark(now) - Q; if (now - mk < 60000 && st.lastMark < mk) await entry(now);
     for (const s of activeSeries()) {
@@ -1624,6 +1640,15 @@ export function createKalshi(state, env, keep) {
       eq.push({ book: 'live', kind: 'edge', tag: 'kedge-' + e.id, url: '/', title: e.kind === 'better' ? 'New edge found: better than your rule' : 'New edge found: extra trades alongside your rule',
         body: `${e.label}. On the last 30 days, which it was not picked on: ${h.n} trades, won ${h.won}%, $${(+h.usdDay).toFixed(2)} a day at $20${e.kind === 'better' ? ` ($${(+e.gain).toFixed(2)} a day more than your rule)` : ''}. ${e.family === 'A' ? 'It is on Labs as a paper line now.' : 'It needs a playbook built before it can run.'}` }); }
     await kv.put('kedge', edgeS);
+  }
+  // the buy check's nightly weights (hcEdge above). Read once an hour; kept in kv 'kcheck' so a restart has them at once.
+  let checkS = {};
+  const CHECK_URL = 'https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/research-data/edges/check.json';
+  async function checkFetch(now) {
+    if (now - (checkS.at || 0) < 3600000) { hcSet(checkS.j, now); return; } checkS.at = now;   // the age test runs each time, so a fit that has gone stale drops out
+    const r = await fetch(CHECK_URL + '?t=' + Math.floor(now / 3600000), { headers: { 'user-agent': 'kalshi-radar' } });
+    if (r.ok) { const j = await r.json(); if (hcOk(j, now)) { if (checkS.j?.at !== j.at) say(`check weights refitted: ${j.from} to ${j.to}, ${j.n} readings`); checkS.j = { v: 1, at: j.at, from: j.from, to: j.to, days: j.days, curve: j.curve, n: j.n, m: j.m, r: j.r, b: j.b, buy: j.buy, score: (j.score || []).slice(-30) }; viewDirty = true; } else say('check weights: the nightly file failed its checks, keeping ' + (HCL ? 'the last good fit' : 'the typed-in weights')); }
+    hcSet(checkS.j, now); await kv.put('kcheck', checkS);
   }
   function edgeMonOf(now) {
     const W = 7 * 86400000, sum = l => { const n = l.length, w = l.filter(x => x.won).length, ap = n ? l.reduce((a, x) => a + x.px, 0) / n : 0;
@@ -2266,7 +2291,7 @@ export function createKalshi(state, env, keep) {
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
       look2sum: l2sum ? { since: l2sum.since, size: +cfgP.sizeUsd || 50, h: Object.entries(l2sum.h).map(([k, v]) => [+k, ...v]).sort((a, b) => a[0] - b[0]), d: Object.entries(l2sum.d).map(([k, v]) => [k, ...v]).sort((a, b) => a[0] < b[0] ? -1 : 1) } : null,
       look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), chartfill: (() => { const now = Date.now(); let left = 0, oldest = null; for (const r of rec.values()) { if (!r.vol || !(r.strike > 0) || r.at < now - 21 * 86400000 || r.at > now - 120000) continue; if (r.vol.dp === undefined && (r.vol.tlTry || 0) < 2) left++; else if (r.vol.dp != null && (oldest == null || r.at < oldest)) oldest = r.at; } return { left, oldest }; })(),
-      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs, edge: { mon: edgeMonOf(Date.now()), search: edgeS.latest || null },
+      volfix: (() => { let fixed = 0, left = 0; for (const r of rec.values()) { const v = r.vol; if (v?.fixed) fixed++; else if (v ? ((v.age == null || v.src === 'stale') && !v.chk && (v.rt || 0) < 3) : (r.ask >= KEEP_ASK && r.strike > 0 && (r.vrt || 0) < 3 && r.at > Date.now() - 7 * 86400000)) left++; } return { fixed, left }; })(), learn: learnView(trades, K), pending: trades.filter(t => !t.done && !t.capped).slice(-12), recent: trades.filter(t => t.done || t.capped).slice(-60).reverse(), where: 'cloud', logs: logs.slice(-20), labs, edge: { mon: edgeMonOf(Date.now()), search: edgeS.latest || null }, check: HCL && checkS.j ? checkS.j : null,
       playbook: { id: stratAt(K.strat, Date.now()), since: stratSince(K.strat, Date.now()), log: (K.strat || []).slice(-12), stratSkips: trades.filter(t => t.strat).length } };
   }
 

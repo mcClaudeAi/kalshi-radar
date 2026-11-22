@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.89 (Nov 22, 2026): the buy check learns every night
+
+- [new] The buy check is refitted every night from a rolling window: its readings from the last 60 days of markets and its price curve from the last 30. Each night the newest day goes in and the oldest drops out. Until now its weights were fixed. Tested day by day over the last 47 days, the fixed kind made +1.37¢ a contract on the buys it rated +1¢ or better and faded as it aged; refitted nightly it made +1.90¢ and held steady. The Check, the purple Mitch pick glow and Buy Mitch picks all use it. Hover or tap the edge chip to see the date it was last refitted.
+- [new] Safeguards on the nightly refit: no weight moves more than 10% in a night, a fit that looks wrong is not published, and if the nightly file is missing or more than 6 days old the tracker goes back to the built-in weights on its own.
+- [fixed] An account with its own settings showed Main's "Buy Mitch picks" value in Settings while the tracker had it off for that account, and saving On there said nothing had changed. Settings now shows the real value, so it can be turned on.
+- [improved] The "Mitch picks on" chip on Home names the accounts that have it off, for example "Mitch picks on · not Gamble City".
+
 ## 1.3.88 (Nov 22, 2026): one cash total, and a Mitch picks chip
 
 - [fixed] The cash in the header and the big Kalshi cash number on Home could disagree, the header fresh and the number below it stuck on an older figure. They are now redrawn together, and a problem drawing the board can no longer hold the totals back.
