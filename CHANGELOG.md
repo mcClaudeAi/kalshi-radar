@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.81 (Nov 22, 2026): New Backtest rows show up sooner
+- [fixed] A row added to the Backtest could stay missing for up to an hour after an update, because the tab kept getting the older copy of its data file. It now gets a fresh copy within about 5 minutes.
+
 ## 1.3.80 (Nov 22, 2026): Mitch + Claude in the Backtest
 - [new] The Backtest has a "Mitch + Claude" row: one rule made from three. A buy has to pass Claude's pick, not be a straggler behind a crowded move, and be a Mitch pick at that moment. It buys at the trade check, then the first minute from 8 down to 4 minutes left. Fewer trades than either rule on its own, each one surer. Covers Aug 21 on at quoted prices.
 
