@@ -1429,7 +1429,9 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .kx-homesw{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}
 /* MC 2026-11-17 Home sections as tiles that can be moved (web only: dragging needs a mouse). .kxw wraps each section. */
 .kxw{min-width:0}.kxw+.kxw{margin-top:16px}.kxw>:first-child,.kxw>.kxw-bar+*{margin-top:0!important}.kx-home.one{display:block}
-.kxw-ctl{margin-left:auto;display:none;gap:8px}@media(min-width:1100px) and (pointer:fine){.kxw-ctl{display:flex}}
+.kxw-ctl{margin-left:auto;display:none;gap:8px}.kxw-cols{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--mute);margin-right:6px}.kxw-cols .btn{min-width:30px;padding-left:8px;padding-right:8px}
+@media(min-width:1100px){.kx-home2 .kx-home.c2,.kx-home2 .kx-home.c3.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}.kx-home2 .kx-home.c3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.kx-home2 .kx-home.c1,.kx-home2 .kx-home.one{display:block}.kx-home.c2>div,.kx-home.c3>div{container:kxcol/inline-size}}
+@media(min-width:1100px) and (pointer:fine){.kxw-ctl{display:flex}}
 .kx-arr .kxw{position:relative;cursor:grab;border-radius:20px;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--kx) 55%,transparent);transition:opacity .15s}.kx-arr .kxw:active{cursor:grabbing}
 .kx-arr .kxw>*:not(.kxw-bar){pointer-events:none;user-select:none}
 /* while arranging, every section is cut to a short tile so the whole page fits on screen and nothing has to be dragged far */
@@ -2912,7 +2914,7 @@ function kxLivePaint(){kxAccPaint();const lv=kxLv(),a=$('#kxlivedyn'),b=$('#kxli
   const sig=JSON.stringify([!!a,!!b,KXT.live.day,KXT.live.page,lv?.on,lv?.bal,lv?.today,lv?.total,lv?.err,lv?.stopped,(lv?.recent||[]).map(x=>[x.tk,x.fill,x.result,x.pnl]),(lv?.open||[]).length,KXSEG.acc,kbBooks().map(b=>[b.id,b.on,(b.recent||[]).map(x=>[x.tk,x.fill,x.result,x.pnl])])]);
   if(KX.lvSig===sig&&(a?.innerHTML||b?.innerHTML))return;KX.lvSig=sig;const h=kxLiveDyn(lv),i=h.indexOf(KXLV_MARK);
   if(a)a.innerHTML=i<0?h:h.slice(0,i);if(b)b.innerHTML=i<0?'<div class="empty">No live orders yet.</div>':h.slice(i).replace('<div style="margin-top:14px">','<div>');
-  const p=$('#kxlivepill');if(p&&lv){p.className='kx-pill '+(lv.on?'on':'');p.textContent=lv.on?(lv.autoPause?'LIVE · BY HAND ONLY':'LIVE · ON'):'LIVE · OFF'}kbPaint();for(const id of KXO)if(id.startsWith('L:'))kxPlayLoad(id.slice(2))}
+  const p=$('#kxlivepill');if(p&&lv){p.className='kx-pill '+(lv.on?'on':'');p.textContent=lv.on?(lv.autoPause?(lv.pauseToday?'LIVE · PAUSED TODAY':'LIVE · BY HAND ONLY'):'LIVE · ON'):'LIVE · OFF'}kbPaint();for(const id of KXO)if(id.startsWith('L:'))kxPlayLoad(id.slice(2))}
 function kxTPaint(k){if(k==='live'){KX.lvSig='';kxLivePaint()}else{const e=$('#kxtrades');const K=ST.D?.kalshi;if(e&&K)e.innerHTML=kxTradesTbl(K)}}
 
 // ===================== Analytics: Paper | Live =====================
@@ -4424,12 +4426,13 @@ async function kxLiveOn(){const lv=kxLv()||{};const size=Math.min(50,Math.max(5,
   const ok=await confirmBox({title:'Turn on live Kalshi trading?',summary:[['Money','<span class="neg">Real · your Kalshi account</span>'],['Size',`$${size} a trade`],['Daily loss cap',`-$${cap}`],['Cash now',lv.bal!=null?'$'+Number(lv.bal).toFixed(2):'–'],['Trades',`90¢+ leader at 10 min left, held to settlement, following the <span style="color:${kxLabOf(ST.D?.kalshi,lv.playbook?.id).color}">${esc(kxLabOf(ST.D?.kalshi,lv.playbook?.id).name)}</span> playbook`]],
     warn:`The tracker will place real orders from the next 10-minute mark. A bad window can lose several trades at once (about $${Math.round(size*7)} at this size). Turn it off here at any time; open trades then ride to settlement.`,confirm:'Turn on',danger:true,hold:true});
   if(ok)cmd('kalshiLive',{enabled:true,sizeUsd:size,dailyLossUsd:cap},'Kalshi live ON')}
+// MC 2026-11-21 the pause box has a second button: for the rest of today only (the server lifts it at midnight ET).
 // MC 2026-11-15 asked for: pause the tracker's own buying, keep hand buys and sells. Pausing needs no hold (it only stops orders);
 // resuming does, since the tracker starts spending real money again at the next trade check.
 async function kxAutoPause(on){if(!ST.me.control){unlockFlow();return}const n=(kxLv()?.books||[]).filter(b=>b.on).length;
-  const ok=await confirmBox(on?{title:'Pause automatic buying?',body:`The tracker stops buying at the trade check${n?`, for Main and the ${n} subaccount${n===1?'':'s'} that ${n===1?'is':'are'} on`:''}. Live stays on, so you can still buy and sell by hand on the Live board. Positions already open settle as usual${kxLv()?.cfg?.trendExit?', and the cash out rule still acts on them':''}.`,confirm:'Pause automatic buying'}
+  const ok=await confirmBox(on?{title:'Pause automatic buying?',body:`The tracker stops buying at the trade check${n?`, for Main and the ${n} subaccount${n===1?'':'s'} that ${n===1?'is':'are'} on`:''}. Live stays on, so you can still buy and sell by hand on the Live board. Positions already open settle as usual${kxLv()?.cfg?.trendExit?', and the cash out rule still acts on them':''}.`,confirm:'Pause until I resume',alt:{label:'Pause for the rest of today',sub:'buys again by itself from midnight ET'}}
     :{title:'Resume automatic buying?',body:'The tracker buys again at the next trade check with your live settings.',warn:'Real money.',confirm:'Resume',danger:true,hold:true});
-  if(ok)cmd('kalshiLive',{autoPause:!!on},on?'Automatic buying paused':'Automatic buying resumed')}
+  if(ok)cmd('kalshiLive',on&&ok==='alt'?{pauseToday:true}:{autoPause:!!on},on?(ok==='alt'?'Paused for the rest of today':'Automatic buying paused'):'Automatic buying resumed')}
 async function kxLiveOff(){const ok=await confirmBox({title:'Turn off live trading?',body:'No new live orders. Open live positions ride to settlement (use Sell all to exit them now).',confirm:'Turn off',danger:false});if(ok)cmd('kalshiLive',{enabled:false},'Kalshi live OFF')}
 async function kxLiveSave(){const size=Math.min(50,Math.max(5,+($('#kxl-size')?.value||10))),cap=Math.min(500,Math.max(10,+($('#kxl-cap')?.value||100))),flo=$('#kxl-floor')?Math.max(0,+($('#kxl-floor').value||0)):null;const ok=await confirmBox({title:'Change live limits?',summary:[['Size',`$${size} a trade`],['Daily loss cap',`-$${cap}`],...(flo!=null?[['Cash floor',`$${flo}`]]:[])],confirm:'Save',danger:false});if(ok){await cmd('kalshiLive',{sizeUsd:size,dailyLossUsd:cap,...(flo!=null?{minBank:flo}:{})},'Kalshi live limits');kbOfferMatch(1)}}
 async function kxSellAll(){const lv=kxLv()||{},o=lv.open||[];if(!o.length){toast('No open live positions');return}
@@ -4769,7 +4772,7 @@ function kxWhyZ(t){const z=Number(t.z),id=t.strat,need=id==='mv15'||id==='mvai'?
   if(id==='mvai'&&t.same!=null&&t.same<3)return ` · ${t.same} coin${t.same===1?'':'s'} leading this way at 90¢+, needs 3`;
   return ` · ${mv(z)} moves clear, passed on another check`}
 function kxLiveCard(){const lv=kxLv(),lk=!ST.me.control,dis=lk?'disabled':'';
-  return `<div class="card kx-card kx-livecard" style="margin-top:14px"><h3><span>Live trading <span id="kxlivepill" class="kx-pill ${lv?.on?'on':''}">${lv?.on?(lv.autoPause?'LIVE · BY HAND ONLY':'LIVE · ON'):'LIVE · OFF'}</span></span><span class="r">real money · placed from the cloud</span></h3>${lv?.on&&lv.autoPause?'<div class="kx-warn" style="margin:0 0 10px">Automatic buying is paused for every account. The tracker places no buys at the trade check; you can still buy and sell by hand on the Live board. Open positions settle as usual.</div>':''}
+  return `<div class="card kx-card kx-livecard" style="margin-top:14px"><h3><span>Live trading <span id="kxlivepill" class="kx-pill ${lv?.on?'on':''}">${lv?.on?(lv.autoPause?(lv.pauseToday?'LIVE · PAUSED TODAY':'LIVE · BY HAND ONLY'):'LIVE · ON'):'LIVE · OFF'}</span></span><span class="r">real money · placed from the cloud</span></h3>${lv?.on&&lv.autoPause?`<div class="kx-warn" style="margin:0 0 10px">Automatic buying is paused for every account${lv.pauseToday?' for the rest of today. It starts buying again by itself at midnight ET, or sooner if you resume it':''}. The tracker places no buys at the trade check; you can still buy and sell by hand on the Live board. Open positions settle as usual.</div>`:''}
    <div id="kxlivedyn">${kxLiveDyn(lv)}</div>
    <div class="kx-lvc2"><div><span>Size</span><b>$${lv?.size??10}</b></div><div><span>Daily loss cap</span><b>$${n0(lv?.dailyLossUsd??100)}</b></div><div><span>Cash floor</span><b>$${n0(lv?.hard?.minBank??300)}</b></div><div><span>Playbook</span><b>${esc(kxLabOf(ST.D?.kalshi,lv?.playbook?.id||'rule').name)}</b></div><button class="btn sm ghost" onclick="go('kslive')">Live settings ›</button></div>
     <div class="kx-lvb" style="margin-top:14px">${lv?.on?`<button class="btn ${lv.autoPause?'pri':''}" onclick="kxAutoPause(${lv.autoPause?0:1})" ${dis}>${lv.autoPause?'Resume automatic buying':'Pause automatic buying'}</button><button class="btn" onclick="kxLiveOff()" ${dis}>Turn off</button><button class="btn dng" onclick="kxSellAll()" ${dis}>Sell all open</button>`:`<button class="btn pri" onclick="kxLiveOn()" ${dis}>Turn on live</button>`}${lk?'<button class="btn" onclick="unlockFlow()">Unlock this device</button>':''}</div></div>`}
@@ -5051,17 +5054,30 @@ ${isL?'':`    <div class="kx-sg" id="kxg-notify"><div class="kx-sgh">Notificatio
   const ltick=(lv?.recent||[]).filter(x=>x.fill>0&&x.result).slice(0,14),ltk=ltick.length?`<div class="kx-tk"><div><span class="kx-tkl">Last live trades</span></div>${ltick.map(x=>`<div class="${x.pnl>0?'w':'l'}"><b>${esc(x.coin)}</b><span class="kx-side ${x.side}">${x.side.toUpperCase()}</span><span>${kxC(x.px)}</span><b class="${cls(x.pnl)}">${usd(x.pnl)}</b><span>${tm2s(x.close)}</span></div>`).join('')}</div>`:'';
   // MC 2026-11-17 asked: on the web, let each Home section be moved where it sits best. Every section is wrapped and the two
   // columns are filled from a saved order (this browser only); "Arrange" in the bar above turns the sections into drag tiles.
-  const W={hero:homeLive?kxLiveHero(K,lv):P.hero,acc:homeLive&&kbBooks().length?kxAccPanel('home'):'',pb,board:P.board,scan:P.scan},lay=kxLay(),col=a=>a.filter(k=>W[k]).map(k=>`<div class="kxw" data-w="${k}"${KXARR?' draggable="true"':''}>${KXARR?`<div class="kxw-bar"><i aria-hidden="true">⠿</i>${KXW_N[k]}<span>drag to move</span></div>`:''}${W[k]}</div>`).join(''),cl=col(lay.l),cr=col(lay.r);
-  const arr=`<span class="kxw-ctl">${KXARR?`<button class="btn sm ghost" onclick="kxArrReset()">Reset layout</button><button class="btn sm pri" onclick="kxArr(0)">Done</button>`:`<button class="btn sm ghost" onclick="kxArr(1)" title="Move the sections of this page around">Arrange</button>`}</span>`;
-  return `<div class="kx-home2${KXARR?' kx-arr':''}">${strip}${sw.replace(/<\/div>$/,arr+'</div>')}<div class="kx-home${!KXARR&&(!cl||!cr)?' one':''}"><div class="kx-hl" data-col="l">${cl}</div><div class="kx-hr" data-col="r">${cr}</div></div>${homeLive?ltk:tkl}</div>`}
+  if(kxCols()>1)kxCq();
+  const W={hero:homeLive?kxLiveHero(K,lv):P.hero,acc:homeLive&&kbBooks().length?kxAccPanel('home'):'',pb,board:P.board,scan:P.scan},lay=kxLay(),nc=kxCols(),col=a=>a.filter(k=>W[k]).map(k=>`<div class="kxw" data-w="${k}"${KXARR?' draggable="true"':''}>${KXARR?`<div class="kxw-bar"><i aria-hidden="true">⠿</i>${KXW_N[k]}<span>drag to move</span></div>`:''}${W[k]}</div>`).join(''),cs=(nc===1?[[...lay.l,...lay.r,...lay.x],[],[]]:nc===3?[lay.l,lay.r,lay.x]:[lay.l,[...lay.r,...lay.x],[]]).map(col),shown=nc||2,live=cs.filter(Boolean).length;
+  const arr=`<span class="kxw-ctl">${KXARR?`<span class="kxw-cols">Columns${[[0,'Auto'],[1,'1'],[2,'2'],[3,'3']].map(([v,l])=>`<button class="btn sm ${nc===v?'pri':'ghost'}" aria-pressed="${nc===v}" onclick="kxColsSet(${v})">${l}</button>`).join('')}</span><button class="btn sm ghost" onclick="kxArrReset()">Reset layout</button><button class="btn sm pri" onclick="kxArr(0)">Done</button>`:`<button class="btn sm ghost" onclick="kxArr(1)" title="Move the sections of this page around">Arrange</button>`}</span>`;
+  return `<div class="kx-home2${KXARR?' kx-arr':''}">${strip}${sw.replace(/<\/div>$/,arr+'</div>')}<div class="kx-home${nc?' c'+nc:''}${!KXARR&&live<2?' one':''}${!KXARR&&nc===3&&live===2?' two':''}">${['l','r','x'].slice(0,shown).map((c,i)=>!KXARR&&!cs[i]&&live?'':`<div class="${c==='l'?'kx-hl':'kx-hr'}" data-col="${c}">${cs[i]}</div>`).join('')}</div>${homeLive?ltk:tkl}</div>`}
 let KXARR=false,KXDG=null;const KXW_DEF={l:['hero','acc','pb','board'],r:['scan']},KXW_N={hero:'Summary',acc:'Accounts',pb:'Playbooks',board:'Live board',scan:'Scanner'};
-function kxLay(){const all=[...KXW_DEF.l,...KXW_DEF.r];try{const j=JSON.parse(localStorage.getItem('cr-kxlay')||'null');if(j&&Array.isArray(j.l)&&Array.isArray(j.r)){const seen=new Set(),f=a=>a.filter(x=>all.includes(x)&&!seen.has(x)&&seen.add(x)),l=f(j.l),r=f(j.r);for(const x of all)if(!seen.has(x))(KXW_DEF.l.includes(x)?l:r).push(x);return {l,r}}}catch{}return {l:[...KXW_DEF.l],r:[...KXW_DEF.r]}}
+// is the old behaviour (two columns on a wide screen, one below that), 1 to 3 force that many from 1100px up. The layout keeps
+// a third list, x; with fewer columns showing, its sections fold into the last one so nothing goes missing.
+// A chosen column can be far narrower than the window, and the sections size themselves by window width (media rules), so a
+// 2 or 3 column Home on a laptop had the Summary's Today card over the bank figure and the scanner's target labels over the
+// price. Tried fixed minimum widths first: that just refused 3 columns on most screens. Instead each chosen column is a size
+// container and kxCq copies the page's own narrow-window rules for these sections into container rules, once, so a narrow
+// column lays out the way a phone that wide does. Auto never turns this on.
+function kxCq(){if($('#kxcq'))return;const css=[...document.querySelectorAll('style')].map(x=>x.textContent).join('\n'),re=/@media\s*\(max-width:\s*(\d+)px\)\s*\{/g,out=[];let m;
+  while((m=re.exec(css))){let i=re.lastIndex,d=1,st=i,keep='';while(i<css.length&&d){const c=css[i++];if(c==='{')d++;else if(c==='}'){d--;if(d===1){const r=css.slice(st,i),sel=r.slice(0,r.indexOf('{'));if(!sel.includes('@')&&/\.kx-|\.tw-|\.lh-|\.kb-/.test(sel)&&!/\.modal|\.kx-home|\.kx-coin/.test(sel))keep+=r;st=i}}}if(keep)out.push([+m[1],keep])}
+  out.sort((a,b)=>b[0]-a[0]);const el=document.createElement('style');el.id='kxcq';el.textContent=out.map(([n,r])=>`@container kxcol (max-width:${n-30}px){${r}}`).join('\n');document.head.appendChild(el)}
+function kxCols(){try{const n=+localStorage.getItem('cr-kxcols');return n>=1&&n<=3?n:0}catch{return 0}}
+function kxColsSet(n){try{n?localStorage.setItem('cr-kxcols',n):localStorage.removeItem('cr-kxcols')}catch{}render()}
+function kxLay(){const all=[...KXW_DEF.l,...KXW_DEF.r];try{const j=JSON.parse(localStorage.getItem('cr-kxlay')||'null');if(j&&Array.isArray(j.l)&&Array.isArray(j.r)){const seen=new Set(),f=a=>(Array.isArray(a)?a:[]).filter(x=>all.includes(x)&&!seen.has(x)&&seen.add(x)),l=f(j.l),r=f(j.r),x=f(j.x);for(const k of all)if(!seen.has(k))(KXW_DEF.l.includes(k)?l:r).push(k);return {l,r,x}}}catch{}return {l:[...KXW_DEF.l],r:[...KXW_DEF.r],x:[]}}
 function kxArr(on){KXARR=!!on;KXDG=null;render()}
-function kxArrReset(){try{localStorage.removeItem('cr-kxlay')}catch{}render();toast('Layout back to the default')}
+function kxArrReset(){try{localStorage.removeItem('cr-kxlay');localStorage.removeItem('cr-kxcols')}catch{}render();toast('Layout back to the default')}
 // sections not on the page right now (Accounts while Home shows Paper) keep the place they had
-function kxArrSave(){const L=kxLay(),on=new Set([...document.querySelectorAll('.kx-home .kxw')].map(e=>e.dataset.w)),get=c=>[...document.querySelectorAll(`.kx-home [data-col="${c}"]>.kxw`)].map(e=>e.dataset.w),l=get('l'),r=get('r');
-  for(const [src,dst] of [[L.l,l],[L.r,r]])src.forEach((k,i)=>{if(!on.has(k)){const prev=src.slice(0,i).reverse().find(x=>dst.includes(x));dst.splice(prev?dst.indexOf(prev)+1:0,0,k)}});
-  try{localStorage.setItem('cr-kxlay',JSON.stringify({l,r}))}catch{}}
+function kxArrSave(){const L=kxLay(),on=new Set([...document.querySelectorAll('.kx-home .kxw')].map(e=>e.dataset.w)),get=c=>[...document.querySelectorAll(`.kx-home [data-col="${c}"]>.kxw`)].map(e=>e.dataset.w),l=get('l'),r=get('r'),x=get('x');
+  for(const [src,dst] of [[L.l,l],[L.r,r],[L.x,document.querySelector('.kx-home [data-col="x"]')?x:r]])src.forEach((k,i)=>{if(!on.has(k)){const prev=src.slice(0,i).reverse().find(x=>dst.includes(x));dst.splice(prev?dst.indexOf(prev)+1:0,0,k)}});
+  try{localStorage.setItem('cr-kxlay',JSON.stringify({l,r,x}))}catch{}}
 document.addEventListener('dragstart',e=>{const w=KXARR&&e.target.closest?.('.kxw[draggable]');if(!w)return;KXDG=w;w.classList.add('drag');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',w.dataset.w)}catch{}});
 document.addEventListener('dragover',e=>{if(!KXDG)return;const c=e.target.closest?.('.kx-home [data-col]');if(!c)return;e.preventDefault();e.dataTransfer.dropEffect='move';
   const sib=[...c.querySelectorAll(':scope>.kxw')].filter(x=>x!==KXDG),nx=sib.find(x=>{const b=x.getBoundingClientRect();return e.clientY<b.top+b.height/2})||null;if(KXDG.parentNode!==c||KXDG.nextElementSibling!==nx)c.insertBefore(KXDG,nx)});
@@ -5086,7 +5102,7 @@ function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div c
   // the cash, the profit target, a sentence carrying the deposits). Rebuilt in four bands: status and the next trade check; the
   // cash in every account as the one big figure with each account under it, beside today's card with the target inside it; a
   // ledger (put in, worth now, all time, trades logged) in place of the sentence; then the five stats. Same data, same ids.
-  const st=lv.on?(lv.autoPause?['hand','Live · by hand only']:['on','Live · on']):['off','Live · off'],bk=kbBooks(),onB=bk.filter(b=>b.on);
+  const st=lv.on?(lv.autoPause?['hand',lv.pauseToday?'Live · paused today':'Live · by hand only']:['on','Live · on']):['off','Live · off'],bk=kbBooks(),onB=bk.filter(b=>b.on);
   let soft=!lv.err&&lv.on&&lv.stopped&&lv.stoppedDay===false,warn=lv.err?`Last error: ${esc(lv.err)}`:lv.on&&lv.stopped?(soft?`This window: passed on a coin, ${esc(kxPlain(lv.stopped))}. Trading carries on at the next trade check.`:`Not trading right now: ${esc(kxPlain(lv.stopped))}.`):'';
   // MC 2026-11-20 asked: Main stopped to protect its profit and this said "Not trading right now" while two other accounts were
   // still buying. It only read Main. With more than one account it now names each account that has stopped for the day and says
@@ -5650,7 +5666,8 @@ const KXH={
    ['Average trade',`What one trade has made on average, wins and losses together.`],
    ['Drawdown',`How far the bank is below its best point. The worst-ever figure shows how deep a bad stretch has gone.`],
    ['Daily stop, Protect profit',`The brakes. The stop ends the day after losing a set amount. Protect profit ends it once a good day gives back part of its gains.`],
-   ['Playbook cards',`Which set of rules paper and live are each using. Change swaps it.`]]],
+   ['Playbook cards',`Which set of rules paper and live are each using. Change swaps it.`],
+   ['Arrange',`On the web, drag the sections where you want them and pick 1, 2 or 3 columns. Saved in this browser.`]]],
   ['Live board',[
    ['This window, Settles in',`The 15 minutes being traded now and the countdown to the result.`],
    ['The bar',`The window from left to right. Watching: too early to buy. The ticks are the early looks and the trade check. Holding: bought, waiting. Final minute: about to settle.`],
@@ -5747,7 +5764,7 @@ const KXH={
    ['Open live positions',`What is held right now and when it settles.`],
    ['"Not trading right now"',`Shows when a brake is on, and which one: the loss cap, protect profit, the schedule or a pause.`]]],
   ['The switches',[
-   ['Pause automatic buying',`Stops the tracker's own buys. What is open still runs to the close, and you can still buy and sell by hand.`],
+   ['Pause automatic buying',`Stops the tracker's own buys, until you resume or just for the rest of today (it then starts again by itself at midnight ET). What is open still runs to the close, and you can still buy and sell by hand.`],
    ['Turn off',`Switches live trading off completely.`],
    ['Sell all open',`Sells everything held now at the going price.`]]],
   ['The rest',[
@@ -5997,7 +6014,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.63',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.64',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

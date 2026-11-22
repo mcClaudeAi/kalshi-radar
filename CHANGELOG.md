@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.64 (Nov 21, 2026): Home in 2 or 3 columns, and a pause for the rest of today
+- [new] Arrange on the web Home has a Columns choice: Auto, 1, 2 or 3. Auto is how it was (two columns on a very wide screen, one otherwise). 2 and 3 work from a 1100px window up, and each section resizes to its column the way it does on a phone that wide, so nothing overlaps. Drag sections into the third column like the other two. Saved in this browser; Reset layout puts it back.
+- [new] Pause automatic buying now asks how long: until you resume, or for the rest of today. The second lifts by itself at midnight ET and the tracker buys again from the first trade check of the new day, for Main and every subaccount. Hand buys and sells keep working while paused, open trades settle as usual, and Resume ends it early. The Live card says "paused today" while it is on.
+
 ## 1.3.63 (Nov 21, 2026): A plain-words guide on every page
 - [new] A ? button in the top bar, on web and phone, opens a guide to the page you are on: what each number, chart, tag and switch is for, in everyday words, and which way is good. Home covers the top numbers, the Live board, the scanner and every tag on a coin's row (Check, Swing, Last window, Cushion, Win chance, Path, Coins, Strong setup, Mitch pick). Cockpit, Analytics, Rule analytics, Trades, Labs, Learning, Backtest, Live account, both settings pages, Requests and Release notes each have their own. Every guide ends with a short list of the words used everywhere (window, target, leader, trade check, cushion, paper and live, break-even). Also under Search as "Explain this page".
 
