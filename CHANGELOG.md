@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.65 (Nov 21, 2026): Sections can span 2 or 3 columns
+- [new] In Arrange on the web Home, every section has a Width choice next to its name: 1, 2 or 3 (up to the number of columns picked). A full-width section sits in a band across the top. With 3 columns, a 2-wide section sits across the top of two columns, the two carry on underneath it and the third runs beside it. It takes the left two columns unless you drag it to the third, then it takes the right two. Setting it back to 1 returns it to its column. Saved in this browser; Reset layout clears it.
+
 ## 1.3.64 (Nov 21, 2026): Home in 2 or 3 columns, and a pause for the rest of today
 - [new] Arrange on the web Home has a Columns choice: Auto, 1, 2 or 3. Auto is how it was (two columns on a very wide screen, one otherwise). 2 and 3 work from a 1100px window up, and each section resizes to its column the way it does on a phone that wide, so nothing overlaps. Drag sections into the third column like the other two. Saved in this browser; Reset layout puts it back.
 - [new] Pause automatic buying now asks how long: until you resume, or for the rest of today. The second lifts by itself at midnight ET and the tracker buys again from the first trade check of the new day, for Main and every subaccount. Hand buys and sells keep working while paused, open trades settle as usual, and Resume ends it early. The Live card says "paused today" while it is on.

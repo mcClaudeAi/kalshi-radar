@@ -1430,7 +1430,9 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 /* MC 2026-11-17 Home sections as tiles that can be moved (web only: dragging needs a mouse). .kxw wraps each section. */
 .kxw{min-width:0}.kxw+.kxw{margin-top:16px}.kxw>:first-child,.kxw>.kxw-bar+*{margin-top:0!important}.kx-home.one{display:block}
 .kxw-ctl{margin-left:auto;display:none;gap:8px}.kxw-cols{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--mute);margin-right:6px}.kxw-cols .btn{min-width:30px;padding-left:8px;padding-right:8px}
-@media(min-width:1100px){.kx-home2 .kx-home.c2,.kx-home2 .kx-home.c3.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}.kx-home2 .kx-home.c3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.kx-home2 .kx-home.c1,.kx-home2 .kx-home.one{display:block}.kx-home.c2>div,.kx-home.c3>div{container:kxcol/inline-size}}
+@media(min-width:1100px){.kx-home2 .kx-home.c2,.kx-home2 .kx-home.c3.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}.kx-home2 .kx-home.c3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.kx-home2 .kx-home.c1,.kx-home2 .kx-home.one{display:block}.kx-home :is([data-col],[data-band]){container:kxcol/inline-size}.kx-home2 .kx-home .kx-band.all{grid-column:1/-1}.kx-home2 .kx-home.c3 .kx-grp{grid-column:span 2;min-width:0}.kx-wsub{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}.kx-grp>.kx-band{margin-bottom:18px}}
+.kxw-wd{font-style:normal;display:inline-flex;align-items:center;gap:3px;margin-left:10px;font-weight:500;font-size:11.5px;color:var(--mute)}.kxw-wd button{all:unset;cursor:pointer;min-width:22px;height:22px;text-align:center;border-radius:7px;border:1px solid var(--line2);color:var(--ink2);font-weight:700;font-size:11.5px}.kxw-wd button.on{background:var(--kx);border-color:var(--kx);color:var(--hl-ink,#04121a)}.kxw-wd button:first-of-type{margin-left:5px}
+
 @media(min-width:1100px) and (pointer:fine){.kxw-ctl{display:flex}}
 .kx-arr .kxw{position:relative;cursor:grab;border-radius:20px;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--kx) 55%,transparent);transition:opacity .15s}.kx-arr .kxw:active{cursor:grabbing}
 .kx-arr .kxw>*:not(.kxw-bar){pointer-events:none;user-select:none}
@@ -5055,9 +5057,21 @@ ${isL?'':`    <div class="kx-sg" id="kxg-notify"><div class="kx-sgh">Notificatio
   // MC 2026-11-17 asked: on the web, let each Home section be moved where it sits best. Every section is wrapped and the two
   // columns are filled from a saved order (this browser only); "Arrange" in the bar above turns the sections into drag tiles.
   if(kxCols()>1)kxCq();
-  const W={hero:homeLive?kxLiveHero(K,lv):P.hero,acc:homeLive&&kbBooks().length?kxAccPanel('home'):'',pb,board:P.board,scan:P.scan},lay=kxLay(),nc=kxCols(),col=a=>a.filter(k=>W[k]).map(k=>`<div class="kxw" data-w="${k}"${KXARR?' draggable="true"':''}>${KXARR?`<div class="kxw-bar"><i aria-hidden="true">⠿</i>${KXW_N[k]}<span>drag to move</span></div>`:''}${W[k]}</div>`).join(''),cs=(nc===1?[[...lay.l,...lay.r,...lay.x],[],[]]:nc===3?[lay.l,lay.r,lay.x]:[lay.l,[...lay.r,...lay.x],[]]).map(col),shown=nc||2,live=cs.filter(Boolean).length;
+  // choice. A full-width section sits in a band across the top. A 2-wide one (3 columns only) sits across the top of two
+  // columns, with those two columns carrying on under it and the third beside it: the pair is the left two unless the
+  // section's own column is the third, then it is the right two. Tried placing every section on one grid with spans first;
+  // rows then line up across columns and leave big holes under short sections. Wide sections keep their column in the saved
+  // order (data-home), so going back to width 1 puts them where they were.
+  const W={hero:homeLive?kxLiveHero(K,lv):P.hero,acc:homeLive&&kbBooks().length?kxAccPanel('home'):'',pb,board:P.board,scan:P.scan},lay=kxLay(),nc=kxCols(),sp=kxSpans(),wOf=k=>nc>1?Math.min(nc,sp[k]||1):1,
+   wTile=(k,c)=>`<div class="kxw" data-w="${k}" data-home="${c}"${KXARR?' draggable="true"':''}>${KXARR?`<div class="kxw-bar"><i aria-hidden="true">⠿</i>${KXW_N[k]}${nc>1?`<em class="kxw-wd">Width${[1,2,3].slice(0,nc).map(n=>`<button class="${wOf(k)===n?'on':''}" aria-pressed="${wOf(k)===n}" onclick="kxSpanSet('${k}',${n})" title="${n===1?'One column':n===nc?'The full width':'Two columns'}">${n}</button>`).join('')}</em>`:''}<span>drag to move</span></div>`:''}${W[k]}</div>`,
+   src=nc===1?{l:[...lay.l,...lay.r,...lay.x],r:[],x:[]}:nc===3?lay:{l:lay.l,r:[...lay.r,...lay.x],x:[]},shown=nc||2,ids=['l','r','x'].slice(0,shown),all=ids.flatMap(c=>src[c].filter(k=>W[k]).map(k=>[k,c])),
+   full=all.filter(([k])=>wOf(k)===nc&&nc>1),two=nc===3?all.filter(([k])=>wOf(k)===2):[],right=two.length&&two.every(([,c])=>c==='x'),
+   cs=ids.map(c=>src[c].filter(k=>W[k]&&wOf(k)===1).map(k=>wTile(k,c)).join('')),live=cs.filter(Boolean).length,wide=full.length||two.length,
+   colD=i=>`<div class="${ids[i]==='l'?'kx-hl':'kx-hr'}" data-col="${ids[i]}">${cs[i]}</div>`,band=(a,cl)=>a.length?`<div class="kx-band${cl}" data-band>${a.map(([k,c])=>wTile(k,c)).join('')}</div>`:'',
+   grp=(a,b)=>`<div class="kx-grp">${band(two,'')}<div class="kx-wsub">${colD(a)}${colD(b)}</div></div>`,
+   body=wide?band(full,' all')+(two.length?(right?colD(0)+grp(1,2):grp(0,1)+colD(2)):ids.map((c,i)=>colD(i)).join('')):ids.map((c,i)=>!KXARR&&!cs[i]&&live?'':colD(i)).join('');
   const arr=`<span class="kxw-ctl">${KXARR?`<span class="kxw-cols">Columns${[[0,'Auto'],[1,'1'],[2,'2'],[3,'3']].map(([v,l])=>`<button class="btn sm ${nc===v?'pri':'ghost'}" aria-pressed="${nc===v}" onclick="kxColsSet(${v})">${l}</button>`).join('')}</span><button class="btn sm ghost" onclick="kxArrReset()">Reset layout</button><button class="btn sm pri" onclick="kxArr(0)">Done</button>`:`<button class="btn sm ghost" onclick="kxArr(1)" title="Move the sections of this page around">Arrange</button>`}</span>`;
-  return `<div class="kx-home2${KXARR?' kx-arr':''}">${strip}${sw.replace(/<\/div>$/,arr+'</div>')}<div class="kx-home${nc?' c'+nc:''}${!KXARR&&live<2?' one':''}${!KXARR&&nc===3&&live===2?' two':''}">${['l','r','x'].slice(0,shown).map((c,i)=>!KXARR&&!cs[i]&&live?'':`<div class="${c==='l'?'kx-hl':'kx-hr'}" data-col="${c}">${cs[i]}</div>`).join('')}</div>${homeLive?ltk:tkl}</div>`}
+  return `<div class="kx-home2${KXARR?' kx-arr':''}">${strip}${sw.replace(/<\/div>$/,arr+'</div>')}<div class="kx-home${nc?' c'+nc:''}${!wide&&!KXARR&&live<2?' one':''}${!wide&&!KXARR&&nc===3&&live===2?' two':''}">${body}</div>${homeLive?ltk:tkl}</div>`}
 let KXARR=false,KXDG=null;const KXW_DEF={l:['hero','acc','pb','board'],r:['scan']},KXW_N={hero:'Summary',acc:'Accounts',pb:'Playbooks',board:'Live board',scan:'Scanner'};
 // is the old behaviour (two columns on a wide screen, one below that), 1 to 3 force that many from 1100px up. The layout keeps
 // a third list, x; with fewer columns showing, its sections fold into the last one so nothing goes missing.
@@ -5069,13 +5083,15 @@ let KXARR=false,KXDG=null;const KXW_DEF={l:['hero','acc','pb','board'],r:['scan'
 function kxCq(){if($('#kxcq'))return;const css=[...document.querySelectorAll('style')].map(x=>x.textContent).join('\n'),re=/@media\s*\(max-width:\s*(\d+)px\)\s*\{/g,out=[];let m;
   while((m=re.exec(css))){let i=re.lastIndex,d=1,st=i,keep='';while(i<css.length&&d){const c=css[i++];if(c==='{')d++;else if(c==='}'){d--;if(d===1){const r=css.slice(st,i),sel=r.slice(0,r.indexOf('{'));if(!sel.includes('@')&&/\.kx-|\.tw-|\.lh-|\.kb-/.test(sel)&&!/\.modal|\.kx-home|\.kx-coin/.test(sel))keep+=r;st=i}}}if(keep)out.push([+m[1],keep])}
   out.sort((a,b)=>b[0]-a[0]);const el=document.createElement('style');el.id='kxcq';el.textContent=out.map(([n,r])=>`@container kxcol (max-width:${n-30}px){${r}}`).join('\n');document.head.appendChild(el)}
+function kxSpans(){try{const j=JSON.parse(localStorage.getItem('cr-kxspan')||'{}');return j&&typeof j==='object'?j:{}}catch{return {}}}
+function kxSpanSet(k,n){const j=kxSpans();if(n>1)j[k]=n;else delete j[k];try{localStorage.setItem('cr-kxspan',JSON.stringify(j))}catch{}render()}
 function kxCols(){try{const n=+localStorage.getItem('cr-kxcols');return n>=1&&n<=3?n:0}catch{return 0}}
 function kxColsSet(n){try{n?localStorage.setItem('cr-kxcols',n):localStorage.removeItem('cr-kxcols')}catch{}render()}
 function kxLay(){const all=[...KXW_DEF.l,...KXW_DEF.r];try{const j=JSON.parse(localStorage.getItem('cr-kxlay')||'null');if(j&&Array.isArray(j.l)&&Array.isArray(j.r)){const seen=new Set(),f=a=>(Array.isArray(a)?a:[]).filter(x=>all.includes(x)&&!seen.has(x)&&seen.add(x)),l=f(j.l),r=f(j.r),x=f(j.x);for(const k of all)if(!seen.has(k))(KXW_DEF.l.includes(k)?l:r).push(k);return {l,r,x}}}catch{}return {l:[...KXW_DEF.l],r:[...KXW_DEF.r],x:[]}}
 function kxArr(on){KXARR=!!on;KXDG=null;render()}
-function kxArrReset(){try{localStorage.removeItem('cr-kxlay');localStorage.removeItem('cr-kxcols')}catch{}render();toast('Layout back to the default')}
+function kxArrReset(){try{localStorage.removeItem('cr-kxlay');localStorage.removeItem('cr-kxcols');localStorage.removeItem('cr-kxspan')}catch{}render();toast('Layout back to the default')}
 // sections not on the page right now (Accounts while Home shows Paper) keep the place they had
-function kxArrSave(){const L=kxLay(),on=new Set([...document.querySelectorAll('.kx-home .kxw')].map(e=>e.dataset.w)),get=c=>[...document.querySelectorAll(`.kx-home [data-col="${c}"]>.kxw`)].map(e=>e.dataset.w),l=get('l'),r=get('r'),x=get('x');
+function kxArrSave(){const L=kxLay(),on=new Set([...document.querySelectorAll('.kx-home .kxw')].map(e=>e.dataset.w)),get=c=>[...document.querySelectorAll('.kx-home .kxw')].filter(e=>(e.closest('[data-col]')?.dataset.col||e.dataset.home)===c).map(e=>e.dataset.w),l=get('l'),r=get('r'),x=get('x');
   for(const [src,dst] of [[L.l,l],[L.r,r],[L.x,document.querySelector('.kx-home [data-col="x"]')?x:r]])src.forEach((k,i)=>{if(!on.has(k)){const prev=src.slice(0,i).reverse().find(x=>dst.includes(x));dst.splice(prev?dst.indexOf(prev)+1:0,0,k)}});
   try{localStorage.setItem('cr-kxlay',JSON.stringify({l,r,x}))}catch{}}
 document.addEventListener('dragstart',e=>{const w=KXARR&&e.target.closest?.('.kxw[draggable]');if(!w)return;KXDG=w;w.classList.add('drag');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',w.dataset.w)}catch{}});
@@ -5667,7 +5683,7 @@ const KXH={
    ['Drawdown',`How far the bank is below its best point. The worst-ever figure shows how deep a bad stretch has gone.`],
    ['Daily stop, Protect profit',`The brakes. The stop ends the day after losing a set amount. Protect profit ends it once a good day gives back part of its gains.`],
    ['Playbook cards',`Which set of rules paper and live are each using. Change swaps it.`],
-   ['Arrange',`On the web, drag the sections where you want them and pick 1, 2 or 3 columns. Saved in this browser.`]]],
+   ['Arrange',`On the web, drag the sections where you want them, pick 1, 2 or 3 columns, and set any section's width to span 2 or all of them. Saved in this browser.`]]],
   ['Live board',[
    ['This window, Settles in',`The 15 minutes being traded now and the countdown to the result.`],
    ['The bar',`The window from left to right. Watching: too early to buy. The ticks are the early looks and the trade check. Holding: bought, waiting. Final minute: about to settle.`],
@@ -6014,7 +6030,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.64',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.65',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
