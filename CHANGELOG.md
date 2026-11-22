@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.83 (Nov 22, 2026): Dropdowns no longer cut their text off
+- [fixed] The dropdowns in Live settings, Paper settings and the Backtest cut their own text off, on web and phone ("On: buy a coin when it tur"). A dropdown cannot wrap, so the choices are short labels now ("On: buy purple", "Off: signal only", "Hold under it") with the detail in the note beside each setting, and the settings column is a little wider on the web.
+
 ## 1.3.82 (Nov 22, 2026): "Buy Mitch picks" saves
 - [fixed] Changing "Buy Mitch picks" in Live settings showed unsaved changes, then said "Nothing changed" on save. The setting was on the form but left out of what the save reads. It saves now, with the usual hold to confirm.
 
