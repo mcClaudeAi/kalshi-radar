@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.57 (Nov 21, 2026): Mitch picks at the top
+- [improved] Coins glowing purple (Mitch pick) move to the top of the scanner, ahead of the rest, which stay sorted by leader price. The glow and the order are read together on every update, so a coin is never purple in the middle of the list.
+
 ## 1.3.56 (Nov 21, 2026): Mitch pick, and a colour key
 - [new] Mitch pick: a coin glows bright purple on the scanner when it matches the hand buys that kept winning. The leader costs 85¢ to 96¢, it is at least 0.8 usual moves clear of the target, and the likely line lands on its side, with 2 to 13 minutes left and nobody holding it yet. The row also gets a purple Mitch pick tag, the coin box shows one beside the hand-buy check, and purple shows over the row's other colours so it is never hidden. Hiding passed coins keeps a Mitch pick on screen.
 - [new] A colour key under the window bar on the Live board: the early checks, the trade check and now on the bar, and what each coin colour means (bot would buy, bot passes, strong setup or bot buy, Mitch pick). Hover an item on a computer for more.
