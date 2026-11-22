@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.75 (Nov 22, 2026): The proposed purple-glow rule in the Backtest
+- [new] The Backtest has a "Mitch pick, new rule" row: the rule proposed for the scanner's purple glow, tested before it goes on. It buys the first minute from 13 down to 3 minutes left that the leader costs 85¢ to under 96.5¢, is at least 1 usual move clear, the likely line is on its side, at least 7 of the 9 coins lead the same way and the hand-buy check says +1¢ a contract or better. The glow itself has not changed yet.
+
 ## 1.3.74 (Nov 22, 2026): A sold trade says what holding would have done
 - [fixed] The replay under a trade you sold before the close said LOST every time, whatever the market did. It now says SOLD.
 - [new] A sold trade's story and replay say whether holding to the close would have won or lost, with how Kalshi settled it: the settled value against the target, with extra digits when the two would print the same.
