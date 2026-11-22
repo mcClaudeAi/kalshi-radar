@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.86 (Nov 22, 2026): Shorter notifications, money first
+- [improved] Notifications read more like Kalshi's own. The headline leads with the coin and the money ("ETH No won +$16.42") so it is not cut off on the lock screen before the amount, and a win uses the party popper. The body is one line of facts ("$120.00 paid out · 120 at 86.3¢ · 3 accounts") and one for the day ("Today +$41.81 · cash $1,501.03"). A buy reads "Bought ETH No at 86.3¢" with the contracts, the money in, when it settles, and whether it was a Mitch pick or a later buy. Paper notifications start with "Paper:".
+
 ## 1.3.85 (Nov 22, 2026): Cards say who bought: Mitch pick, the playbook, or you
 - [improved] The tags on an open trade's card and on the scanner now end with who bought it: "Mitch pick" (in purple), the playbook ("Claude's pick", with "later buy" when it was bought after the trade check), or "by hand". Before, a Mitch pick buy read "later watched" like a later buy. Each subaccount's tag says it too.
 

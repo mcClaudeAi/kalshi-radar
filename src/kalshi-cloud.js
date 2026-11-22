@@ -1631,36 +1631,41 @@ export function createKalshi(state, env, keep) {
     const mark = k => { seen[k] = now; ch = true; }, usd = v => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), sg = v => (v < 0 ? '\u2212' : '+') + usd(v);
     const c1 = px => (px * 100).toFixed(1) + '\u00a2', sd = x => x === 'yes' ? 'Yes' : 'No', tm = t => new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) + ' ET';
     const join = l => l.length > 6 ? l.slice(0, 6).join('  \u00b7  ') + `  \u00b7  and ${l.length - 6} more` : l.join('  \u00b7  '), D = etDay(now);
-    const build = (book, label, opens, wins, key, rows, dayNet, bankLine, pbName) => {
+    const build = (book, label, opens, wins, key, rows, dayNet, bankLine, pbName) => { const pre = book === 'paper' ? 'Paper: ' : '';
       const byW = {}; for (const x of rows) (byW[x.close] = byW[x.close] || []).push(x);
       for (const [cl, w] of Object.entries(byW)) { const close = +cl;
         const o = w.filter(x => !seen[key + 'o' + x.id] && now - x.at < 12 * 60000 && now < close + 60000);
         if (o.length) { const cost = o.reduce((a, x) => a + x.cost, 0); o.forEach(x => mark(key + 'o' + x.id));
-          out.push({ book, kind: 'open', tag: key + 'o' + close, url: '/', title: o.length === 1 ? `${label}: position opened` : `${label}: ${o.length} positions opened`,
-            body: (o.length === 1 ? `${o[0].coin} ${sd(o[0].side)}, ${o[0].n} contracts at ${c1(o[0].px)}${o[0].late ? (/later watched/.test(pbName || '') ? ' (later watched)' : ' (second look)') : ''}` : join(o.map(x => `${x.coin} ${sd(x.side)} ${c1(x.px)}`))) + `\nCommitted ${usd(cost)}. Settles ${tm(close)}.` + (pbName ? `\nPlaybook: ${pbName}.` : '') }); }
+          // MC 2026-11-22 Mitchell: be more like Kalshi's own notifications. Theirs is a short headline and one line ("You called
+          // it! / $40.00 paid out · ETH 15 min · $1,713.26 target"); ours ran to four lines and the headline was cut off on the
+          // lock screen before the money ("Live account: ETH No won, +$1..."). The coin and the money now come first in the
+          // headline, "Live account" is dropped (paper says Paper), and the body is one line of facts and one for the day.
+          const how = x => x.mp ? ' · Mitch pick' : x.late ? ' · later buy' : '', ac = x => x.acc > 1 ? ` on ${x.acc} accounts` : '';
+          out.push({ book, kind: 'open', tag: key + 'o' + close, url: '/', title: o.length === 1 ? `${pre}Bought ${o[0].coin} ${sd(o[0].side)} at ${c1(o[0].px)}` : `${pre}Bought ${o.length}: ${o.map(x => x.coin).join(', ')}`,
+            body: (o.length === 1 ? `${o[0].n} contracts${ac(o[0])} · ${usd(cost)} in${how(o[0])}` : join(o.map(x => `${x.coin} ${sd(x.side)} ${c1(x.px)}`)) + `\n${usd(cost)} in`) + ` · settles ${tm(close)}` }); }
         const d = w.filter(x => x.done && !seen[key + 's' + x.id] && now - close < 40 * 60000), all = w.every(x => x.done);
         // MC 2026-11-21 asked: wins and losses as separate notifications, so a glance says which it was. A window with both sends
         // two, losses first, each with its own tag (one never replaces the other) and its own sound hint (snd) for the phone.
         if (d.length && (all || now > close + 4 * 60000)) { d.forEach(x => mark(key + 's' + x.id));
-          const acc = x => x.acc > 1 ? ` on ${x.acc} accounts` : '', tail = `\nToday ${sg(dayNet)}. ${bankLine}`;
+          const acc = x => x.acc > 1 ? ` · ${x.acc} accounts` : '', tail = `\nToday ${sg(dayNet)}${bankLine ? ' · ' + bankLine : ''}`;
           for (const [won, G] of [[false, d.filter(x => !x.won)], [true, d.filter(x => x.won)]]) { if (!G.length) continue; const net = G.reduce((a, x) => a + x.pnl, 0);
             out.push({ book, kind: 'settle', win: won, loss: !won, snd: won ? 'win' : 'loss', tag: key + (won ? 'w' : 'l') + close, url: '/',
-              title: `${won ? '\u{1F680}' : '\u{1F4C9}'} ${label}: ${G.length === 1 ? `${G[0].coin} ${sd(G[0].side)} ${won ? 'won' : 'lost'}` : `${G.length} ${won ? 'won' : 'lost'}`}, ${sg(net)}`,
-              body: (G.length === 1 ? `${G[0].n} contracts at ${c1(G[0].px)}${acc(G[0])}, settled ${tm(close)}.` : join(G.slice().sort((a, b) => won ? b.pnl - a.pnl : a.pnl - b.pnl).map(x => `${x.coin} ${sg(x.pnl)}`)) + (G.some(x => x.acc > 1) ? `\nAcross ${Math.max(...G.map(x => x.acc))} accounts.` : '')) + tail }); } } }
+              title: `${won ? '\u{1F389}' : '\u{1F4C9}'} ${pre}${G.length === 1 ? `${G[0].coin} ${sd(G[0].side)} ${won ? 'won' : 'lost'}` : `${G.length} ${won ? 'won' : 'lost'}`} ${sg(net)}`,
+              body: (G.length === 1 ? `${won ? usd(G[0].cost + G[0].pnl) + ' paid out · ' : ''}${G[0].n} at ${c1(G[0].px)}${acc(G[0])}` : join(G.slice().sort((a, b) => won ? b.pnl - a.pnl : a.pnl - b.pnl).map(x => `${x.coin} ${sg(x.pnl)}`)) + (G.some(x => x.acc > 1) ? ` · ${Math.max(...G.map(x => x.acc))} accounts` : '')) + tail }); } } }
     };
     // paper: the active playbook's own trades in the current run
     const pt = (pnT || []).filter(t => !t.capped && t.run && now - t.t < 60 * 60000).map(t => ({ id: t.tk, at: t.t, close: t.close, coin: t.coin, side: t.side, px: t.px, n: t.n, cost: t.cost, done: t.done, won: t.won, pnl: t.pnl ?? 0, late: t.late }));
     if (pt.length) { const today = (pnT || []).filter(t => t.done && !t.capped && t.run && etDay(t.close) === D).reduce((a, t) => a + (t.pnl || 0), 0), sid = stratAt(K.strat, now), nm = sid === 'rule' ? 'The rule' : (labDefs(K).find(l => l.id === sid)?.name || null);
-      build('paper', 'Paper account', 0, 0, 'p', pt, today, `Bank ${usd(pnBank ?? K.startUsd)}.`, nm); }
+      build('paper', 'Paper account', 0, 0, 'p', pt, today, `bank ${usd(pnBank ?? K.startUsd)}`, nm); }
     // live: orders that filled, and their results
     // MC 2026-11-21 every live account, not Main alone: a market is one line, its contracts and money added up over the accounts
     // that hold it (acc). A sold position counts as a win when it made money. Today and the cash are every account's.
     const bk = books.view(), lt0 = [...[...L.values()], ...books.allRows()].filter(x => x.fill > 0 && x.px != null && now - x.at < 60 * 60000), byTk = new Map();
-    for (const x of lt0) { const g = byTk.get(x.tk) || { id: x.tk, at: x.at, close: x.close, coin: x.coin, side: x.side, n: 0, pxn: 0, cost: 0, pnl: 0, done: true, acc: 0, late: x.late }; byTk.set(x.tk, g);
+    for (const x of lt0) { const g = byTk.get(x.tk) || { id: x.tk, at: x.at, close: x.close, coin: x.coin, side: x.side, n: 0, pxn: 0, cost: 0, pnl: 0, done: true, acc: 0, late: x.late, mp: x.strat === 'mp' && !x.hand ? 1 : 0 }; byTk.set(x.tk, g);
       g.at = Math.min(g.at, x.at); g.n += x.fill; g.pxn += x.fill * x.px; g.cost += x.cost ?? x.fill * x.px; g.pnl += x.pnl ?? 0; g.done = g.done && !!x.result; g.acc++; }
     const lt = [...byTk.values()].map(g => ({ ...g, px: g.n ? g.pxn / g.n : 0, won: g.pnl > 0 }));
     if (lt.length) { const today = [...L.values()].filter(x => x.result && x.fill > 0 && etDay(x.close) === D).reduce((a, x) => a + (x.pnl || 0), 0) + bk.reduce((a, b) => a + (b.today?.net || 0), 0), sid = stratAt(ctl().strat, now), nm = sid === 'rule' ? 'The rule' : (labDefs(K).find(l => l.id === sid)?.name || null);
-      const cash = (st.bal ?? 0) + bk.reduce((a, b) => a + (b.bal || 0), 0); build('live', 'Live account', 0, 0, 'l', lt, today, st.bal != null ? (bk.length ? `Kalshi cash ${usd(cash)} in ${bk.length + 1} accounts.` : `Kalshi balance ${usd(st.bal)}.`) : '', nm); }
+      const cash = (st.bal ?? 0) + bk.reduce((a, b) => a + (b.bal || 0), 0); build('live', 'Live account', 0, 0, 'l', lt, today, st.bal != null ? `cash ${usd(bk.length ? cash : st.bal)}` : '', nm); }
     if (ch) { for (const k of Object.keys(seen)) if (now - seen[k] > 6 * 3600000) delete seen[k]; await kv.put('kpn', seen); }
     // MC 2026-11-13 vault sweeps go out as live win notices
     while (vq.length) { const e = vq.shift(); out.push({ book: 'live', kind: 'settle', win: true, loss: false, title: e.title, body: e.body, tag: 'kvault', url: e.url }); }
