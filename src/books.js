@@ -432,7 +432,7 @@ export function createBooks(D) {
   }
   function onSettle(r) {
     if (!list) return;
-    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveRow(b, x); S[b.id].balAt = 0; if (x.won && keep > 0) { S[b.id].payExp = +((S[b.id].payExp || 0) + keep).toFixed(2); S[b.id].payAt = S[b.id].payAt || Date.now(); } D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
+    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveRow(b, x); S[b.id].balAt = 0; if (x.won && keep > 0) { S[b.id].payExp = +((S[b.id].payExp || 0) + keep).toFixed(2); if (!S[b.id].payAt) S[b.id].payWas = S[b.id].bal; S[b.id].payAt = S[b.id].payAt || Date.now(); } D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
   }
   // MC 2026-11-18 right after a win Main's cash was up to date and the sub accounts' was not, for up to a minute. The quick look
   // that settles a trade seconds after its close read Main's balance again but left the books for the next minute run.
@@ -441,8 +441,13 @@ export function createBooks(D) {
   // read, the next look was the minute run. A win now notes the payout due (payExp); until the balance shows it, the books are
   // read again every 10 seconds (payWait tells the alarm), for up to two minutes, then the minute run carries on as before.
   async function afterSettle() {
-    if (!list) return 0; let n = 0;
-    await Promise.all(list.filter(b => S[b.id] && !S[b.id].balAt && [...(L[b.id]?.values() || [])].some(x => x.fill > 0)).map(async b => { try { const s = S[b.id], was = s.bal; await balance(b); n++;
+    // MC 2026-11-22 Mitchell: "my full account balance is not right, it didn't load all accounts before sending". Two holes in
+    // the 11-21 wait. The minute run's own balance read could land between the settle and this one; it stamped the balance as
+    // fresh (balAt), this skipped the book as already read, and the payout then waited out the full two minutes. And the rise
+    // was measured from the read before, so a read that had already caught the payout looked like no rise at all. A book with
+    // a payout due is now read here whatever its stamp says, and the rise is measured from the cash at the settle (payWas).
+    if (!list) return 0; let n = 0; const due = s => s.payExp > 0 && s.payAt && Date.now() - s.payAt <= 120000;
+    await Promise.all(list.filter(b => S[b.id] && (!S[b.id].balAt || due(S[b.id])) && [...(L[b.id]?.values() || [])].some(x => x.fill > 0)).map(async b => { try { const s = S[b.id], was = s.payExp > 0 && s.payWas != null ? s.payWas : s.bal; s.balAt = 0; await balance(b); n++;
       // paid once the cash is up by at least half of what is due (the figure kept between reads drifts by cents, so any rise is not enough)
       if (s.bal != null && was != null && (s.payExp > 0 ? s.bal >= was + s.payExp / 2 : s.bal > was + 0.005)) { s.payExp = 0; s.payAt = 0; }
       else { s.balAt = 0; if (s.payAt && Date.now() - s.payAt > 120000) { s.payExp = 0; s.payAt = 0; } } } catch { } }));   // unchanged: Kalshi may not have paid yet, so it is read again

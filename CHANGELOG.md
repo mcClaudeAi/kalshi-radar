@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.87 (Nov 22, 2026): the cash on a win notification is every account's
+
+- [fixed] The cash on a win or loss notification could be short. A sub account's payout was sometimes not read for up to two minutes after a win, because the minute run's own balance read made the quick re-read skip that account. An account with a payout due is now read every 10 seconds until the money shows.
+- [fixed] The notification itself now waits for every account's payout to show before it goes out (two and a half minutes at most), so its cash line is the full total. Main waits for its payout the same way the sub accounts do.
+- [improved] When money is sitting in trades that are still open, the notification says so next to the cash: "cash $1,468.47 · $31.50 in open trades".
+
 ## 1.3.86 (Nov 22, 2026): Shorter notifications, money first
 - [improved] Notifications read more like Kalshi's own. The headline leads with the coin and the money ("ETH No won +$16.42") so it is not cut off on the lock screen before the amount, and a win uses the party popper. The body is one line of facts ("$120.00 paid out · 120 at 86.3¢ · 3 accounts") and one for the day ("Today +$41.81 · cash $1,501.03"). A buy reads "Bought ETH No at 86.3¢" with the contracts, the money in, when it settles, and whether it was a Mitch pick or a later buy. Paper notifications start with "Paper:".
 

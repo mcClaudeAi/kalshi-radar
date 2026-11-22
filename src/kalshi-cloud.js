@@ -597,6 +597,14 @@ export function createKalshi(state, env, keep) {
   // ---------- live account ----------
   const todayL = () => { const d = etDay(Date.now()); return [...L.values()].filter(x => etDay(x.at) === d); };
   const realized = l => l.reduce((a, x) => a + (x.pnl ?? 0), 0);
+  // MC 2026-11-22 Mitchell: the cash on a win notification was short, it went out before every account's balance had loaded. Kalshi
+  // posts a result a little before it pays, so the balance read right after a settle can still be the old one. The books already
+  // wait for their payout (books.js payExp); Main now does the same: a win notes what is due (mainPay), the balance is read
+  // again every 10 seconds until it shows, two minutes at most, and the settle notification is held until Main and every
+  // book have caught up (events, below) so its cash line is the real total.
+  let mainPay = null;
+  const mainWait = () => !!mainPay && Date.now() - mainPay.at <= 120000;
+  async function mainPayRead() { if (!mainPay) return; if (!mainWait()) { mainPay = null; return; } st.balAt = 0; try { await balance(); } catch { } if (st.bal != null && mainPay.was != null && st.bal >= mainPay.was + mainPay.exp / 2) mainPay = null; }
   async function balance(force) {
     if (Date.now() - st.balAt < (force ? 30000 : 60000)) return st.bal;
     // MC 2026-11-15 the per-shard reads below made every balance check three calls and Steven's copy ran into Cloudflare's cap
@@ -882,6 +890,7 @@ export function createKalshi(state, env, keep) {
     // the rest of a partly cashed-out position settles here, with the sale counted in
     const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0;
     x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveL(x); st.balAt = 0;
+    if (x.won && keep > 0) mainPay = { exp: (mainPay?.exp || 0) + keep, at: Date.now(), was: mainPay?.was ?? st.bal };
     say(`LIVE settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl >= 0 ? '+' : ''}$${x.pnl}`);
   }
   async function sellAll() {
@@ -1512,7 +1521,7 @@ export function createKalshi(state, env, keep) {
     // live positions with no tracker record (hand buys) get the same quick look after their close
     // MC 2026-11-21 a sub account's hand buy that Main did not also make had no quick look and waited for the minute run
     for (const x of [...L.values(), ...books.allRows()]) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
-    if (books.payWait()) t = Math.min(t, now + 10000);   // a sub account's win not paid yet: read its cash again in 10 seconds
+    if (books.payWait() || mainWait()) t = Math.min(t, now + 10000);   // a sub account's win not paid yet: read its cash again in 10 seconds
     coreAt = t; if (fastWant(now + 10000) || fastWant(now)) t = Math.min(t, now + 10000);   // the 10-second Mitch pick look (fastLook)
     return t;
   }
@@ -1527,6 +1536,7 @@ export function createKalshi(state, env, keep) {
     { const c = Math.ceil(now / Q) * Q, left = c - now; if (left <= 31500 && left >= 12000 && lsDone !== c) { lsDone = c; try { await lastLook(now, c); } catch (e) { say('last look error: ' + e.message); } } }
     let moved = false; try { moved = await settleSome(now, true); } catch (e) { say('quick settle error: ' + e.message); }
     if (moved && hasKeys()) { try { await balance(); } catch (e) { fail(e.message); } }
+    if (hasKeys()) await mainPayRead();
     if (moved || books.payWait()) { try { await books.afterSettle(); } catch (e) { say('books balance after settle: ' + e.message); } }   // MC 2026-11-18 the books' cash too, not only Main's
     await state.storage.setAlarm(nextAlarm(now));
     await publish(true);
@@ -1646,7 +1656,7 @@ export function createKalshi(state, env, keep) {
         const d = w.filter(x => x.done && !seen[key + 's' + x.id] && now - close < 40 * 60000), all = w.every(x => x.done);
         // MC 2026-11-21 asked: wins and losses as separate notifications, so a glance says which it was. A window with both sends
         // two, losses first, each with its own tag (one never replaces the other) and its own sound hint (snd) for the phone.
-        if (d.length && (all || now > close + 4 * 60000)) { d.forEach(x => mark(key + 's' + x.id));
+        if (d.length && (all || now > close + 4 * 60000) && (book !== 'live' || !(books.payWait() || mainWait()) || now > close + 150000)) { d.forEach(x => mark(key + 's' + x.id));
           const acc = x => x.acc > 1 ? ` · ${x.acc} accounts` : '', tail = `\nToday ${sg(dayNet)}${bankLine ? ' · ' + bankLine : ''}`;
           for (const [won, G] of [[false, d.filter(x => !x.won)], [true, d.filter(x => x.won)]]) { if (!G.length) continue; const net = G.reduce((a, x) => a + x.pnl, 0);
             out.push({ book, kind: 'settle', win: won, loss: !won, snd: won ? 'win' : 'loss', tag: key + (won ? 'w' : 'l') + close, url: '/',
@@ -1665,7 +1675,10 @@ export function createKalshi(state, env, keep) {
       g.at = Math.min(g.at, x.at); g.n += x.fill; g.pxn += x.fill * x.px; g.cost += x.cost ?? x.fill * x.px; g.pnl += x.pnl ?? 0; g.done = g.done && !!x.result; g.acc++; }
     const lt = [...byTk.values()].map(g => ({ ...g, px: g.n ? g.pxn / g.n : 0, won: g.pnl > 0 }));
     if (lt.length) { const today = [...L.values()].filter(x => x.result && x.fill > 0 && etDay(x.close) === D).reduce((a, x) => a + (x.pnl || 0), 0) + bk.reduce((a, b) => a + (b.today?.net || 0), 0), sid = stratAt(ctl().strat, now), nm = sid === 'rule' ? 'The rule' : (labDefs(K).find(l => l.id === sid)?.name || null);
-      const cash = (st.bal ?? 0) + bk.reduce((a, b) => a + (b.bal || 0), 0); build('live', 'Live account', 0, 0, 'l', lt, today, st.bal != null ? `cash ${usd(bk.length ? cash : st.bal)}` : '', nm); }
+      // MC 2026-11-22 Mitchell read the cash as short ("i should be over 1500") when the rest was sitting in a trade still open.
+      // Money in open trades is not cash until they settle, so the line now says how much is out: "cash $1,468.47 · $31.50 in open trades".
+      const cash = (st.bal ?? 0) + bk.reduce((a, b) => a + (b.bal || 0), 0), out$ = [...L.values(), ...books.allRows()].filter(x => x.fill > 0 && !x.result && !(x.sold && x.sold.fill >= x.fill) && now < x.close + 10 * 60000).reduce((a, x) => a + (x.cost ?? x.fill * x.px) * (1 - (x.sold?.fill || 0) / x.fill), 0);
+      build('live', 'Live account', 0, 0, 'l', lt, today, st.bal != null ? `cash ${usd(bk.length ? cash : st.bal)}${out$ >= 0.5 ? ` · ${usd(out$)} in open trades` : ''}` : '', nm); }
     if (ch) { for (const k of Object.keys(seen)) if (now - seen[k] > 6 * 3600000) delete seen[k]; await kv.put('kpn', seen); }
     // MC 2026-11-13 vault sweeps go out as live win notices
     while (vq.length) { const e = vq.shift(); out.push({ book: 'live', kind: 'settle', win: true, loss: false, title: e.title, body: e.body, tag: 'kvault', url: e.url }); }
