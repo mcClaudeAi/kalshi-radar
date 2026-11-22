@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.80 (Nov 22, 2026): Mitch + Claude in the Backtest
+- [new] The Backtest has a "Mitch + Claude" row: one rule made from three. A buy has to pass Claude's pick, not be a straggler behind a crowded move, and be a Mitch pick at that moment. It buys at the trade check, then the first minute from 8 down to 4 minutes left. Fewer trades than either rule on its own, each one surer. Covers Aug 21 on at quoted prices.
+
 ## 1.3.79 (Nov 22, 2026): Chart readouts reach the last point
 - [fixed] The readout on the Analytics profit chart would not show the chart's last point. When several trades settled in the same second (one an account) the readout stopped at the first of them, and a pointer a pixel past the end of the line switched it off. It now reads the latest point, and a pointer in the margin reads the first or last point. The same margin fix is on the Labs and Backtest charts.
 
