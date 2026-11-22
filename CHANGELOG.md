@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.68 (Nov 21, 2026): Hide the win rate stats and the Accounts section on Home
+- [new] A Show button next to Paper / Live on Home, on phone and web, has two switches: Win rate and stats (win rate, average trade, filled, price vs paper and the daily stop under the summary) and Accounts (the totals and every account's row). Switch one off and it is no longer drawn. Saved on this device; a dot on the button means something is hidden. Nothing about trading changes.
+
 ## 1.3.67 (Nov 21, 2026): Mitch pick stops under 96.5¢
 - [fixed] A leader at exactly 96.5¢ still got the purple Mitch pick glow, and because the row shows whole cents it read 97¢. The top of the range is now under 96.5¢, so a coin showing 97¢ never glows purple.
 
