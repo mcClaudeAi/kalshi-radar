@@ -351,17 +351,30 @@ async function advCandles(pid, s, e) {
   if (!r.ok) { const err = new Error('coinbase adv ' + r.status); err.status = r.status; throw err; }
   return ((await r.json()).candles || []).map(k => [+k.start, +k.low, +k.high, +k.open, +k.close, +k.volume]).filter(k => k[4] > 0);
 }
+const KRP = { BTC: 'XBTUSD', ETH: 'ETHUSD', SOL: 'SOLUSD', XRP: 'XRPUSD', DOGE: 'DOGEUSD', HYPE: 'HYPEUSD', BNB: 'BNBUSD', ZEC: 'ZECUSD', NEAR: 'NEARUSD' };
+// Kraken's last 12 hours of minute candles as Coinbase's rows: [time, low, high, open, close, volume], the last 300
+async function krCandles(c) {
+  const pair = KRP[c]; if (!pair) return null; const r = await fetch(`https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=1`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(4000) }); if (!r.ok) return null;
+  const j = await r.json(), rows = j?.result && Object.entries(j.result).find(([k]) => k !== 'last')?.[1]; if (!Array.isArray(rows)) return null;
+  return rows.slice(-300).map(k => [+k[0], +k[3], +k[2], +k[1], +k[4], +k[6]]).filter(k => k[4] > 0);
+}
 async function volAt(c, strike, side) {
   const pid = CBPID[c]; if (!pid || !(strike > 0)) return null;
   try {
     const now = Math.floor(Date.now() / 1000); let all = null, from = 'adv';
     try { all = await advCandles(pid, now - 299 * 60, now); } catch (e) { console.log(`vol ${c}: ${e.message}`); }
-    if (!all || all.length < 20) { from = 'exchange'; const r = await fetch(`https://api.exchange.coinbase.com/products/${pid}/candles?granularity=60`, { headers: CBH }); if (!r.ok) { console.log(`vol ${c}: exchange list ${r.status}`); return null; } all = (await r.json()).slice(0, 300); }
+    if (!all || all.length < 20) { from = 'exchange'; try { const r = await fetch(`https://api.exchange.coinbase.com/products/${pid}/candles?granularity=60`, { headers: CBH }); if (r.ok) all = (await r.json()).slice(0, 300); else { console.log(`vol ${c}: exchange list ${r.status}`); all = null; } } catch (e) { console.log(`vol ${c}: exchange list threw`); all = null; } }
+    // MC 2026-11-22 Mitchell: if Coinbase errors out, read the price somewhere else. With both Coinbase lists refused (it has
+    // turned the tracker away with 429s near the trade check before) there was no reading at all and the playbook skipped the
+    // coin. Kraken's minute candles now stand in, in the same shape; the reading's source says kraken so it can be told apart.
+    // Kraken's price sits a few hundredths of a percent off Coinbase's, which matters only for a coin that close to its target.
+    if (!all || all.length < 20) { from = 'kraken'; all = await krCandles(c).catch(() => null); if (!all || all.length < 20) { console.log(`vol ${c}: no candles from Coinbase or Kraken`); return null; } }
     all.sort((a, b) => a[0] - b[0]);   // oldest first: [time, low, high, open, close, volume]
     const rows = all.slice(-61); if (rows.length < 20) { console.log(`vol ${c}: only ${rows.length} candles`); return null; }
     const age = Math.round(Date.now() / 1000 - rows[rows.length - 1][0]); let px = rows[rows.length - 1][4], src = 'candle';
     if (age > 120) { src = 'stale';
-      for (const [name, url, pick] of [['adv', `https://api.coinbase.com/api/v3/brokerage/market/products/${pid}`, j => j?.price], ['spot', `https://api.coinbase.com/v2/prices/${pid}/spot`, j => j?.data?.amount], ['ticker', `https://api.exchange.coinbase.com/products/${pid}/ticker`, j => j?.price]]) {
+      for (const [name, url, pick] of [['adv', `https://api.coinbase.com/api/v3/brokerage/market/products/${pid}`, j => j?.price], ['spot', `https://api.coinbase.com/v2/prices/${pid}/spot`, j => j?.data?.amount], ['ticker', `https://api.exchange.coinbase.com/products/${pid}/ticker`, j => j?.price],
+        ...(KRP[c] ? [['kraken', `https://api.kraken.com/0/public/Ticker?pair=${KRP[c]}`, j => { const k0 = j?.result && Object.values(j.result)[0]; return k0 ? (+k0.a?.[0] + +k0.b?.[0]) / 2 : null; }]] : []), ['bitstamp', `https://www.bitstamp.net/api/v2/ticker/${c.toLowerCase()}usd/`, j => j ? (+j.ask + +j.bid) / 2 : null]]) {
         try { const t = await fetch(url, { headers: CBH }); if (!t.ok) { console.log(`vol ${c}: ${name} ${t.status}`); continue; } const v = Number(pick(await t.json())); if (v > 0) { px = v; src = name; break; } } catch (e) { console.log(`vol ${c}: ${name} threw`); } } }
     side = await side; if (side !== 'yes' && side !== 'no') return null;   // MC 2026-11-17 the trade check asks before it knows the side
     const out = volCalc(all, rows, px, strike, side, age, src); console.log(`vol ${c}: ok ${from} age ${age}s ${src} z ${out.z} z10 ${out.z10}`); return out;
@@ -1200,26 +1213,30 @@ export function createKalshi(state, env, keep) {
   // playbook the account runs. Off unless turned on (live setting mpBuy; a book with its own rules has its own). The rule, the
   // one backtested the same day: leader at 85c to under 96.5c, 13 down to 2 minutes left, cushion 1 or more, likely line on
   // its side, at least 7 of the window's leaders on the same side, and the hand-buy check at +1c a contract or better. It is
-  // looked for once a minute on the minute scan, before and after the trade check but not on the check's own minute (the
-  // playbook's orders go out then, and two buyers in the same second could both take one market). The first minute a market
+  // looked for on the minute scan and, between scans, every 10 seconds (fastLook below), before and after the trade check but
+  // not around the check itself (the playbook's orders go out then, and two buyers in the same second could both take one market). The first minute a market
   // passes, the order book is read, the rule is checked again on the real ask, and the order goes through the same path as
   // every other live order (onRule, and buy in books.js): size, daily stops, protect profit, cash floor, window cap, bench,
   // off hours and the coin list all hold, and the limit stays under 96.5c. One go a market: bought or refused, it is not
   // tried again, and an account that already has an order in the market is left alone. Nothing here touches paper.
   const MPL = { id: 'mp', name: 'Mitch pick' }, mpDone = new Map();
   const mpOk = (cfg, cn, now) => cfg.mpBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && !offSlots(cfg).has(slotOf(now, etHour));
-  async function mpLive(out, now) {
+  let mpBusy = false; const mpRead = new Map();
+  const mpWanted = () => { const c = ctl(); return !!c.enabled && !c.autoPause && hasKeys() && (cfgL.mpBuy === 1 || books.mpAny(cfgL)); };
+  async function mpLive(out, now, fast = false) { if (mpBusy) return; mpBusy = true; try { await mpLive1(out, now, fast); } finally { mpBusy = false; } }
+  async function mpLive1(out, now, fast) {
     const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys() || entryBusy) return;
     if (cfgL.mpBuy !== 1 && !books.mpAny(cfgL)) return;
     for (const [k, t] of mpDone) if (t < now) mpDone.delete(k);
     const W = out.filter(s => s.leader && s.lask != null && s.strike > 0); let reads = 0;
     for (const s of W) {
-      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13 || (el > 285000 && el < 345000) || mpDone.has(s.tk)) continue;
+      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13 || (!fast && el > 285000 && el < 345000) || mpDone.has(s.tk)) continue;   // the minute scan sits out the check's minute; the 10-second look has its own pause (fastWant)
       if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) continue;
       const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) continue;
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
       const mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) continue;
-      let v = s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { if (++reads > 6) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); }
+      // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
+      let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
       if (!v || v.src === 'stale' || v.z == null || v.z < 1 || !(v.lk > 0)) continue;
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
       if (!(edge(s.lask) >= 1)) continue;
@@ -1237,6 +1254,23 @@ export function createKalshi(state, env, keep) {
       try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
       resv = 0; viewDirty = true;
     }
+  }
+  // MC 2026-11-22 Mitchell: once a minute is not often enough. While "Buy Mitch picks" is on for any account the tracker now
+  // looks every 10 seconds: one request refreshes Kalshi's prices for the nine markets, then the same rule and the same buy as
+  // the minute look, on a reading taken then. It eases off around the trade check (from 45 seconds before it to 30 after), when
+  // the check takes its own Coinbase readings and sends the playbook's orders, and it does nothing outside 13 to 2 minutes
+  // left. With the setting off there is nothing for the tracker to do faster: the glow is worked out in the browser, and the
+  // page already asks for fresh Kalshi prices while it is open (scanQuick, every 10 seconds now).
+  const fastWant = now => { if (!mpWanted() || !scan.length) return false; const s = scan.find(x => x.close > now); if (!s) return false; const left = (s.close - now) / 60000, el = now - s.open; return left <= 13.2 && left >= 1.9 && !(el > 255000 && el < 330000); };
+  let fastBusy = false, coreAt = 0;
+  async function fastLook(now) {
+    if (fastBusy || entryBusy || !fastWant(now)) return; fastBusy = true;
+    try { const live = scan.filter(x => x.close > now); if (!live.length) return;
+      if (now - Math.max(scanAt, sqAt) >= 7000) { sqAt = now; const j = await get(`/markets?tickers=${live.map(x => x.tk).join(',')}&limit=${live.length + 5}`), M = new Map((j?.markets || []).map(m => [m.ticker, m]));
+        for (const x of live) { const m = M.get(x.tk); if (!m) continue; const yb = d4(num(m.yes_bid_dollars ?? m.yes_bid)), ya = d4(num(m.yes_ask_dollars ?? m.yes_ask)), last = d4(num(m.last_price_dollars ?? m.last_price)); if (yb == null && ya == null) continue;
+          const na = yb == null ? null : +(1 - yb).toFixed(4); x.yb = yb; x.ya = ya; x.last = last; x.leader = ya == null || na == null ? null : ya >= na ? 'yes' : 'no'; x.lask = x.leader === 'yes' ? ya : x.leader === 'no' ? na : null; x.q = Date.now(); } }
+      await mpLive(scan, Date.now(), true);
+    } finally { fastBusy = false; }
   }
   // ---------- every minute: scanner, price paths, settlement ----------
   async function tick() {
@@ -1475,11 +1509,16 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-21 a sub account's hand buy that Main did not also make had no quick look and waited for the minute run
     for (const x of [...L.values(), ...books.allRows()]) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
     if (books.payWait()) t = Math.min(t, now + 10000);   // a sub account's win not paid yet: read its cash again in 10 seconds
+    coreAt = t; if (fastWant(now + 10000) || fastWant(now)) t = Math.min(t, now + 10000);   // the 10-second Mitch pick look (fastLook)
     return t;
   }
   async function alarm() {
     await load();
     const now = Date.now(), mk = nextMark(now) - Q;
+    // MC 2026-11-22 an alarm that is only the 10-second look does that and goes back to sleep: the settle checks and the rest
+    // below keep the pace they had (coreAt is when they were next due; unknown after a restart, so the full run happens)
+    if (coreAt && now < coreAt - 1500) { try { await fastLook(now); } catch (e) { say('Mitch pick look error: ' + e.message); } await state.storage.setAlarm(nextAlarm(Date.now())); if (viewDirty) await publish(true); return; }
+    try { await fastLook(now); } catch (e) { say('Mitch pick look error: ' + e.message); }
     if (now - mk < 60000 && st.lastMark < mk) { try { await entry(now); } catch (e) { say('entry error: ' + e.message); } }
     { const c = Math.ceil(now / Q) * Q, left = c - now; if (left <= 31500 && left >= 12000 && lsDone !== c) { lsDone = c; try { await lastLook(now, c); } catch (e) { say('last look error: ' + e.message); } } }
     let moved = false; try { moved = await settleSome(now, true); } catch (e) { say('quick settle error: ' + e.message); }
@@ -1497,8 +1536,9 @@ export function createKalshi(state, env, keep) {
   // MC 2026-11-15 later: the first version read the nine markets one by one, nine requests at once every 9 seconds while anyone
   // watched, and with the sell quotes below it Steven's tracker was turned away by Kalshi (429). Now one request for all nine
   // (the market list takes a list of tickers) every 15 seconds at most.
+  // MC 2026-11-22 every 10 seconds: Mitchell wants the purple glow fresh enough to buy by hand. Still one request a read.
   async function scanQuick() {
-    await load(); const now = Date.now(); if (!scan.length) return null; if (now - Math.max(scanAt, sqAt) < 15000) return false; if (sqBusy) return sqBusy; sqAt = now;
+    await load(); const now = Date.now(); if (!scan.length) return null; if (now - Math.max(scanAt, sqAt) < 10000) return false; if (sqBusy) return sqBusy; sqAt = now;
     sqBusy = (async () => { try { const live = scan.filter(x => x.close > Date.now()); if (!live.length) return true;
         const j = await get(`/markets?tickers=${live.map(x => x.tk).join(',')}&limit=${live.length + 5}`), M = new Map((j?.markets || []).map(m => [m.ticker, m]));
         for (const x of live) { const m = M.get(x.tk); if (!m) continue;
