@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.82 (Nov 22, 2026): "Buy Mitch picks" saves
+- [fixed] Changing "Buy Mitch picks" in Live settings showed unsaved changes, then said "Nothing changed" on save. The setting was on the form but left out of what the save reads. It saves now, with the usual hold to confirm.
+
 ## 1.3.81 (Nov 22, 2026): New Backtest rows show up sooner
 - [fixed] A row added to the Backtest could stay missing for up to an hour after an update, because the tab kept getting the older copy of its data file. It now gets a fresh copy within about 5 minutes.
 
