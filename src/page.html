@@ -1476,6 +1476,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.kx-bkr td,.kx-bkr td *
 .lh-chip{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:99px;font-size:12px;color:var(--mute);border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 55%,transparent);white-space:nowrap}.lh-chip b{color:var(--ink);font-family:var(--mono);font-weight:600;margin-right:4px}
 /* MC 2026-11-20 display sweep, web and phone: long account lists wrap, small cards switch to fewer columns before numbers
    run past their cells, and the money list puts the kind under the amount on a narrow phone. */
+.lh-chip.lh-mp{color:var(--mm);border-color:color-mix(in srgb,var(--mm) 55%,transparent);background:color-mix(in srgb,var(--mm) 12%,transparent);gap:6px}.lh-chip.lh-mp i{width:7px;height:7px;border-radius:50%;background:var(--mm);box-shadow:0 0 8px var(--mm)}
 .lh-chip.lh-accl{height:auto;min-height:26px;white-space:normal;padding-top:4px;padding-bottom:4px;line-height:1.35}
 .card:has(>.kx-heat){container-type:inline-size}
 @container (max-width:470px){.kx-heat{grid-template-columns:repeat(6,minmax(0,1fr))}}
@@ -3175,7 +3176,7 @@ function ckPaint(force){const root=$('#kxck');if(!root)return;CK.f++;const now=D
       return `<button class="ck-pr${x.coin===c?' on':''}" onclick="ckPick('${x.coin}')"><i class="${w==null?'':w?'w':'l'}"></i><b>${esc(x.coin)}</b><span class="kx-side ${x.side}">${x.side.toUpperCase()}</span><span class="ck-prn">×${x.n}</span><span class="ck-prv">${v!=null?'$'+v.toFixed(2):'–'}</span><span class="ck-prp ${cls(pl)}">${pl==null?'':(pl>=0?'+':'-')+'$'+Math.abs(pl).toFixed(2)}</span><span class="ck-prb">${bid!=null?Math.round(bid*100):'–'}¢ / ${kxC(x.px)}</span><span class="ck-prt">${now<x.close?kxCd(x.close-now):'settling'}</span></button>`}).join(''):'<div class="ck-none">No open trades. The next ones come at the 10-minute mark.</div>'}`}}
 
 // ---------- chrome: sidebar, top bar, bottom bar ----------
-function paintChrome(){const D=ST.D||{},L=D.live||{},T=D.totals||{};
+function paintChrome(){const D=ST.D||{},L=D.live||{},T=D.totals||{};try{kxAccPaint()}catch{}
   const cnt={live:L.all?.n,open:D.open?.length,trades:D.totals?.all?.n,wallets:(D.proven?.length||0)};const lo=liveOpen().length;
   const arOpen=ST.archOpen||!KXTABS.includes(ST.tab);
   $('#nav').innerHTML=NAV.map(([g,items])=>g==='Archive'?`<button class="ng arch" aria-expanded="${arOpen}" onclick="ST.archOpen=!(${arOpen});try{localStorage.setItem('cr-arch',ST.archOpen?'1':'')}catch{};paintChrome()"><b>Archive</b><span>memecoin bot ${ico('chev')}</span></button>`+(arOpen?items.map(([k,l,i])=>`<button class="nv ar" data-tab="${k}" ${ST.tab===k?'aria-current="page"':''}>${ico(i)}<span>${l}</span></button>`).join(''):''):`<div class="ng">${g==='Kalshi'&&ST.fv?'Kalshi · '+esc(ST.fv.name):g}</div>`+items.filter(([k])=>!(ST.fv&&FV_HIDE.has(k)&&k!=='kchat')).map(([k,l,i,n])=>`<button class="nv" data-tab="${k}" ${(ST.fv?k==='fd:'+ST.fv.id:ST.tab===k)||(ST.fv&&g==='Kalshi'&&ST.tab===k)?'aria-current="page"':''}>${ico(i)}<span>${g==='Shared dashboards'&&k!=='kchat'?esc(l):l}</span>${n?`<span class="c hot">${n}</span>`:''}${k==='klive'&&ST.D?.kalshi?.live?.live?.on?'<span class="c hot">on</span>':''}</button>`).join('')).join('');
@@ -3415,6 +3416,9 @@ function kxMitch(s){if(!s?.leader||s.lask==null||s.lask<.85||s.lask>=.965-1e-9)r
   const r=kxRd(s);if(!r||r.z==null||r.z<1||!(r.same>=7))return false;const h=kxHcEst(r);if(!h||h.e==null||h.e<1)return false;const lk=kxLk(s,s.leader);return lk!=null&&lk>0&&!kxHeld(s)}
 // on its own prices and then the real order book. With "Buy Mitch picks" on for any account, the tracker's last answer for the
 // coin (mpWhy, under 45 seconds old) shows beside the purple tag: bought, or the one thing that stopped it.
+// dollars-a-trade one whenever an account that is trading has Buy Mitch picks on, with how many when it is not all of them.
+function kxMpChip(lv){const A=[lv.on?{on:lv.cfg?.mpBuy===1}:null,...(lv.books||[]).filter(b=>b.on).map(b=>({on:(b.cfg?b.cfg.mpBuy:lv.cfg?.mpBuy)===1}))].filter(Boolean),n=A.filter(a=>a.on).length;
+  return n?`<span class="lh-chip lh-mp" title="Buy Mitch picks is on: a coin that glows purple is bought automatically"><i></i>Mitch picks on${A.length>1&&n<A.length?` · ${n} of ${A.length}`:''}</span>`:''}
 function kxMpNote(s,mm){const lv=kxLv(),on=lv?.on&&(lv.cfg?.mpBuy===1||(lv.books||[]).some(b=>b.on&&(b.cfg?b.cfg.mpBuy===1:lv.cfg?.mpBuy===1)));if(!on)return '';const fresh=s.mpWhy&&s.mpAt&&Date.now()-s.mpAt<45000;
   if(!mm&&!(fresh&&/^(bought|order|not bought)/.test(s.mpWhy)))return '';const w=fresh?s.mpWhy:lv.autoPause?'automatic buying is paused':'the tracker has not looked at it yet (it looks every 10 seconds)',good=/^bought/.test(w);
   return `<span class="kx-rd${good?' pos':''}" title="What the tracker's own check said the last time it looked. The purple tag is this browser's reading; the tracker buys on its own prices and the real order book, so the two can differ by a hair."><i>Auto-buy</i><b>${esc(w)}</b></span>`}
@@ -3703,7 +3707,10 @@ function kxDraw(cv,o){if(!o.noFin&&o.strike!=null&&o.close&&Date.now()>=o.close-
 function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<4)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
 // ----- live data: the tracker's snapshot via the worker, the bot's snapshot as fallback -----
 // MC 2026-11-15 on Home or with a coin box open, ask the tracker for Kalshi prices no more than about 10 seconds old (fresh=1)
-async function kxPoll(){if(!KX.on)return;const fv=ST.fv,j=await getJ(fv?'/api/friends/live?id='+encodeURIComponent(fv.id):'/api/klive'+((ST.tab==='kalshi'||document.querySelector('#mbox .kx-coinv'))&&!document.hidden?'?fresh=1':''));if(ST.fv!==fv)return;if(j&&j.at){KX.live=j;KX.liveAt=Date.now()}else{const K=ST.D?.kalshi;if(K){KX.live={at:K.live?.at||0,scan:K.live?.scan||[],open:(K.pending||[]).map(t=>({tk:t.tk,coin:t.coin,side:t.side,px:t.px,ask:t.ask,n:t.n,cost:t.cost,at:t.t,close:t.close,strike:t.strike,title:t.title,yb:null,ya:null,last:null,path:t.path||[]})),fallback:true}}}kxBoard();kxHdr();kxLivePaint();try{kxSndCheck()}catch{}
+  // $1,468.47. Both read the same figures; the header is also redrawn by the 10-second page read, the numbers below only from
+  // here, after the board. So an error drawing the board left them frozen until the tab was changed. Each step now runs on
+  // its own, and the header redraw (paintChrome) repaints those numbers too, so the two can't disagree.
+  for(const f of [kxBoard,kxHdr,kxLivePaint])try{f()}catch(e){KX.perr=String(e?.stack||e).slice(0,300);try{console.error('kxPoll',e)}catch{}}try{kxSndCheck()}catch{}
   // MC 2026-11-21 the totals on top (Live today across the accounts, cash) were only redrawn with the 10-second page read, so an
   // account's win or loss showed on its own card seconds before it reached the total. They are redrawn as soon as any account's
   // figures change.
@@ -5244,7 +5251,7 @@ function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div c
   if(warnM){const nm=L=>L.length<3?L.join(' and '):L.slice(0,-1).join(', ')+' and '+L[L.length-1];soft=goA.length>0;
     warn=`<div class="lh-wl">${goA.length?'':'<p><b>Not trading right now.</b></p>'}${hardA.map(x=>`<p><b>${esc(x.name)}</b> ${esc(kxStopShort(x.stopped))}.</p>`).join('')}${goA.length?`<p class="go"><b>Still trading:</b> ${esc(nm(goA.map(x=>x.name)))}.</p>`:''}</div>`}
   return `<section class="kx-hero2 kx-hlive lh" style="--hero:${net>=0?'var(--good)':'var(--bad)'}"><div class="kx-grid"></div><div class="kx-heq" id="kxheq"></div>
-   <div class="lh-top"><div class="lh-status"><span class="lh-live ${st[0]}"><i></i>${st[1]}</span><span class="lh-chip lh-rm">Real money on Kalshi</span>${lv.on?`<span class="lh-chip"><b>$${lv.size}</b> a trade</span>`:''}${bk.length?`<span class="lh-chip lh-accl">${[lv.on?'Main':null,...onB.map(b=>esc(b.name))].filter(Boolean).join(' + ')||'No account trading'}${bk.length>onB.length?` · ${bk.length-onB.length} off`:''}</span>`:''}</div>
+   <div class="lh-top"><div class="lh-status"><span class="lh-live ${st[0]}"><i></i>${st[1]}</span><span class="lh-chip lh-rm">Real money on Kalshi</span>${lv.on?`<span class="lh-chip"><b>$${lv.size}</b> a trade</span>`:''}${kxMpChip(lv)}${bk.length?`<span class="lh-chip lh-accl">${[lv.on?'Main':null,...onB.map(b=>esc(b.name))].filter(Boolean).join(' + ')||'No account trading'}${bk.length>onB.length?` · ${bk.length-onB.length} off`:''}</span>`:''}</div>
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
    ${warn?`<div class="lh-warn${soft?' soft':''}${warnM?' multi':''}"><i></i>${warn}</div>`:''}
    <div class="lh-main"><div class="lh-cash"><div class="kx-ml">Kalshi cash${bk.length?` · ${bk.length+1} accounts`:''}</div><div class="kx-bal" data-kxtot>${kxTotH()}</div><div class="lh-accs" data-kxall>${kxAllBoxH()}</div></div>
@@ -6149,7 +6156,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.87',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.88',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

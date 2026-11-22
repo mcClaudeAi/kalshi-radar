@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.88 (Nov 22, 2026): one cash total, and a Mitch picks chip
+
+- [fixed] The cash in the header and the big Kalshi cash number on Home could disagree, the header fresh and the number below it stuck on an older figure. They are now redrawn together, and a problem drawing the board can no longer hold the totals back.
+- [new] Home shows a purple "Mitch picks on" chip next to the dollars-a-trade chip whenever an account that is trading has Buy Mitch picks on. When only some accounts have it on, it says how many.
+
 ## 1.3.87 (Nov 22, 2026): the cash on a win notification is every account's
 
 - [fixed] The cash on a win or loss notification could be short. A sub account's payout was sometimes not read for up to two minutes after a win, because the minute run's own balance read made the quick re-read skip that account. An account with a payout due is now read every 10 seconds until the money shows.
