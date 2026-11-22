@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.69 (Nov 22, 2026): Replay plays again, and draws the trend and the buy
+- [fixed] The play button under "How it played out" did nothing on a live trade that had no paper copy loaded, and the scrub bar did nothing either. The replay now keeps the trade it was opened with.
+- [new] The replay draws the trend line as it happens: from minute 5 it is fitted to the prices so far, so it swings while the move forms and locks at minute 10, then a dashed line carries it on to where it pointed at the close. The readout says which way the trend is running, and the replay holds for a moment when it locks.
+- [new] The buy shows on the chart when the replay reaches it: a dot on the coin's price at that moment, the side and price paid on top, and a bar from the dot to the target that is the cushion, labelled in usual 10-minute moves and in percent. The replay holds for a second on the buy. While it plays, the readout shows the cushion at every moment. A live trade with no saved reading works the usual move out from that window and marks it with ~.
+
 ## 1.3.68 (Nov 21, 2026): Hide the win rate stats and the Accounts section on Home
 - [new] A Show button next to Paper / Live on Home, on phone and web, has two switches: Win rate and stats (win rate, average trade, filled, price vs paper and the daily stop under the summary) and Accounts (the totals and every account's row). Switch one off and it is no longer drawn. Saved on this device; a dot on the button means something is hidden. Nothing about trading changes.
 
