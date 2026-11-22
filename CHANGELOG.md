@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.79 (Nov 22, 2026): Chart readouts reach the last point
+- [fixed] The readout on the Analytics profit chart would not show the chart's last point. When several trades settled in the same second (one an account) the readout stopped at the first of them, and a pointer a pixel past the end of the line switched it off. It now reads the latest point, and a pointer in the margin reads the first or last point. The same margin fix is on the Labs and Backtest charts.
+
 ## 1.3.78 (Nov 22, 2026): One Mitch pick row in the Backtest
 - [improved] The Backtest showed both Mitch pick and Mitch pick 2. Mitch pick 2 (the hand-buy pattern as a rule) lost in every month and is gone. Mitch pick is the rule the purple glow uses now, and Check says buy stays beside it.
 
