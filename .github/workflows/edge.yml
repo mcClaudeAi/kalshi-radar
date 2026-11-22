@@ -52,5 +52,6 @@ jobs:
           python3 research/edge/merge.py pulled rd/data
           MODE=daily; if [ "${{ github.event.inputs.deep }}" = "yes" ] || { [ "${{ github.event.inputs.deep }}" != "no" ] && [ "$(date -u +%u)" = "7" ]; }; then MODE=deep; fi
           python3 research/edge/search.py rd $MODE
+          python3 research/edge/checkfit.py rd || echo "check fit failed, the last one stays"
           cp research/edge/README.md rd/README.md 2>/dev/null || true
           cd rd && git add -A && git -c user.name="mcClaudeAi" -c user.email="342561743+mcClaudeAi@users.noreply.github.com" commit -qm "Edge search $MODE $(date -u +%F)" && git push origin research-data || echo "nothing to commit"
