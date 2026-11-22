@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.78 (Nov 22, 2026): One Mitch pick row in the Backtest
+- [improved] The Backtest showed both Mitch pick and Mitch pick 2. Mitch pick 2 (the hand-buy pattern as a rule) lost in every month and is gone. Mitch pick is the rule the purple glow uses now, and Check says buy stays beside it.
+
 ## 1.3.77 (Nov 22, 2026): A 10-second look for Mitch picks, and a second price source
 - [improved] The scanner's Kalshi prices refresh every 10 seconds while Home or a coin box is open (was 15), so the purple glow is fresher for buying by hand, with the buy setting on or off.
 - [improved] With "Buy Mitch picks" on, the tracker looks every 10 seconds, not once a minute, on a reading taken at that moment. It pauses from 45 seconds before the trade check to 30 seconds after it, when the check takes its own readings and the playbook's orders go out. The in-between looks follow the same rule; the backtest only has one reading a minute, so they are not tested separately.

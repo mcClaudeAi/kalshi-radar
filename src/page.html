@@ -2133,8 +2133,8 @@ const BTP=[['rule','The rule','#4CC9F0','Every 90¢+ leader at 10 minutes left.'
  ['cph','Claude\'s pick, high confidence','#FFB86B','Claude\'s pick, only on coins at least 1.75 usual moves clear of their target, at the trade check and after it. Later buys (8 to 4 minutes left) also need room inside every line and are never the straggler of a crowded move. Fewer trades, each surer. Covers Aug 21 on, at quoted prices.',()=>true,{own:'lw3'}],
  // to 3 minutes left that it passes, one buy a market. Its own rows (research/learn/mpdata.mjs, from the Edge search data), quoted prices.
  ['mpk','Mitch pick','#c04dff','The purple coin on the scanner, by the rule it has had since Nov 22: the first minute from 13 down to 3 minutes left that the leader costs 85¢ to under 96.5¢, is at least 1 usual move clear, the likely line lands on its side, at least 7 of the 9 coins lead the same way, and the hand-buy check says +1¢ a contract or better. One buy a market. The check was fitted on these same months, so this row flatters it a little. Covers Aug 21 on, at quoted prices.',()=>true,{own:'mp3'}],
- // (research/learn/mpdata.mjs). Mitch pick 2 is the pattern itself. Check says buy is the hand-buy check on its own.
- ['mpk2','Mitch pick 2','#e879f9','The pattern in the hand buys of Nov 21 and 22 as a rule: the first minute from 12 down to 4 minutes left that the leader costs 80¢ to 94¢, the likely line lands on its side, and the coin was on the wrong side of its target earlier in the window. One buy a market. Covers Aug 21 on, at quoted prices.',()=>true,{own:'mp2'}],
+ // MC 2026-11-22 Check says buy is the hand-buy check on its own (research/learn/mpdata.mjs). Mitch pick 2, the hand-buy pattern
+ // as a rule, lost in every month and was taken out the same day so the tab has one Mitch pick row, the rule the glow uses.
  ['hcg','Check says buy','#35e0a1','The first minute from 13 down to 3 minutes left that the hand-buy check puts the leader (80¢ to 97¢) at +1¢ a contract or better after fees. One buy a market. The check was fitted on these same months, so this row flatters it a little. Covers Aug 21 on, at quoted prices.',()=>true,{own:'hcg'}]].filter(x=>!BT_ARCH.has(x[0]));
 // the rows those two run on, built once per history and cushion bar. An early buy is filed under its window's trade check time so
 // the day stops and the window cap see it with the rest of that window.
@@ -6131,7 +6131,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.77',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.78',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
