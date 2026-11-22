@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.59 (Nov 21, 2026): Quiet coins chart to now
+- [fixed] On a coin with no trades for a while, the price line stopped at its last trade, a minute or more short of the live dot. It now runs on at the last price to now, because the price holds until the next trade.
+- [fixed] The 60s average showed a dash on a coin with no trade in the last minute. Each second now carries the last price before it, the way the index Kalshi settles on is read every second, so it always has a value and a trade that held for most of the minute counts for most of it.
+
 ## 1.3.58 (Nov 21, 2026): Every highlighted coin at the top
 - [improved] The scanner puts every highlighted coin above the plain ones: Mitch picks first, then coins the bot holds, later buys (buy now), would buy, strong setups and would take (bot passes). Plain coins follow, sorted by leader price as before.
 

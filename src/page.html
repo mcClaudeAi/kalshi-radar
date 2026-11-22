@@ -3421,7 +3421,12 @@ function kxSeries(c,openMs){const key=c+':'+Math.floor(openMs/60000),o=KX.px[c],
   const all=cand.concat(trPts,ticks.filter(p=>p[0]>=lo)).sort((a,b)=>a[0]-b[0]),out=[];for(const p of all){if(out.length&&out[out.length-1][0]===p[0])out[out.length-1]=p;else out.push(p)}
   return out}
 // MC 2026-11-08 after the close the average is the last 60 seconds before close (what Kalshi settles on), not the 60 seconds before now
-const kxAvg60=(c,endMs)=>{const o=KX.px[c];if(!o)return null;const end=Math.floor(Math.min(Date.now(),endMs||Infinity)/1000),l=o.ticks.filter(p=>p[0]>end-60&&p[0]<=end);return l.length?l.reduce((a,p)=>a+p[1],0)/l.length:null};
+// MC 2026-11-21 a quiet coin with no trade in the last minute showed no 60s average at all (–), and a trade early in the minute
+// counted no more than one that then held for 50 seconds. Each second now carries the last price before it, the way the index
+// Kalshi settles on is read every second.
+const kxAvg60=(c,endMs)=>{const o=KX.px[c],T=o?.ticks;if(!T?.length)return null;const end=Math.floor(Math.min(Date.now(),endMs||Infinity)/1000);let j=0,cur=null,sum=0,n=0;
+  while(j<T.length&&T[j][0]<=end-60){cur=T[j][1];j++}
+  for(let t=end-59;t<=end;t++){while(j<T.length&&T[j][0]<=t){cur=T[j][1];j++}if(cur!=null){sum+=cur;n++}}return n?sum/n:null};
 // ----- canvas chart: price since the window opened against the target, win zone shaded for the side we hold -----
 // MC 2026-11-08 redrawn: price grid with labels, elapsed vs remaining shading, the area between price and target colored by who is
 // winning it, glow on the live end of the line, pill labels on the axis, and a line that is tick-accurate (see kxTrades above).
@@ -3535,6 +3540,9 @@ function kxDraw(cv,o){if(!o.noFin&&o.strike!=null&&o.close&&Date.now()>=o.close-
   // MC 2026-11-13 the series starts a minute before the window opens (for the open price), and those points were drawn left of the
   // chart, a stray tail sticking out past the plot. Points before the open now collapse into one point at the open.
   const S0=kxSeries(c,o.open),x0=o.open/1000,pre0=S0.filter(p=>p[0]<x0).pop(),S=(pre0?[[x0,pre0[1]]]:[]).concat(S0.filter(p=>p[0]>=x0)),now=Date.now()/1000,x1=o.close/1000,tgt=o.strike,px=KX.px[c]?.last??S.at(-1)?.[1]??null;
+  // MC 2026-11-21 on a quiet coin the line stopped at its last trade, a minute or more short of the live dot. The price holds until
+  // the next trade, so the line now runs on at the last price to now.
+  if(px!=null&&S.length&&now<x1&&now-S[S.length-1][0]>1)S.push([now,px]);
   g.font='600 10.5px '+M;const axW=Math.ceil(g.measureText(kxFmt(tgt??px??1,tgt).replace('$','')).width)+18;
   const P={l:10,r:Math.max(64,axW),t:24,b:22},iw=W-P.l-P.r,ih=H-P.t-P.b;
   // MC 2026-11-15 the coin view can carry the 15 minutes before this window on the same chart (o.prev, minute prices): the time
@@ -5797,7 +5805,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.58',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.59',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
