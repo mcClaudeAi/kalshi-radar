@@ -428,16 +428,23 @@ export function createBooks(D) {
   }
   function onSettle(r) {
     if (!list) return;
-    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveRow(b, x); S[b.id].balAt = 0; D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
+    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveRow(b, x); S[b.id].balAt = 0; if (x.won && keep > 0) { S[b.id].payExp = +((S[b.id].payExp || 0) + keep).toFixed(2); S[b.id].payAt = S[b.id].payAt || Date.now(); } D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
   }
   // MC 2026-11-18 right after a win Main's cash was up to date and the sub accounts' was not, for up to a minute. The quick look
   // that settles a trade seconds after its close read Main's balance again but left the books for the next minute run.
   // afterSettle reads the balance of every book that has just had a trade settle (onSettle marks it with balAt 0).
+  // MC 2026-11-21 the sub accounts still came into the cash total late after a win: when Kalshi had not paid them yet at that one
+  // read, the next look was the minute run. A win now notes the payout due (payExp); until the balance shows it, the books are
+  // read again every 10 seconds (payWait tells the alarm), for up to two minutes, then the minute run carries on as before.
   async function afterSettle() {
     if (!list) return 0; let n = 0;
-    await Promise.all(list.filter(b => S[b.id] && !S[b.id].balAt && [...(L[b.id]?.values() || [])].some(x => x.fill > 0)).map(async b => { try { const was = S[b.id].bal; await balance(b); n++; if (S[b.id].bal === was) S[b.id].balAt = 0; } catch { } }));   // unchanged: Kalshi may not have paid yet, so the minute run reads again
+    await Promise.all(list.filter(b => S[b.id] && !S[b.id].balAt && [...(L[b.id]?.values() || [])].some(x => x.fill > 0)).map(async b => { try { const s = S[b.id], was = s.bal; await balance(b); n++;
+      // paid once the cash is up by at least half of what is due (the figure kept between reads drifts by cents, so any rise is not enough)
+      if (s.bal != null && was != null && (s.payExp > 0 ? s.bal >= was + s.payExp / 2 : s.bal > was + 0.005)) { s.payExp = 0; s.payAt = 0; }
+      else { s.balAt = 0; if (s.payAt && Date.now() - s.payAt > 120000) { s.payExp = 0; s.payAt = 0; } } } catch { } }));   // unchanged: Kalshi may not have paid yet, so it is read again
     return n;
   }
+  const payWait = () => (list || []).some(b => S[b.id]?.payExp > 0 && S[b.id].payAt && Date.now() - S[b.id].payAt <= 120000);
   async function upkeep(now) {
     await load();
     for (const b of list) {
@@ -607,5 +614,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, onSettle, upkeep, afterSettle, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
+  return { load, onMark, onLate, lateOpen, onSettle, upkeep, afterSettle, payWait, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }

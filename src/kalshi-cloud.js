@@ -1359,7 +1359,9 @@ export function createKalshi(state, env, keep) {
       t = Math.min(t, now < r.close + 15000 ? r.close + 15000 : now + 20000);
     }
     // live positions with no tracker record (hand buys) get the same quick look after their close
-    for (const x of L.values()) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
+    // MC 2026-11-21 a sub account's hand buy that Main did not also make had no quick look and waited for the minute run
+    for (const x of [...L.values(), ...books.allRows()]) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
+    if (books.payWait()) t = Math.min(t, now + 10000);   // a sub account's win not paid yet: read its cash again in 10 seconds
     return t;
   }
   async function alarm() {
@@ -1369,7 +1371,7 @@ export function createKalshi(state, env, keep) {
     { const c = Math.ceil(now / Q) * Q, left = c - now; if (left <= 31500 && left >= 12000 && lsDone !== c) { lsDone = c; try { await lastLook(now, c); } catch (e) { say('last look error: ' + e.message); } } }
     let moved = false; try { moved = await settleSome(now, true); } catch (e) { say('quick settle error: ' + e.message); }
     if (moved && hasKeys()) { try { await balance(); } catch (e) { fail(e.message); } }
-    if (moved) { try { await books.afterSettle(); } catch (e) { say('books balance after settle: ' + e.message); } }   // MC 2026-11-18 the books' cash too, not only Main's
+    if (moved || books.payWait()) { try { await books.afterSettle(); } catch (e) { say('books balance after settle: ' + e.message); } }   // MC 2026-11-18 the books' cash too, not only Main's
     await state.storage.setAlarm(nextAlarm(now));
     await publish(true);
   }

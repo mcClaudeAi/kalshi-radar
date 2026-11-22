@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.60 (Nov 21, 2026): Totals catch up as soon as an account does
+- [fixed] After a win or loss, an account's own figures moved seconds before the totals on top (Live today across the accounts, and cash). The totals were only redrawn with the page's 10-second read. They are now redrawn as soon as any account's figures change, within a few seconds of the settle.
+- [fixed] A sub account's win could take up to a minute to show in its cash when Kalshi paid it a few seconds after Main. Its cash is now read again every 10 seconds until the payout shows, for up to two minutes.
+- [fixed] A hand buy made only on a sub account, not on Main, waited for the minute run to settle. It now gets the same quick look 15 seconds after its close as Main's trades.
+
 ## 1.3.59 (Nov 21, 2026): Quiet coins chart to now
 - [fixed] On a coin with no trades for a while, the price line stopped at its last trade, a minute or more short of the live dot. It now runs on at the last price to now, because the price holds until the next trade.
 - [fixed] The 60s average showed a dash on a coin with no trade in the last minute. Each second now carries the last price before it, the way the index Kalshi settles on is read every second, so it always has a value and a trade that held for most of the minute counts for most of it.
