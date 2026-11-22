@@ -1401,6 +1401,15 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 </style>
 <style id="k2nd">@media(max-width:600px){.kx-dt{display:block;font-size:11px}}.kx-bk{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 18px;border-radius:16px;border:1px solid var(--line);margin-bottom:18px;background:var(--card)}.kx-bk.paper{background:linear-gradient(120deg,color-mix(in srgb,var(--kx) 9%,var(--card)),var(--card) 60%)}.kx-bk.live{border-color:color-mix(in srgb,var(--bad) 35%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--bad) 10%,var(--card)),var(--card) 65%)}
 .kx-bki{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:700 17px var(--mono,inherit);color:#fff;background:var(--kx);flex:none}.kx-bk.live .kx-bki{background:var(--bad)}.kx-bkb{flex:1;min-width:220px}.kx-bkb>b{display:flex;align-items:center;gap:8px;font-size:15px}.kx-bkb>span{display:block;font-size:12.5px;color:var(--mute);margin-top:3px;line-height:1.45}.kx-bka{display:flex;gap:8px;flex-wrap:wrap}
+.modal .box:has(.hp){width:min(660px,100%);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}
+.hp-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.hp-h small{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}.hp-h h2{margin:2px 0 0}
+.hp-in{margin:10px 0 4px;color:var(--ink2);font-size:14px;line-height:1.5}.hp h4{margin:18px 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.hp dl{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.hp dl>div{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;padding:10px 12px;border-top:1px solid var(--line)}.hp dl>div:first-child{border-top:0}
+.hp dt{font-weight:700;font-size:13px;color:var(--ink);overflow-wrap:anywhere}.hp dd{margin:0;font-size:13px;line-height:1.5;color:var(--ink2);overflow-wrap:anywhere}
+.hp-gl{margin-top:18px}.hp-gl summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink2);padding:6px 0}.hp-gl[open] summary{margin-bottom:6px}
+.hp-ft{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}.hp-ft span{font-size:11.5px;color:var(--faint);line-height:1.4}.hp-ft .btn{flex:none}#helpBtn{font-weight:800}
+@media(max-width:400px){.top .in{gap:7px;padding-left:12px;padding-right:12px}.top .mb{white-space:nowrap}}
+@media(max-width:600px){.modal .box:has(.hp){padding:16px 14px;max-height:100%}.hp dl>div{grid-template-columns:1fr;gap:2px;padding:9px 11px}}
 .modal .box:has(.th-wrap){width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}.th-wrap h2{margin:0 0 4px}.th-sub{margin:0 0 14px;color:var(--mute);font-size:13px}.th-gh{margin:16px 2px 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .th-auto,.th-card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;border:1px solid var(--line2);border-radius:16px;background:var(--s2);transition:border-color .15s,transform .15s}
 .th-auto:hover,.th-card:hover{border-color:color-mix(in srgb,var(--kx) 50%,var(--line2))}.th-auto:active,.th-card:active{transform:scale(.98)}
@@ -1836,6 +1845,7 @@ window.CR_THEMES=[
    <button class="btn" data-act="pal" title="Search and commands (Ctrl+K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5"/></svg><span class="hide-m">Search</span><span class="kbd hide-m">Ctrl K</span></button>
    <button class="btn" id="liveBtn" style="display:none"></button>
    <button class="btn lockchip" id="lockBtn" data-act="lockbtn"></button>
+   <button class="iconbtn" id="helpBtn" title="What is on this page, in plain words" aria-label="Explain this page">?</button>
    <button class="iconbtn" id="theme" title="Theme" aria-label="Choose a theme">◐</button>
   </div><div class="kstrip" id="kstrip"></div></header>
   <main class="wrap" id="main"></main>
@@ -2757,7 +2767,7 @@ function palItems(){const D=ST.D||{},out=[];
   const klv=D.kalshi?.live?.live;if(klv)out.push({g:'Actions',ico:klv.on?'pause':'play',t:klv.on?'Turn Kalshi live off':'Turn Kalshi live on',run:()=>klv.on?kxLiveOff():go('klive')});
   if(typeof kxPbPick==='function'){out.push({g:'Actions',ico:'tests',t:'Change the paper playbook',k:'playbook lab rule kelly',run:()=>kxPbPick('paper')});out.push({g:'Actions',ico:'tests',t:'Change the live playbook',k:'playbook lab rule kelly',run:()=>kxPbPick('live')})}
   out.push({g:'Actions',ico:'lock',t:ST.me.control?'Lock this device':'Unlock controls',run:()=>ST.me.control?lockDevice(false):unlockFlow()});
-  out.push({g:'Actions',ico:'controls',t:'Kalshi live account',run:()=>go('klive')});out.push({g:'Actions',ico:'controls',t:'Kalshi paper settings',run:()=>go('kset')});out.push({g:'Actions',ico:'controls',t:'Theme',run:()=>themePick()});out.push({g:'Actions',ico:'controls',t:'Kalshi live settings',run:()=>go('kslive')});
+  out.push({g:'Actions',ico:'controls',t:'Kalshi live account',run:()=>go('klive')});out.push({g:'Actions',ico:'controls',t:'Kalshi paper settings',run:()=>go('kset')});out.push({g:'Actions',ico:'controls',t:'Theme',run:()=>themePick()});out.push({g:'Actions',ico:'idea',t:'Explain this page',run:()=>kxHelp()});out.push({g:'Actions',ico:'controls',t:'Kalshi live settings',run:()=>go('kslive')});
   out.push({g:'Actions',ico:'overview',t:'Switch light or dark',run:()=>$('#theme').click()});
   return out}
 function openPal(){$('#pal').classList.add('on');const i=$('#palq');i.value='';ST.palSel=0;palRender();setTimeout(()=>i.focus(),20)}
@@ -5615,10 +5625,181 @@ document.addEventListener('keydown',e=>{
   if(ST.pane?.kind==='coin'&&!inField&&(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='j'||e.key==='k')){e.preventDefault();paneNav(e.key==='ArrowLeft'||e.key==='k'?-1:1);return}
   if(e.key==='Escape'){$('#drawer').classList.remove('on');ST.pane=null}});
 document.addEventListener('input',e=>{if(e.target.id==='palq'){ST.palSel=0;palRender()}});
-$('#theme').addEventListener('click',()=>themePick());
+$('#theme').addEventListener('click',()=>themePick());$('#helpBtn').addEventListener('click',()=>kxHelp());
 // MC 2026-11-14 the theme picker: one card per theme with a small preview drawn in that theme's own colors. Tapping a card
 // switches at once (the page behind redraws, charts included) and remembers it on this device; Done closes.
 function themeCard(t,on){const c=t.c,dk=t.base==='dark';return `<button class="th-card${on?' on':''}" onclick="themeSet('${t.id}')" aria-pressed="${on}"><span class="th-pv" style="background:${c.bg}"><span class="th-sf" style="background:${c.s1};border-color:${c.s3}"><i style="background:${c.ink};width:58%"></i><i style="background:${c.mute};width:38%;opacity:.8"></i><svg viewBox="0 0 60 18" preserveAspectRatio="none"><path d="M0 14L10 12L18 13L28 8L36 10L46 5L60 3" fill="none" stroke="${c.good}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></span><span class="th-dots"><em style="background:${c.kx}"></em><em style="background:${c.good}"></em><em style="background:${c.bad}"></em><em style="background:${c.accent}"></em></span></span><span class="th-nm"><b>${t.name}</b><small>${dk?'Dark':'Light'}</small>${on?'<i>✓</i>':''}</span><span class="th-d">${t.d}</span></button>`}
+// top bar (web and phone) opens this page's guide in a modal. One entry a page in KXH: an opening line, then groups of
+// [what you see, what it means]. KXH_W is the short word list every guide ends with. Archive pages share one entry. Keep the
+// wording plain: no formulas, say what a number is for and which way is good.
+const KXH_W=[['Window',`Each market here lasts 15 minutes and asks one question: will the coin finish above its target price?`],
+ ['Target',`The price the coin has to beat when the window closes. YES wins if it ends above, NO wins if it ends below.`],
+ ['Price in cents',`What one contract costs. A winner pays $1, a loser pays nothing. So at 92¢ you risk 92¢ to make 8¢, and the market is saying that side wins about 92 times in 100.`],
+ ['Leader',`Whichever side costs more right now. The favourite.`],
+ ['Trade check',`The moment the tracker decides what to buy: 10 minutes before the close, at :05, :20, :35 and :50.`],
+ ['Cushion, usual moves',`How far the coin is past its target, counted in how much that coin normally moves in 10 minutes. 1 means one ordinary wiggle could undo the lead. 2 or more is a wide gap.`],
+ ['Paper and live',`Paper is practice money: every trade the rules would take, tracked as if it were real. Live is real money on your Kalshi account.`],
+ ['Playbook',`The set of rules that decides which coins get bought.`],
+ ['Break-even',`The win rate you need just to not lose money at the prices paid. Buying at 93¢ has to win more than 93 times in 100.`]];
+const KXH={
+ kalshi:[`The main screen. The top says how the money is doing, the middle shows the 15-minute window that is running now, and the scanner lists every coin with what the tracker thinks of it.`,[
+  ['The numbers on top',[
+   ['Paper / Live',`Switches the numbers between the practice book and your real account.`],
+   ['Bank, Today',`What the account holds now and what today has made or lost so far.`],
+   ['Win rate, "need"',`How often trades have won, next to the rate needed to break even at the prices paid. The gap between the two is the whole profit.`],
+   ['Average trade',`What one trade has made on average, wins and losses together.`],
+   ['Drawdown',`How far the bank is below its best point. The worst-ever figure shows how deep a bad stretch has gone.`],
+   ['Daily stop, Protect profit',`The brakes. The stop ends the day after losing a set amount. Protect profit ends it once a good day gives back part of its gains.`],
+   ['Playbook cards',`Which set of rules paper and live are each using. Change swaps it.`]]],
+  ['Live board',[
+   ['This window, Settles in',`The 15 minutes being traded now and the countdown to the result.`],
+   ['The bar',`The window from left to right. Watching: too early to buy. The ticks are the early looks and the trade check. Holding: bought, waiting. Final minute: about to settle.`],
+   ['Open trades',`Anything bought this window, with what it pays if it wins.`]]],
+  ['Scanner',[
+   ['Leader',`The side that is ahead and what it costs.`],
+   ['Under the coin name',`Where it stands: time until the trade check, "under 90¢" (too cheap for the tracker to take), "taken" (bought), "mark passed" (checked and skipped), "settling" (the window is closing).`],
+   ['Last 15 min',`A small chart of the coin's price over the last 15 minutes.`],
+   ['Price, Vs target',`The coin's price now and how far it is above or below the target. The bar shows which side of the line it is on.`],
+   ['The glow',`Blue: the bot would buy this now. Amber: it is priced high enough but the bot is skipping it. Green: a strong setup, or the bot bought it. Purple: a Mitch pick. Glowing coins move to the top.`],
+   ['Buy by hand',`Your own buy at the price shown, with what it makes if it wins. Hold the button to confirm. It is real money and capped at $50.`],
+   ['Tap a coin',`Opens its chart, the full check and the buy box.`]]],
+  ['Tags on a coin\'s row',[
+   ['Check',`Would buying the leader right now have paid off in the past, after fees? Green is yes, red is no, "about even" is neither. It was only tested on leaders from 80¢ to 97¢, so anything else says "not tested".`],
+   ['Swing',`Shows only when the coin was far on the other side of its target in the last 30 minutes. A coin that just swung across can swing back, and buys after one won less often.`],
+   ['Last window',`"Same way" means the 15 minutes before this also went this direction. A second window in a row won a little less often. A mild warning.`],
+   ['Cushion',`The gap between the price and the target, in the coin's usual moves. Under 1 is thin, 2 or more is wide. A minus number means the coin is on the losing side for the leader right now.`],
+   ['Win chance',`A model's guess that the leader wins, next to the price, which is the market's guess. Overpriced: it costs more than its chance is worth. Underpriced: it costs less.`],
+   ['Path',`How the coin got here: a straight run, steady or choppy. For information only. It did not hold up as a signal.`],
+   ['Coins',`How many of the 9 coins lean the same way. All agreeing has been a good sign. "Split" means they disagree.`],
+   ['Strong setup',`Every reading lines up at once: wide cushion, a price from 85¢ to under 95¢, a win chance at least as high as the price, and the coins agreeing.`],
+   ['Mitch pick',`The leader costs 85¢ to 96.5¢, is at least 0.8 usual moves clear, its likely line lands on its side, and there are 2 to 13 minutes left.`]]]]],
+ kcock:[`One coin, close up, for watching a trade second by second. Pick the coin from the strip on top.`,[
+  ['What you are looking at',[
+   ['Live price',`The coin's price as it trades on Coinbase, updated all the time.`],
+   ['Target line',`The price it has to finish above (YES) or below (NO). Which side of this line the price is on is all that matters at the close.`],
+   ['60-second average',`The average price over the last minute. Kalshi settles on an average like this, not on one last tick, so a late spike counts for less than it looks.`],
+   ['Win chance',`A model's guess that the leader wins from here, next to Kalshi's price for the same thing.`],
+   ['Trend',`Which way the coin has drifted since the window opened, and how hard.`],
+   ['1-min move',`How much this coin normally moves in a minute. Compare it with the gap to the target to see how safe the lead is.`],
+   ['Buys and sells',`Whether traders on Coinbase have mostly been buying or selling over the last 5 minutes. Heavy selling leans the price down, heavy buying leans it up.`],
+   ['Min left',`The countdown to the close. The later it is, the less time the coin has to cross back.`],
+   ['Kalshi YES and NO',`What each side costs right now. Bid is what you would get selling, ask is what you would pay buying.`],
+   ['Positions',`What you hold, what it is worth now and the profit or loss if you sold this second.`]]]]],
+ kan:[`The scoreboard. Every chart answers the same question from a different angle: is this making money, and where does it make or lose it?`,[
+  ['The charts',[
+   ['Equity',`The running total of profit. Up and to the right is good. Flat or falling stretches are the bad runs.`],
+   ['Daily P&L',`One bar a day: what that day made or lost. Type a profit take or stop loss to see how many days would have hit it.`],
+   ['Calendar',`The same days laid out as a month, green for up and red for down.`],
+   ['By hour of day',`Which hours make money and which lose it. Useful for deciding when to take time off.`],
+   ['By coin',`Which coins earn their place and which drag.`],
+   ['Breakdown',`The results split by side (YES or NO), by the price paid and by day of the week.`],
+   ['Room in the book',`How many contracts were on offer at the trade check. This is how big a trade could get before it pushes the price against itself.`],
+   ['Rolling win rate',`The win rate of the last 100 trades against the break-even line. Above the line is making money, below it is losing.`],
+   ['When several coins line up',`How trades did when 3, 4, 5 or more coins led the same way at once.`],
+   ['Execution',`How real orders filled: how many contracts got filled and whether you paid more or less than the practice book assumed.`]]]]],
+ kanr:[`The same charts as Analytics, but for one playbook at a time, as if it had traded every day the tracker watched. Use it to see how a set of rules would have done before you switch to it.`,[
+  ['How to use it',[
+   ['Playbook',`Pick the rules to replay. The line under the picker says what that playbook buys.`],
+   ['7D, 30D, All',`How far back to look. A playbook that only looks good over a few days has not proved much.`],
+   ['The charts',`Read them like Analytics: running profit, each day, each hour, each coin. It uses your paper trade size, stops and window cap.`]]]]],
+ ktrades:[`The receipt book. Every trade that has settled, a day at a time.`,[
+  ['Finding your way',[
+   ['Paper / Live',`Paper is what the rules took with practice money. Live is what really filled on Kalshi.`],
+   ['Today / All days',`Today's trades, or step back through earlier days.`],
+   ['Tap a row',`Opens the whole story of that trade: what the tracker saw, why it bought, and how it ended.`],
+   ['Hide trades live also took',`Leaves only the trades paper made on its own, so you can see where the two differ.`]]],
+  ['The counters',[
+   ['Markets watched, Met the rule',`How many markets the tracker has looked at and how many passed the rule and were bought.`],
+   ['Leaders under 90¢, not taken',`How the cheaper favourites the tracker skipped would have done. A check that skipping them is right.`],
+   ['Export',`Downloads the trades as a spreadsheet file.`]]]]],
+ klabs:[`The test bench. Each idea runs as its own practice account on the same trades as the plain rule, so they can be compared fairly. Nothing here touches paper or live.`,[
+  ['Health checks',[
+   ['Edge check',`Compares how often live trades won with the price paid. Winning more often than the price implies is the edge. "Slipping" means the last week won less than it paid for.`],
+   ['Edge search',`A computer search through thousands of possible rules for ones that beat yours on recent data. A lead, not a promise: it still has to prove itself going forward.`],
+   ['Market check',`Your rule's trades next to every 90¢ to 95¢ favourite, to show whether the rule is adding anything.`]]],
+  ['The comparison',[
+   ['Profit chart',`Every idea as a line starting from $0 at the same moment. The gap between two lines is the real difference between them. Dashed is the plain rule.`],
+   ['Cash out, Accounts buying at once',`What-if switches. See every idea with early cash-out applied, or priced as if several accounts were buying at once (the later ones pay a bit more).`],
+   ['The lab cards',`One card an idea: what it does differently and how it has done. An idea earns a real test after it beats the rule over a few hundred trades, not a few days.`],
+   ['Second look',`Coins rechecked each minute after the trade check, and whether buying them later would have worked.`]]]]],
+ klearn:[`A small model that studies every settled trade each morning. It starts from Kalshi's own price and only learns where that price has been wrong.`,[
+  ['The cards',[
+   ['What it has learned',`The things it found that move the odds, and in which direction.`],
+   ['Does it tell the truth?',`The honesty test. When it said 95%, did those trades win about 95 times in 100? If its calls and the results match, it can be trusted.`],
+   ['Learned against the plain rule',`Dollars a trade for the model's picks next to the plain rule's, fees included.`],
+   ['Today\'s calls',`What it said about today's trades before they settled.`],
+   ['What this can and cannot do',`It cannot stop losses. A 95¢ contract loses about 1 time in 20 whoever picks it. It can only skip trades where the price pays too little for the risk.`]]]]],
+ kbt:[`A time machine. It replays months of real markets and shows what each playbook would have made with the settings you type in. Nothing here places a trade.`,[
+  ['The settings on top',[
+   ['$ per trade, stops, targets',`The same choices as the real settings: size, daily stop, profit target, protect profit. Change one and every result is worked out again.`],
+   ['Window',`The stretch of dates to replay.`]]],
+  ['The results',[
+   ['Profit over the window',`Each playbook as a line from $0. Tap a row in the table to show or hide its line.`],
+   ['Trades, Won, Net, Per trade',`How many it bought, how often it won, the total made and the average for one trade.`],
+   ['Worst drop',`The biggest fall from a high point to a low point. This is what a bad stretch would have felt like.`],
+   ['Worst day, Days stopped',`The single worst day, and how many days hit your stop.`],
+   ['By month',`The same results a month at a time. Tap a month for weeks, then days. A playbook that wins in every month counts for more than one big month.`],
+   ['Quoted prices',`It assumes you bought at the price on offer at that moment. Real fills can be a little worse, so treat small edges with care.`]]]]],
+ klive:[`Your real money. This page shows what the Kalshi account holds, what live trading has done, and the switches that start and stop it. Sizes and rules are on Live settings.`,[
+  ['The money',[
+   ['Kalshi cash, Live today, All live',`What is in the account, today's result and the result since live started.`],
+   ['Main balance and crypto trading balance',`Two pockets in the same account. Deposits land in main. Trades spend from crypto trading. The tracker tops the second up from the first before a trade check.`],
+   ['Open live positions',`What is held right now and when it settles.`],
+   ['"Not trading right now"',`Shows when a brake is on, and which one: the loss cap, protect profit, the schedule or a pause.`]]],
+  ['The switches',[
+   ['Pause automatic buying',`Stops the tracker's own buys. What is open still runs to the close, and you can still buy and sell by hand.`],
+   ['Turn off',`Switches live trading off completely.`],
+   ['Sell all open',`Sells everything held now at the going price.`]]],
+  ['The rest',[
+   ['Go-live checklist',`The tests the practice book has to pass before real money is a sensible step.`],
+   ['Live rules',`Where live's rules differ from paper's. Live keeps its own, so changing paper never changes live.`],
+   ['Profit vault',`A side pocket the tracker never trades from. Profits are moved into it on a schedule so they are out of reach of the next trade.`],
+   ['Subaccount books',`Extra accounts trading alongside Main, each with its own size and, if you want, its own rules.`],
+   ['Kalshi API level',`How many requests Kalshi lets the tracker make. The Advanced level is needed for subaccounts.`],
+   ['Recent orders',`Each real order: what was asked for, what filled and at what price.`]]]]],
+ kset:[`The rules for the practice book. Safe to experiment with: nothing here spends real money, and live has its own settings.`,[
+  ['The main groups',[
+   ['Coins',`Which coins the practice book is allowed to trade.`],
+   ['Size per trade, Starting bank',`How much each trade puts in and what the practice bank started with.`],
+   ['Cushion settings',`How far past its target a coin must be before it is bought. Higher means fewer, safer trades.`],
+   ['Later buys',`Whether a coin skipped at the trade check can still be bought in the minutes after, and how strict that second test is.`],
+   ['Minimum and maximum price',`The price range it will buy in. Cheap favourites lose more often. The dearest ones pay too little.`],
+   ['Daily stop, Daily profit target',`End the day after losing this much, or after making this much.`],
+   ['Protect profit',`Once the day is up by a set amount, keep a share of the day's high. If the day falls back to that level, stop.`],
+   ['Progressive stop',`Near the stop, trades get smaller so the day cannot end below it.`],
+   ['Cash out when the trend turns',`Sell early if the coin turns against the bet instead of holding to the close.`],
+   ['Bench',`A coin sits out while its trades are down over the number of days you set.`],
+   ['Schedule',`Hours of the day when it does not trade.`],
+   ['How it works',`Most settings have this under them. Open it for the long explanation and a worked example.`]]]]],
+ kslive:[`The rules for real money. They are separate from paper's, and a change takes effect from the next trade check.`,[
+  ['Money limits',[
+   ['Size per trade',`Dollars put into each trade.`],
+   ['Daily loss cap',`Live stops for the day after losing this much.`],
+   ['Cash floor',`Live will not trade the account below this amount.`]]],
+  ['Getting filled',[
+   ['Price room',`How many cents above the price it saw the tracker may pay to get the order filled.`],
+   ['Try again for a missed fill',`If an order misses or only part fills, send it again for the rest. The top price it may pay never changes.`]]],
+  ['What it buys',[
+   ['Buy later-watched coins',`Lets live buy a coin in the minutes after the trade check if it passes then.`],
+   ['Cushion, price range, coins',`The same choices as Paper settings, kept separately for live.`],
+   ['Stops and targets',`Profit target, protect profit, progressive stop and the rest work as they do on paper, with live's own numbers.`],
+   ['How it works',`Open it under any setting for the long explanation and a worked example.`]]]]],
+ kreq:[`The suggestion box. Ask for a feature or a fix and see what others have asked for.`,[
+  ['On this page',[
+   ['Ask for something',`Say what you want it to do and, if you can, why. The why helps more than the what.`],
+   ['Your requests',`What you have sent from this device.`],
+   ['What people have asked for',`Everyone's requests, so you can see if yours is already there.`]]]]],
+ krel:[`What changed in each version, newest first.`,[
+  ['Reading it',[
+   ['New',`Something that was not there before.`],
+   ['Improved',`Something that works better than it did.`],
+   ['Fixed',`Something that was broken and now is not.`]]]]],
+ kchat:[`Messages between the people who share this dashboard.`,[]],
+ arch:[`This is the archive of the old memecoin bot. It is kept for the record. Nothing on these pages trades any more.`,[]]};
+function kxHelp(k){k=k||ST.tab;const [intro,groups]=KXH[k]||KXH.arch,ttl=(NAVI.find(x=>x[0]===k)||[])[1]||'This page',dl=L=>`<dl>${L.map(([t,d])=>`<div><dt>${t}</dt><dd>${d}</dd></div>`).join('')}</dl>`;
+  modal(`<div class="hp"><div class="hp-h"><div><small>In plain words</small><h2>${esc(ttl)}</h2></div><button class="iconbtn" onclick="closeModal()" aria-label="Close" autofocus>✕</button></div><p class="hp-in">${intro}</p>
+   ${groups.map(([g,L])=>`<h4>${g}</h4>${dl(L)}`).join('')}${KXTABS.includes(k)?`<details class="hp-gl"${groups.length?'':' open'}><summary>Words used on every page</summary>${dl(KXH_W)}</details>`:''}
+   <div class="hp-ft"><span>Information, not advice. Past results do not promise future ones.</span><button class="btn pri" onclick="closeModal()">Got it</button></div></div>`);$('#modal .bk').onclick=closeModal;ST.modalEsc=closeModal}
 function themePick(){const T=window.CR_THEMES||[],cur=document.documentElement.dataset.themePick||'auto',mq=matchMedia('(prefers-color-scheme: light)').matches;
   modal(`<div class="th-wrap"><h2>Theme</h2><p class="th-sub">Saved on this device. Charts, tables and the live view all follow it.</p>
    <button class="th-auto${cur==='auto'?' on':''}" onclick="themeSet('auto')" aria-pressed="${cur==='auto'}"><span class="th-half"><i style="background:#060913"></i><i style="background:#eef1f8"></i></span><span><b>Auto</b><small>Matches your phone: Daylight when it is in light mode, Midnight in dark mode${cur==='auto'?` (${mq?'Daylight':'Midnight'} now)`:''}</small></span>${cur==='auto'?'<i>✓</i>':''}</button>
@@ -5816,7 +5997,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.62',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.63',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

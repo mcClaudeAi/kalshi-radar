@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.63 (Nov 21, 2026): A plain-words guide on every page
+- [new] A ? button in the top bar, on web and phone, opens a guide to the page you are on: what each number, chart, tag and switch is for, in everyday words, and which way is good. Home covers the top numbers, the Live board, the scanner and every tag on a coin's row (Check, Swing, Last window, Cushion, Win chance, Path, Coins, Strong setup, Mitch pick). Cockpit, Analytics, Rule analytics, Trades, Labs, Learning, Backtest, Live account, both settings pages, Requests and Release notes each have their own. Every guide ends with a short list of the words used everywhere (window, target, leader, trade check, cushion, paper and live, break-even). Also under Search as "Explain this page".
+
 ## 1.3.62 (Nov 21, 2026): Mitch pick in the Backtest
 - [new] The Backtest has a Mitch pick row: the purple coin on the scanner, bought at the first minute from 12 down to 3 minutes left that it qualifies (leader at 85¢ to 96.5¢, at least 0.8 usual moves clear of its target, likely line on its side), one buy a market, at quoted prices from Aug 21 on. It opens by month, week and day like the other rows and exports the same way.
 
