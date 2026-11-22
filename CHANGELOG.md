@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.73 (Nov 22, 2026): Two more Backtest rows, and Trades fits a phone
+- [new] The Backtest has two more rows. Mitch pick 2 buys the first minute from 12 down to 4 minutes left that the leader costs 80¢ to 94¢, the likely line is on its side and the coin had been on the wrong side of its target earlier in the window. Check says buy is the hand-buy check on its own: the first minute it puts a leader at +1¢ a contract or better. Both cover Aug 21 on at quoted prices.
+- [fixed] Trades, All accounts, still scrolled sideways on a phone: one wide cell in any row set the width of the whole table. The table now has fixed columns that add up to the screen.
+
 ## 1.3.72 (Nov 22, 2026): The last minute says which prices it is counting
 - [improved] On a phone the last-minute chart's footnote was too narrow to say whether it was counting Kalshi's index or Coinbase. The label over the average now reads "Settle avg · Kalshi index" or "Settle avg · Coinbase", and the short footnotes name the source too.
 - [improved] When the index is in, the call after the close is made on Kalshi's own settlement average ("Won on Kalshi's index" or "Lost on Kalshi's index"), however close it finished. "Too close to call" is only for a Coinbase average.
