@@ -1227,22 +1227,25 @@ export function createKalshi(state, env, keep) {
   async function mpLive1(out, now, fast) {
     const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys() || entryBusy) return;
     if (cfgL.mpBuy !== 1 && !books.mpAny(cfgL)) return;
-    for (const [k, t] of mpDone) if (t < now) mpDone.delete(k);
-    const W = out.filter(s => s.leader && s.lask != null && s.strike > 0); let reads = 0;
+    for (const [k, t] of mpDone) if (t.t < now) mpDone.delete(k);
+    // MC 2026-11-22 Mitchell: one popped up purple and it did not buy, and nothing said why. The glow is the browser's reading
+    // and the buy is the tracker's own, taken on its own prices and then on the real order book, so they can disagree by a
+    // hair. Every look now leaves its answer on the scanner row (mpWhy, mpAt) and the page shows it beside the purple tag.
+    const W = out.filter(s => s.leader && s.lask != null && s.strike > 0); let reads = 0; const no = (s, why) => { s.mpWhy = why; s.mpAt = Date.now(); };
     for (const s of W) {
-      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13 || (!fast && el > 285000 && el < 345000) || mpDone.has(s.tk)) continue;   // the minute scan sits out the check's minute; the 10-second look has its own pause (fastWant)
+      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13) continue; if (!fast && el > 285000 && el < 345000) { no(s, 'waiting out the trade check'); continue; } if (mpDone.has(s.tk)) { no(s, mpDone.get(s.tk).why || 'already tried this market once'); continue; }   // the minute scan sits out the check's minute; the 10-second look has its own pause (fastWant)
       if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) continue;
-      const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) continue;
+      const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) { no(s, `only ${same} of ${W.filter(o => o.close === s.close).length} coins lean its way on the tracker's prices`); continue; }
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
-      const mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) continue;
+      const mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
-      if (!v || v.src === 'stale' || v.z == null || v.z < 1 || !(v.lk > 0)) continue;
+      if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < 1) { no(s, `cushion ${v.z} on the tracker's reading, needs 1`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
-      if (!(edge(s.lask) >= 1)) continue;
-      const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null) continue;
-      if (!(ask >= 0.85 && ask < 0.965 - 1e-9) || !(edge(ask) >= 1)) continue;   // the real ask moved it out of the rule: look again next minute
-      mpDone.set(s.tk, s.close + 60000);
+      if (!(edge(s.lask) >= 1)) { no(s, `check ${edge(s.lask) >= 0 ? '+' : ''}${edge(s.lask).toFixed(1)}c on the tracker's reading, needs +1c`); continue; }
+      const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null) { no(s, 'nothing on offer in the order book'); continue; }
+      if (!(ask >= 0.85 && ask < 0.965 - 1e-9)) { no(s, `the real offer is ${(ask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; } if (!(edge(ask) >= 1)) { no(s, `at the real offer of ${(ask * 100).toFixed(1)}c the check is ${edge(ask).toFixed(1)}c, needs +1c`); continue; }   // the real ask moved it out of the rule: look again next minute
+      mpDone.set(s.tk, { t: s.close + 60000, why: 'order sent' }); no(s, 'order sent');
       const avgN = walk(asks, BOOK_N), ser = series || scanSeries().find(x => coin(x) === s.coin);
       const r = { lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]), ticker: s.tk, late: 1, mp: 1, series: ser, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya: b.yesAsks[0]?.[0] ?? null, na: b.noAsks[0]?.[0] ?? null, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };
       say(`${s.tk} ${s.leader.toUpperCase()} at ${(ask * 100).toFixed(1)}c <- Mitch pick: ${v.z} moves clear, ${same} of ${W.filter(o => o.close === s.close).length} on its side, edge +${edge(ask).toFixed(1)}c, ${left.toFixed(1)} min left`);
@@ -1253,6 +1256,7 @@ export function createKalshi(state, env, keep) {
       await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('Mitch pick order error: ' + e.message)))), books.onLate(r, now, MPL, cfgL, cfg => mpOk(cfg, s.coin, now), cfg => coldSet(now, cfg), missed, '*').catch(e => say('books error: ' + e.message))]);
       try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
       resv = 0; viewDirty = true;
+      { const x = L.get(s.tk); no(s, x?.skipped ? 'not bought: ' + x.skipped : x?.fill > 0 ? `bought ${x.fill} at ${(x.px * 100).toFixed(1)}c` : x?.err ? 'order refused: ' + x.err : x ? 'order sent, nothing filled' : mainWants ? 'no order went out' : 'sent for the subaccounts'); mpDone.get(s.tk).why = s.mpWhy; }
     }
   }
   // MC 2026-11-22 Mitchell: once a minute is not often enough. While "Buy Mitch picks" is on for any account the tracker now

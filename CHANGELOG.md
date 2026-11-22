@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.84 (Nov 22, 2026): The scanner says why a purple coin was or was not bought
+- [new] With "Buy Mitch picks" on, a purple coin on the scanner now carries an Auto-buy tag with the tracker's own answer from its last look: bought (how many, at what price), or the one thing that stopped it (cushion under 1 on the tracker's reading, the real offer outside the price range, the check under +1¢ at the real offer, fewer than 7 coins leaning its way, protect profit, an order already in the market, and so on). The purple tag is the browser's reading and the buy is the tracker's, on its own prices and the real order book, so the two can differ by a hair; before, nothing said so.
+
 ## 1.3.83 (Nov 22, 2026): Dropdowns no longer cut their text off
 - [fixed] The dropdowns in Live settings, Paper settings and the Backtest cut their own text off, on web and phone ("On: buy a coin when it tur"). A dropdown cannot wrap, so the choices are short labels now ("On: buy purple", "Off: signal only", "Hold under it") with the detail in the note beside each setting, and the settings column is a little wider on the web.
 

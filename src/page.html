@@ -3412,6 +3412,11 @@ const KXMM='Mitch pick: the pattern behind the hand buys that kept winning. The 
 // Aug 21 to Nov 21. The tracker checks the same rule for the "Buy Mitch picks" live setting (kalshi-cloud.js mpLive).
 function kxMitch(s){if(!s?.leader||s.lask==null||s.lask<.85||s.lask>=.965-1e-9)return false;const left=(s.close-Date.now())/60000;if(left<2||left>13)return false;
   const r=kxRd(s);if(!r||r.z==null||r.z<1||!(r.same>=7))return false;const h=kxHcEst(r);if(!h||h.e==null||h.e<1)return false;const lk=kxLk(s,s.leader);return lk!=null&&lk>0&&!kxHeld(s)}
+// on its own prices and then the real order book. With "Buy Mitch picks" on for any account, the tracker's last answer for the
+// coin (mpWhy, under 45 seconds old) shows beside the purple tag: bought, or the one thing that stopped it.
+function kxMpNote(s,mm){const lv=kxLv(),on=lv?.on&&(lv.cfg?.mpBuy===1||(lv.books||[]).some(b=>b.on&&(b.cfg?b.cfg.mpBuy===1:lv.cfg?.mpBuy===1)));if(!on)return '';const fresh=s.mpWhy&&s.mpAt&&Date.now()-s.mpAt<45000;
+  if(!mm&&!(fresh&&/^(bought|order|not bought)/.test(s.mpWhy)))return '';const w=fresh?s.mpWhy:lv.autoPause?'automatic buying is paused':'the tracker has not looked at it yet (it looks every 10 seconds)',good=/^bought/.test(w);
+  return `<span class="kx-rd${good?' pos':''}" title="What the tracker's own check said the last time it looked. The purple tag is this browser's reading; the tracker buys on its own prices and the real order book, so the two can differ by a hair."><i>Auto-buy</i><b>${esc(w)}</b></span>`}
 function kxRdHot(s){const r=kxRd(s);if(!r||r.z==null||r.w==null||r.ask==null||r.r2==null||s.close-Date.now()<20000)return false;
   if(!(r.z>=2&&r.ask>=.85&&r.ask<.95&&r.w>=r.ask&&r.r2<.7&&!(r.n>=4&&r.same/r.n<.75)&&!(r.dp!=null&&r.dp<=-2)))return false;
   return !kxHeld(s)}
@@ -4066,7 +4071,7 @@ function kxFrame(force){if(!KX.on)return;if($('#kxck'))ckPaint(force);const el=$
   const sel=$('#kxscan');if(sel&&(force||KX.frame%4===0)){for(const s of KX.live?.scan||[]){const t=sel.querySelector(`[data-tk="${CSS.escape(s.tk)}"]`);if(!t)continue;const p=KX.px[s.coin],px=p?.last??s.last??null;const mark=s.close-10*60000,left=mark-now;
       t.querySelector('[data-k=t]').textContent=left>0?'mark in '+kxCd(left):s.close>now?'settles '+kxCd(s.close-now):'settling';const pe=t.querySelector('[data-k=px]');const nt=kxFmt(px,s.strike);
       if(pe.textContent!==nt){const was=parseFloat(pe.dataset.v||'');pe.textContent=nt;if(px!=null&&isFinite(was)&&was!==px){pe.classList.remove('up','dn');void pe.offsetWidth;pe.classList.add(px>was?'up':'dn')}}if(px!=null)pe.dataset.v=px;
-      const re=t.querySelector('[data-k=rd]');if(re&&(force||KX.frame%8===0)){const hot=s.close>now&&(KX.hot?.[s.tk]??kxRdHot(s)),mm=s.close>now&&(KX.mm?.[s.tk]??kxMitch(s));t.classList.toggle('mm',!!mm);const h=s.close>now?(mm?`<span class="kx-rd mm" title="${esc(KXMM)}"><b>Mitch pick</b></span>`:'')+(hot?'<span class="kx-rd hot" title="Every reading lines up: a wide cushion, a price from 85¢ to under 95¢, a win chance at least as high as the price, a path that is not a straight run, and the coins agreeing. A strong reading, not a promise."><b>Strong setup</b></span>':'')+kxRdChips(s):'';t.classList.toggle('hot',!!hot);if(re.dataset.h!==h){re.dataset.h=h;re.innerHTML=h}}
+      const re=t.querySelector('[data-k=rd]');if(re&&(force||KX.frame%8===0)){const hot=s.close>now&&(KX.hot?.[s.tk]??kxRdHot(s)),mm=s.close>now&&(KX.mm?.[s.tk]??kxMitch(s));t.classList.toggle('mm',!!mm);const h=s.close>now?(mm?`<span class="kx-rd mm" title="${esc(KXMM)}"><b>Mitch pick</b></span>`:'')+kxMpNote(s,mm)+(hot?'<span class="kx-rd hot" title="Every reading lines up: a wide cushion, a price from 85¢ to under 95¢, a win chance at least as high as the price, a path that is not a straight run, and the coins agreeing. A strong reading, not a promise."><b>Strong setup</b></span>':'')+kxRdChips(s):'';t.classList.toggle('hot',!!hot);if(re.dataset.h!==h){re.dataset.h=h;re.innerHTML=h}}
       const g=t.querySelector('[data-k=g]');if(g){const mgv=s.strike&&px!=null?(px-s.strike)/s.strike:0,f=Math.min(1,Math.abs(mgv)/.004)*50;g.className=mgv<0?'neg':'';g.style.left=mgv<0?(50-f)+'%':'50%';g.style.width=f+'%'}
       const mg=s.strike&&px!=null?(px-s.strike)/s.strike:null,me=t.querySelector('[data-k=mg]');me.textContent=mg==null?'':(mg>=0?'+':'')+(mg*100).toFixed(Math.abs(mg)<.001?3:2)+'% vs target';me.className=mg==null?'':mg>=0?'pos':'neg';
       const S=kxSeries(s.coin,s.open);t.querySelector('[data-k=sp]').innerHTML=kxSpark(S,120,26,mg==null?'var(--mute)':mg>=0?'var(--good)':'var(--bad)')}}
@@ -6139,7 +6144,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.83',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.84',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
