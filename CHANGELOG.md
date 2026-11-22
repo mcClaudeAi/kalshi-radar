@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.91 (Nov 22, 2026): fixes the blank page in 1.3.88 to 1.3.90
+
+- [fixed] Versions 1.3.88, 1.3.89 and 1.3.90 opened to a blank page under the header. Two mistakes in how the page was put together for release stopped it from loading at all. Nothing was lost: the tracker kept running, trading and saving the whole time, only the page could not draw. Update to this version and reload.
+- [improved] Every release is now checked to load before it goes out, so a page that cannot start can no longer be published.
+
 ## 1.3.90 (Nov 22, 2026): the paid plan switch is easier to get right
 
 - [fixed] PAID_PLAN only counted when the name and the value were exact. A value saved with quotes around the 1, or as true, or a name in different letter case, was treated as not set. All of those now turn the paid plan's limits on.

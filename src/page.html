@@ -3354,9 +3354,9 @@ let KXM={c0:.2929,lp:.7726,z:.6225,spr:-.0336,pv:-.0535,dp:.0956,lf:-.0397},KXR=
 // MC 2026-11-22 the three tables above are now only the fallback. The check is refitted every night from the last 60 days
 // (price curve from the last 30) and the tracker passes the fit along as kalshi.check (kalshi-cloud.js hcEdge has the test
 // and the safeguards). kxHcUse takes it when it is there and goes back to the typed-in tables when it is not.
-const KXC0={m:KXM,r:KXR,b:KXB};let KXC=null;
-function kxHcUse(){const c=ST.D?.kalshi?.check||null;if((c?.at||null)===(KXC?.at||null))return;KXC=c;KXM=c?.m||KXC0.m;KXR=c?.r||KXC0.r;KXB=Array.isArray(c?.b)&&c.b.length===4?c.b:KXC0.b}
-const kxHcSpan=()=>{const d=x=>new Date(x+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});if(!KXC?.to)return 'from Oct 20 to Nov 20';const t=new Date(KXC.to+'T12:00:00Z'),f=new Date(t-29*86400000).toISOString().slice(0,10);return `from ${d(f)} to ${d(KXC.to)}`};
+const KXC0={m:KXM,r:KXR,b:KXB};let KXCK=null;
+function kxHcUse(){const c=ST.D?.kalshi?.check||null;if((c?.at||null)===(KXCK?.at||null))return;KXCK=c;KXM=c?.m||KXC0.m;KXR=c?.r||KXC0.r;KXB=Array.isArray(c?.b)&&c.b.length===4?c.b:KXC0.b}
+const kxHcSpan=()=>{const d=x=>new Date(x+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});if(!KXCK?.to)return 'from Oct 20 to Nov 20';const t=new Date(KXCK.to+'T12:00:00Z'),f=new Date(t-29*86400000).toISOString().slice(0,10);return `from ${d(f)} to ${d(KXCK.to)}`};
 function kxHcEst(r){kxHcUse();if(!r||r.ask==null||r.z==null)return null;const p=r.ask,c=Math.round(p*100),b=KXB.find(x=>c>=x[0]&&c<=x[1])||null;
   if(!b||r.left<2.5||r.left>13.5)return {c,b,p,late:r.left<2.5};
   const lp=Math.log(p/(1-p)),cl=(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),rf=k=>KXR[k][0]+KXR[k][1]*lp,K=['z','dp','pv','spr'],
@@ -3372,7 +3372,7 @@ const kxHcTxt=h=>{const b=h?.b;if(!h)return '';if(!b)return h.c>97?'Over 97¢ wa
 function kxHcTip(r,h){const b=h?.b,S=r.side.toUpperCase();
   const bt=b?`Every minute a leader sat at ${b[0]}¢ to ${b[1]}¢ ${kxHcSpan()}: ${n0(b[2])} chances won ${b[3]}% paying ${b[4].toFixed(1)}¢ on average, ${kxEc(b[5])} a contract after fees.`:`Testing covered leaders from 80¢ to 97¢. In the last 30 days 80¢ to 84¢ buys ${KXB[0][5]<0?'lost':'made'} ${Math.abs(KXB[0][5]).toFixed(1)}¢ a contract after fees.`;
   if(h?.e==null)return bt+(b?` The edge is left out ${h.late?'in the last 2½ minutes':'in the first 1½ minutes'} of a window, which testing did not cover.`:'');
-  return `A model's win chance for ${S} is ${(h.w*100).toFixed(1)}% against a ${kxC(h.p)} price: ${kxEc(h.e)} a contract after fees, about ${h.e>=0?'+':'-'}$${Math.abs(h.e/100*35/h.p).toFixed(2)} on a $35 buy. In the months held out of the fit, buys it put at +1¢ or better made money every time and under -1¢ lost every time. It starts from the last 30 days, when favourites did worse than before. ${bt} ${KXC?.to?`Refitted every night from the last ${KXC.days||60} days of markets, most recently through ${kxHcSpan().split(' to ')[1]}.`:''} A model from past markets, not a promise.`}
+  return `A model's win chance for ${S} is ${(h.w*100).toFixed(1)}% against a ${kxC(h.p)} price: ${kxEc(h.e)} a contract after fees, about ${h.e>=0?'+':'-'}$${Math.abs(h.e/100*35/h.p).toFixed(2)} on a $35 buy. In the months held out of the fit, buys it put at +1¢ or better made money every time and under -1¢ lost every time. It starts from the last 30 days, when favourites did worse than before. ${bt} ${KXCK?.to?`Refitted every night from the last ${KXCK.days||60} days of markets, most recently through ${kxHcSpan().split(' to ')[1]}.`:''} A model from past markets, not a promise.`}
 // the readings the model counts, costliest first: [cents against a typical buy at this price, label, what it means]
 function kxHcList(r,h){const S=r.side.toUpperCase(),fx=h?.fx||{},L=[];
   if(r.z!=null)L.push([fx.z,`Cushion ${r.z>9.9?'9.9+':r.z<-9.9?'-9.9':r.z.toFixed(1)}`,`${r.z.toFixed(1)} usual moves past the target${h?.zt!=null?`; a typical buy at this price had ${h.zt.toFixed(1)}`:''}`]);
@@ -3713,6 +3713,7 @@ function kxDraw(cv,o){if(!o.noFin&&o.strike!=null&&o.close&&Date.now()>=o.close-
 function kxSpark(pts,w=90,h=22,colr='var(--kx)'){if(!pts||pts.length<4)return '';const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1,y0=Math.min(...ys),y1=Math.max(...ys);const Y=v=>y1===y0?h/2:2+(1-(v-y0)/(y1-y0))*(h-4);return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="kx-sps"><path d="${pts.map((p,i)=>(i?'L':'M')+((p[0]-x0)/(x1-x0)*w).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${colr}" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
 // ----- live data: the tracker's snapshot via the worker, the bot's snapshot as fallback -----
 // MC 2026-11-15 on Home or with a coin box open, ask the tracker for Kalshi prices no more than about 10 seconds old (fresh=1)
+async function kxPoll(){if(!KX.on)return;const fv=ST.fv,j=await getJ(fv?'/api/friends/live?id='+encodeURIComponent(fv.id):'/api/klive'+((ST.tab==='kalshi'||document.querySelector('#mbox .kx-coinv'))&&!document.hidden?'?fresh=1':''));if(ST.fv!==fv)return;if(j&&j.at){KX.live=j;KX.liveAt=Date.now()}else{const K=ST.D?.kalshi;if(K){KX.live={at:K.live?.at||0,scan:K.live?.scan||[],open:(K.pending||[]).map(t=>({tk:t.tk,coin:t.coin,side:t.side,px:t.px,ask:t.ask,n:t.n,cost:t.cost,at:t.t,close:t.close,strike:t.strike,title:t.title,yb:null,ya:null,last:null,path:t.path||[]})),fallback:true}}}
   // $1,468.47. Both read the same figures; the header is also redrawn by the 10-second page read, the numbers below only from
   // here, after the board. So an error drawing the board left them frozen until the tab was changed. Each step now runs on
   // its own, and the header redraw (paintChrome) repaints those numbers too, so the two can't disagree.
@@ -6165,7 +6166,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.90',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.91',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
