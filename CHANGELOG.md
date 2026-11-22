@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.74 (Nov 22, 2026): A sold trade says what holding would have done
+- [fixed] The replay under a trade you sold before the close said LOST every time, whatever the market did. It now says SOLD.
+- [new] A sold trade's story and replay say whether holding to the close would have won or lost, with how Kalshi settled it: the settled value against the target, with extra digits when the two would print the same.
+
 ## 1.3.73 (Nov 22, 2026): Two more Backtest rows, and Trades fits a phone
 - [new] The Backtest has two more rows. Mitch pick 2 buys the first minute from 12 down to 4 minutes left that the leader costs 80¢ to 94¢, the likely line is on its side and the coin had been on the wrong side of its target earlier in the window. Check says buy is the hand-buy check on its own: the first minute it puts a leader at +1¢ a contract or better. Both cover Aug 21 on at quoted prices.
 - [fixed] Trades, All accounts, still scrolled sideways on a phone: one wide cell in any row set the width of the whole table. The table now has fixed columns that add up to the screen.
