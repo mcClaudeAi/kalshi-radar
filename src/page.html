@@ -3734,7 +3734,8 @@ function kxHdr(){const e=$('#kxfeeds');if(!e)return;const age=KX.liveAt?(Date.no
   // MC 2026-11-21 Steven upgraded his Cloudflare plan and could not tell whether the app was using it. The tracker only uses the
   // paid plan's limits when the worker has PAID_PLAN set to 1, so this chip says which limits it is running on.
   const K=ST.D?.kalshi,plan=!K?'':K.paid?chip(true,'Cloudflare','paid plan on','PAID_PLAN is set on this worker, so the tracker runs on the paid plan\'s limits: past trades\' charts and price paths fill in within minutes and every trade\'s minute prices are saved.')
-    :chip('na','Cloudflare','free plan limits','The tracker is running on the free plan\'s limits. On Cloudflare\'s paid Workers plan, add a secret named PAID_PLAN with the value 1 (your worker > Settings > Variables and Secrets) and this turns green within a minute.');
+    :K.paidSee==='other'?chip(null,'Cloudflare','PAID_PLAN not read','The worker has a PAID_PLAN setting but its value is not one it recognises, so it is still on the free plan\'s limits. Set the value to just the number 1 (no quotes or spaces), save and deploy, and this turns green within a minute.')
+    :chip('na','Cloudflare','free plan limits','The tracker is running on the free plan\'s limits'+(K.paidSee==='unset'?': the running worker has no PAID_PLAN setting':'')+'. On Cloudflare\'s paid Workers plan, add a secret named PAID_PLAN with the value 1 on the worker itself (your worker > Settings > Variables and Secrets, not the Build settings), then deploy. A rollback to an older version can drop it, so add it again after one. This turns green within a minute.');
   e.innerHTML=chip(tr<90?true:tr<180?null:false,'Tracker',isFinite(tr)?(tr<60?Math.round(tr)+'s ago':Math.round(tr/60)+'m ago')+(KX.live?.fallback?' · via bot':''):'no data')+chip(KX.wsOk?true:Object.keys(KX.px).length?null:false,'Prices',KX.wsOk?'Coinbase live':Object.keys(KX.px).length?'Coinbase, polling':'connecting')+plan+(ST.D?.copyOff||botAge()>3600?'':chip(botAge()<30?true:botAge()<120?null:false,'Bot',isFinite(botAge())?Math.round(botAge())+'s ago':'offline'))}
 // MC 2026-11-10 the live board shows every trade the rule took, but the paper book may be running a playbook that passed on
 // some of them. Each card now says whether this one is in your book, and if not, why (the volatility numbers when it is that).
@@ -6164,7 +6165,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.89',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.90',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

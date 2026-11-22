@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.90 (Nov 22, 2026): the paid plan switch is easier to get right
+
+- [fixed] PAID_PLAN only counted when the name and the value were exact. A value saved with quotes around the 1, or as true, or a name in different letter case, was treated as not set. All of those now turn the paid plan's limits on.
+- [improved] The Cloudflare chip says what the running worker sees: no PAID_PLAN setting at all, or one with a value it does not recognise, with what to do about each.
+
 ## 1.3.89 (Nov 22, 2026): the buy check learns every night
 
 - [new] The buy check is refitted every night from a rolling window: its readings from the last 60 days of markets and its price curve from the last 30. Each night the newest day goes in and the oldest drops out. Until now its weights were fixed. Tested day by day over the last 47 days, the fixed kind made +1.37¢ a contract on the buys it rated +1¢ or better and faded as it aged; refitted nightly it made +1.90¢ and held steady. The Check, the purple Mitch pick glow and Buy Mitch picks all use it. Hover or tap the edge chip to see the date it was last refitted.
