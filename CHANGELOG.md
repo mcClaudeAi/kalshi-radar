@@ -2,6 +2,9 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.61 (Nov 21, 2026): Highlight colours mean the same in every theme
+- [fixed] The coin highlight colours followed each theme's accents, so in some themes the key fell apart: in Amber, Bullion, Ember and Greenback "bot would buy" and "bot passes" were both gold, in Terminal "would buy" and "strong setup" were the same green, and in Amethyst "would buy" looked like a Mitch pick. They are now one fixed set in every theme: blue for bot would buy, amber for bot passes, green for strong setup or a bot buy, purple for Mitch pick, with darker shades that read on the light themes. The window bar's ticks follow the same rule (teal for the early checks, blue for the trade check), and the rows, their tags and the key always match.
+
 ## 1.3.60 (Nov 21, 2026): Totals catch up as soon as an account does
 - [fixed] After a win or loss, an account's own figures moved seconds before the totals on top (Live today across the accounts, and cash). The totals were only redrawn with the page's 10-second read. They are now redrawn as soon as any account's figures change, within a few seconds of the settle.
 - [fixed] A sub account's win could take up to a minute to show in its cash when Kalshi paid it a few seconds after Main. Its cash is now read again every 10 seconds until the payout shows, for up to two minutes.

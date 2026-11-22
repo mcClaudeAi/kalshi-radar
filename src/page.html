@@ -420,7 +420,7 @@ main.wrap{max-width:1320px;padding:20px 22px 40px}
 .kx-none{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:center;grid-column:1/-1}.kx-none .note{margin:0}@media(max-width:640px){.kx-none{grid-template-columns:1fr}}
 .kx-scan{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}@media(max-width:700px){.kx-scan{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.kx-scan{grid-template-columns:1fr}}
 .kx-sc{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:10px 11px;min-width:0}.kx-sch{display:flex;justify-content:space-between;align-items:baseline}.kx-sch b{font-size:15px}.kx-sch span{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
-.kx-scl{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:13px}.kx-scl b{font-variant-numeric:tabular-nums}.kx-scl b.pos{color:var(--good)}.kx-scl b.neg{color:var(--bad)}.kx-q{font-style:normal;font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:1px 7px}.kx-q.on{color:var(--kx);border-color:color-mix(in srgb,var(--kx) 45%,var(--line));background:color-mix(in srgb,var(--kx) 10%,transparent)}
+.kx-scl{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:13px}.kx-scl b{font-variant-numeric:tabular-nums}.kx-scl b.pos{color:var(--good)}.kx-scl b.neg{color:var(--bad)}.kx-q{font-style:normal;font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:1px 7px}.kx-q.on{color:var(--hl-buy);border-color:color-mix(in srgb,var(--hl-buy) 45%,var(--line));background:color-mix(in srgb,var(--hl-buy) 10%,transparent)}
 .kx-scp{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;font-size:12px}.kx-scp b{font-size:13px;font-variant-numeric:tabular-nums}.kx-scp .pos{color:var(--good)}.kx-scp .neg{color:var(--bad)}
 .kx-scs{height:26px;margin-top:4px}.kx-scs svg{width:100%;height:26px}.kx-sct{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:4px}
 .kx-checks{display:grid;gap:10px}.kx-ck{display:grid;gap:5px}.kx-ckh{display:flex;align-items:center;gap:8px;font-size:13px}.kx-ckh i{width:18px;height:18px;border-radius:6px;border:1px solid var(--line2);display:inline-grid;place-items:center;font-size:11px;color:var(--good);flex:none}.kx-ck.done .kx-ckh i{background:color-mix(in srgb,var(--good) 18%,transparent);border-color:color-mix(in srgb,var(--good) 45%,var(--line))}.kx-ck small{color:var(--faint);font-size:11.5px}.kx-ck .kx-bar{margin-top:0}
@@ -818,7 +818,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* scanner */
 .kx-sc{padding:12px 13px}
 .kx-q{text-transform:none;border-radius:8px}
-.kx-q.on{color:var(--kx)}.kx-q.yl{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.kx-q.on{color:var(--hl-buy)}.kx-q.yl{color:var(--hl-pass);border-color:color-mix(in srgb,var(--hl-pass) 45%,var(--line));background:color-mix(in srgb,var(--hl-pass) 10%,transparent)}
 /* analytics */
 .kx-hc{border-radius:10px}
 .kx-livecard{border-color:color-mix(in srgb,var(--bad) 28%,var(--line))}
@@ -1071,28 +1071,28 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 /* MC 2026-11-18 asked to make "would buy now" unmistakable: the row the running playbook would buy gets a bright frame in the
    tracker's blue that breathes, a lit background and a larger tag. Only the frame's opacity is animated (its own layer). A row
    that is also a strong setup shows the green treatment further down, which is defined after this and wins. */
-.kx-sb.q{border-color:var(--kx);background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 16%,var(--s2)),color-mix(in srgb,var(--kx) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--kx)}
-.kx-sb.q::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--kx);box-shadow:0 0 0 1px color-mix(in srgb,var(--kx) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--kx) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--kx) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--kx) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
-.kx-sb.q .kx-q.on{color:#04121a;background:var(--kx);border-color:var(--kx);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--kx) 70%,transparent)}
+.kx-sb.q{border-color:var(--hl-buy);background:linear-gradient(90deg,color-mix(in srgb,var(--hl-buy) 16%,var(--s2)),color-mix(in srgb,var(--hl-buy) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--hl-buy)}
+.kx-sb.q::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--hl-buy);box-shadow:0 0 0 1px color-mix(in srgb,var(--hl-buy) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--hl-buy) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--hl-buy) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--hl-buy) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
+.kx-sb.q .kx-q.on{color:var(--hl-ink);background:var(--hl-buy);border-color:var(--hl-buy);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--hl-buy) 70%,transparent)}
 @media(prefers-reduced-motion:reduce){.kx-sb.q::before{animation:none}}
-.kx-sb.qg{border-color:var(--good);background:linear-gradient(90deg,color-mix(in srgb,var(--good) 18%,var(--s2)),color-mix(in srgb,var(--good) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--good)}
-.kx-sb.qg::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--good);box-shadow:0 0 0 1px color-mix(in srgb,var(--good) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--good) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--good) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--good) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
-.kx-sb.qg .kx-q.gn{color:#04140b;background:var(--good);border-color:var(--good);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--good) 70%,transparent)}
-.kx-sb.qg.past{opacity:1}.kx-sb.qg .kx-buyrow .btn{background:var(--good);color:#04140b;border-color:var(--good)}
+.kx-sb.qg{border-color:var(--hl-good);background:linear-gradient(90deg,color-mix(in srgb,var(--hl-good) 18%,var(--s2)),color-mix(in srgb,var(--hl-good) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--hl-good)}
+.kx-sb.qg::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--hl-good);box-shadow:0 0 0 1px color-mix(in srgb,var(--hl-good) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--hl-good) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--hl-good) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--hl-good) 80%,transparent);pointer-events:none;animation:kxhot 1.3s ease-in-out infinite alternate}
+.kx-sb.qg .kx-q.gn{color:var(--hl-ink);background:var(--hl-good);border-color:var(--hl-good);font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 14px color-mix(in srgb,var(--hl-good) 70%,transparent)}
+.kx-sb.qg.past{opacity:1}.kx-sb.qg .kx-buyrow .btn{background:var(--hl-good);color:var(--hl-ink);border-color:var(--hl-good)}
 @media(prefers-reduced-motion:reduce){.kx-sb.qg::before{animation:none}}
-.kx-sb.qy{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));box-shadow:inset 3px 0 0 var(--warn),0 0 28px -10px color-mix(in srgb,var(--warn) 70%,transparent)}
-.kx-sb.own{border-color:color-mix(in srgb,var(--good) 45%,var(--line));box-shadow:inset 3px 0 0 var(--good)}
+.kx-sb.qy{border-color:color-mix(in srgb,var(--hl-pass) 45%,var(--line));box-shadow:inset 3px 0 0 var(--hl-pass),0 0 28px -10px color-mix(in srgb,var(--hl-pass) 70%,transparent)}
+.kx-sb.own{border-color:color-mix(in srgb,var(--hl-good) 45%,var(--line));box-shadow:inset 3px 0 0 var(--hl-good)}
 .kx-sb.past{opacity:.72}
 .kx-sbw.hidep .kx-sb.past:not(.qg):not(.tkn):not(.mm){display:none}#kxboard.hidep .kx-pos[data-r="2"]{display:none}.kx-bdiv .kx-hidep{margin-left:0;letter-spacing:0;text-transform:none;font-weight:600}.kx-hidep{font:inherit;font-size:12px;color:var(--ink2);background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-left:8px;cursor:pointer}.kx-hidep.on{color:var(--acc);border-color:var(--acc)}.kx-hidep[hidden]{display:none}
 /* MC 2026-11-18 the "strong setup" row: a green frame that breathes and a band of light that crosses it. Both are drawn on the
    row's own two extra layers and only their opacity and position move, so the rest of the page is not redrawn (the blurs
    that made scrolling stutter were taken out this morning; this must not bring that back). Still for reduced motion. */
 .kx-sb{position:relative}
-.kx-sb.hot{border-color:color-mix(in srgb,var(--good) 70%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--good) 11%,var(--s2)),color-mix(in srgb,var(--s2) 72%,transparent) 55%)}
-.kx-sb.hot::before{content:"";position:absolute;inset:-2px;border-radius:14px;border:2px solid var(--good);box-shadow:0 0 26px -2px color-mix(in srgb,var(--good) 75%,transparent),inset 0 0 18px -8px color-mix(in srgb,var(--good) 70%,transparent);pointer-events:none;animation:kxhot 1.6s ease-in-out infinite alternate}
-.kx-sb.hot::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;background:linear-gradient(105deg,transparent 42%,color-mix(in srgb,var(--good) 26%,transparent) 50%,transparent 58%) no-repeat;background-size:260% 100%;animation:kxsweep 2.8s linear infinite}
+.kx-sb.hot{border-color:color-mix(in srgb,var(--hl-good) 70%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--hl-good) 11%,var(--s2)),color-mix(in srgb,var(--s2) 72%,transparent) 55%)}
+.kx-sb.hot::before{content:"";position:absolute;inset:-2px;border-radius:14px;border:2px solid var(--hl-good);box-shadow:0 0 26px -2px color-mix(in srgb,var(--hl-good) 75%,transparent),inset 0 0 18px -8px color-mix(in srgb,var(--hl-good) 70%,transparent);pointer-events:none;animation:kxhot 1.6s ease-in-out infinite alternate}
+.kx-sb.hot::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;background:linear-gradient(105deg,transparent 42%,color-mix(in srgb,var(--hl-good) 26%,transparent) 50%,transparent 58%) no-repeat;background-size:260% 100%;animation:kxsweep 2.8s linear infinite}
 @keyframes kxhot{from{opacity:.35}to{opacity:1}}@keyframes kxsweep{from{background-position:130% 0}to{background-position:-130% 0}}
-.kx-rd.hot{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,transparent);cursor:help}.kx-rd.hot b{color:var(--good);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}.kx-rd.hot b::before{content:"● ";animation:kxhot 0.8s ease-in-out infinite alternate}
+.kx-rd.hot{border-color:var(--hl-good);background:color-mix(in srgb,var(--hl-good) 16%,transparent);cursor:help}.kx-rd.hot b{color:var(--hl-good);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}.kx-rd.hot b::before{content:"● ";animation:kxhot 0.8s ease-in-out infinite alternate}
 @media(prefers-reduced-motion:reduce){.kx-sb.hot::before,.kx-sb.hot::after,.kx-rd.hot b::before{animation:none}.kx-sb.hot::after{display:none}}
 .kx-sbc b{display:block;font-size:14px;font-weight:700;letter-spacing:.02em}.kx-sbc span{display:block;font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap}
 .kx-sbl{display:flex;align-items:center;gap:6px;font-size:12.5px;flex-wrap:wrap;min-width:0}.kx-sbl b{font-size:13px}.kx-sbl b.pos{color:var(--good)}.kx-sbl b.neg{color:var(--bad)}
@@ -1130,15 +1130,15 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .tw-t{position:relative;height:14px;border-radius:7px;background:color-mix(in srgb,var(--line) 70%,transparent)}
 .tw-t .sg{position:absolute;top:0;bottom:0;opacity:.5}.tw-t .sg.w{left:0;border-radius:7px 0 0 7px;background:color-mix(in srgb,var(--kx) 22%,transparent)}.tw-t .sg.h{background:color-mix(in srgb,var(--accent) 20%,transparent)}.tw-t .sg.f{right:0;border-radius:0 7px 7px 0;background:color-mix(in srgb,var(--warn) 38%,transparent)}
 .tw-t .fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 35%,transparent),var(--kx))}.ph-h .tw-t .fill{background:linear-gradient(90deg,color-mix(in srgb,var(--kx) 30%,transparent),var(--accent))}.ph-f .tw-t .fill{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 35%,transparent),var(--warn))}
-.tw-t .tk{position:absolute;top:3px;bottom:3px;width:1px;background:color-mix(in srgb,var(--ink) 26%,transparent)}.tw-t .tk.big{top:-5px;bottom:-5px;width:2px;background:var(--kx);box-shadow:0 0 8px var(--kx)}
+.tw-t .tk{position:absolute;top:3px;bottom:3px;width:1px;background:color-mix(in srgb,var(--ink) 26%,transparent)}.tw-t .tk.big{top:-5px;bottom:-5px;width:2px;background:var(--hl-tc);box-shadow:0 0 8px var(--hl-tc)}
 .tw-t .cur{position:absolute;top:-6px;width:4px;height:26px;margin-left:-2px;border-radius:2px;background:var(--ink);box-shadow:0 0 12px color-mix(in srgb,var(--ink) 70%,transparent)}
-.tw-t .tk.ek{top:-3px;bottom:-3px;width:2px;background:#64DFDF;box-shadow:0 0 6px #64DFDF}.kx-tlq .ek{color:#64DFDF;border-color:color-mix(in srgb,#64DFDF 45%,var(--line))}.kx-tlq .ek.done{opacity:.55}
+.tw-t .tk.ek{top:-3px;bottom:-3px;width:2px;background:var(--hl-ek);box-shadow:0 0 6px var(--hl-ek)}.kx-tlq .ek{color:#64DFDF;border-color:color-mix(in srgb,#64DFDF 45%,var(--line))}.kx-tlq .ek.done{opacity:.55}
 .tw-x{position:relative;height:16px;margin-top:8px;font-size:11px;color:var(--faint)}.tw-x span{position:absolute;top:0;white-space:nowrap}.tw-x span.c{transform:translateX(-50%)}.tw-x span.r{right:0}.tw-x b{color:var(--mute);font-weight:500;font-family:var(--mono)}
 @media(max-width:560px){.tw-cd b{font-size:22px}.tw-x span:first-child{display:none}.tw-x span.c{left:0!important;transform:none}}
 @media(prefers-reduced-motion:reduce){.tw-t .fill,.tw-t .cur{transition:none}}
 .kx-tlq{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .kx-tlq .tw-op{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:2px 10px;font-size:11px;color:var(--faint);padding:3px 0;cursor:help}
-.tw-op em{font-style:normal;color:var(--mute)}.tw-op small{font-size:11px}.tw-op u{text-decoration:none;white-space:nowrap;display:inline-flex;align-items:baseline;gap:5px}.tw-op b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700}.tw-op.none{cursor:default}.kx-tlq span{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}.kx-tlq span.q{color:var(--kx);border-color:color-mix(in srgb,var(--kx) 45%,var(--line));background:color-mix(in srgb,var(--kx) 10%,transparent)}.kx-tlq span.qy{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.tw-op em{font-style:normal;color:var(--mute)}.tw-op small{font-size:11px}.tw-op u{text-decoration:none;white-space:nowrap;display:inline-flex;align-items:baseline;gap:5px}.tw-op b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700}.tw-op.none{cursor:default}.kx-tlq span{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}.kx-tlq span.q{color:var(--hl-buy);border-color:color-mix(in srgb,var(--hl-buy) 45%,var(--line));background:color-mix(in srgb,var(--hl-buy) 10%,transparent)}.kx-tlq span.qy{color:var(--hl-pass);border-color:color-mix(in srgb,var(--hl-pass) 45%,var(--line));background:color-mix(in srgb,var(--hl-pass) 10%,transparent)}
 /* trade ticker */
 .kx-tk{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-top:16px;padding:2px 0 4px;mask-image:linear-gradient(90deg,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent)}.kx-tk::-webkit-scrollbar{display:none}
 .kx-tk>div{flex:none;display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:10px;border:1px solid var(--line);background:color-mix(in srgb,var(--s1) 85%,transparent);font-size:12px;color:var(--mute);white-space:nowrap}
@@ -1249,7 +1249,12 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 @keyframes kxfl{0%{opacity:1}100%{opacity:0}}
    winning (kxMitch), and a key to every colour on the Live board. Purple wins over the other row colours, so it is never hidden
    under one; the row's own chips still say what the bot would do. */
-:root{--mm:#c04dff}
+/* MC 2026-11-21 the key's colours fell apart in some themes: in Amber, Bullion, Ember and Greenback "bot would buy" and "bot
+   passes" were both gold, in Terminal "would buy" and "strong setup" were the same green, and in Amethyst "would buy" was the
+   purple of a Mitch pick. The highlight colours no longer follow a theme's accents: one fixed set for dark themes and a darker
+   one that reads on light ones, so each colour means the same thing in every theme. */
+:root{--hl-buy:#4fc3ff;--hl-pass:#f6b94a;--hl-good:#35e0a1;--mm:#c04dff;--hl-ek:#2dd4bf;--hl-tc:#4fc3ff;--hl-ink:#04121a}
+:root[data-theme=light]{--hl-buy:#0a6fb8;--hl-pass:#9a5b00;--hl-good:#0b7f57;--mm:#8b2fd1;--hl-ek:#0d9488;--hl-tc:#0a6fb8;--hl-ink:#ffffff}
 .kx-sb.mm{border-color:var(--mm);background:linear-gradient(90deg,color-mix(in srgb,var(--mm) 17%,var(--s2)),color-mix(in srgb,var(--mm) 5%,var(--s2)) 60%);box-shadow:inset 4px 0 0 var(--mm)}
 .kx-sb.mm::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid var(--mm);box-shadow:0 0 0 1px color-mix(in srgb,var(--mm) 40%,transparent),0 0 34px 2px color-mix(in srgb,var(--mm) 80%,transparent),0 0 70px -6px color-mix(in srgb,var(--mm) 70%,transparent),inset 0 0 22px -8px color-mix(in srgb,var(--mm) 80%,transparent);pointer-events:none;animation:kxhot 1.6s ease-in-out infinite alternate}
 .kx-sb.mm::after{display:none}
@@ -1264,7 +1269,7 @@ body.kg-on>*:not(#kgate):not(#toasts):not(#modal){display:none!important}
 .tw-lg b{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .tw-lg span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:help}
 .tw-lg .lt{flex:none;width:3px;height:13px;border-radius:2px}
-.tw-lg .lt.ek{background:#64DFDF;box-shadow:0 0 6px #64DFDF}.tw-lg .lt.tc{background:var(--kx);box-shadow:0 0 6px var(--kx)}.tw-lg .lt.nw{width:4px;background:var(--ink)}
+.tw-lg .lt.ek{background:var(--hl-ek);box-shadow:0 0 6px var(--hl-ek)}.tw-lg .lt.tc{background:var(--hl-tc);box-shadow:0 0 6px var(--hl-tc)}.tw-lg .lt.nw{width:4px;background:var(--ink)}
 .tw-lg .ls{flex:none;width:16px;height:11px;border-radius:4px;border:1.5px solid var(--c);background:color-mix(in srgb,var(--c) 22%,transparent);box-shadow:0 0 8px -1px var(--c)}
 @media(max-width:560px){.tw-lg{gap:7px}.tw-lg>div{gap:5px 10px}}
 .modal .box:has(.kx-accs){width:min(520px,100%);max-height:calc(100dvh - 24px);overflow:auto}
@@ -3962,7 +3967,7 @@ function kxOpenSpot(){const o=kxOpenTot();if(!o.n)return '<div class="tw-op none
   return `<div class="tw-op" title="${o.n} open trade${o.n===1?'':'s'}${o.acc>1?` across ${o.acc} accounts`:''}, $${o.cost.toFixed(2)} in with fees. If win: what they all pay back above that. If loss: what they all cost, less anything already sold."><em>${o.n} open</em><u><small>If win</small><b class="pos">${usd(o.win)}</b></u><u><small>If loss</small><b class="neg">${usd(o.lose)}</b></u></div>`}
 // the colour key under the window bar (MC 2026-11-21 asked for one)
 const KXLEG=`<div class="tw-lg"><div><b>Window bar</b><span title="Minutes 3 and 4: the early buy checks"><i class="lt ek"></i>early checks</span><span title="Minute 5, ten minutes before the close: the trade check, when the tracker buys"><i class="lt tc"></i>trade check</span><span title="Where the window is now"><i class="lt nw"></i>now</span></div>`
-  +`<div><b>Coins</b><span title="The price qualifies and the playbook would buy it at the trade check"><i class="ls" style="--c:var(--kx)"></i>bot would buy</span><span title="The price qualifies but the playbook would pass on it"><i class="ls" style="--c:var(--warn)"></i>bot passes</span><span title="Strong setup: every reading lines up. Also a later-watched buy after the trade check, and a coin the bot holds"><i class="ls" style="--c:var(--good)"></i>strong setup or bot buy</span><span title="${KXMM.replace(/"/g,'&quot;')}"><i class="ls" style="--c:var(--mm)"></i>Mitch pick</span></div></div>`;
+  +`<div><b>Coins</b><span title="The price qualifies and the playbook would buy it at the trade check"><i class="ls" style="--c:var(--hl-buy)"></i>bot would buy</span><span title="The price qualifies but the playbook would pass on it"><i class="ls" style="--c:var(--hl-pass)"></i>bot passes</span><span title="Strong setup: every reading lines up. Also a later-watched buy after the trade check, and a coin the bot holds"><i class="ls" style="--c:var(--hl-good)"></i>strong setup or bot buy</span><span title="${KXMM.replace(/"/g,'&quot;')}"><i class="ls" style="--c:var(--mm)"></i>Mitch pick</span></div></div>`;
 function kxTimeline(){const el=$('#kxtl');if(!el)return;const Q=900000,now=kxNow(),close=Math.floor(now/Q)*Q+Q,open=close-Q,mark=close-600000,fin=close-60000,K=ST.D?.kalshi||{},minAsk=K.cfg?.minAsk||.9;
   const sc=(KX.live?.scan||[]).filter(s=>s.close===close),p=(now-open)/Q,pm=1/3,pf=14/15,t12=ms=>new Date(ms).toLocaleTimeString('en-US',{...ET,hour:'numeric',minute:'2-digit'});
   const qs=sc.filter(s=>s.leader&&s.lask>=minAsk),q=qs.map(s=>s.coin),qb=qs.filter(kxPbBuy).map(s=>s.coin);
@@ -5809,7 +5814,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.60',KR_DATE='Nov 21, 2026';
+const KR_VERSION='1.3.61',KR_DATE='Nov 21, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
