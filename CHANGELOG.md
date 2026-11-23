@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.105 (Nov 23, 2026): a new Home for phones, to try
+
+- [new] On a phone, Home has a "Try the new Home" button. It splits Home into three panels you swipe or tap between: Window, Trades and Accounts. Each opens at the top, so there is far less to scroll past. "Classic Home" switches back at any time, and the choice is saved on that device. Nothing changes unless you turn it on.
+- [new] Window panel: a compact window bar with the trade check countdown, then all nine coins as cards two across. Each card shows the leader and price, a live chart, the cushion as a bar, the path, the Check's edge and the win chance. Tap a card and it opens in place with the target gauge, every reading and Buy by hand; "Full chart and Check" opens the coin view.
+- [new] Trades panel: what is open right now, then the day's trades with their stories and replays. Accounts panel: the summary, every account and the playbooks.
+
 ## 1.3.104 (Nov 23, 2026): Main no longer reads "$0.00 on crypto" by mistake
 
 - [fixed] With sub accounts, Main could show "$0.00 on crypto" while its money was there. When a payout or a fill landed between two balance reads, the tracker took the sub accounts' money off Main's figures a second time and was left with nothing on either balance. In that state the automatic top-up had nothing to move and said nothing. The sub accounts' money is now only taken off when Kalshi's answer really included it, and an empty reading for an account that has cash is read again, not kept.
