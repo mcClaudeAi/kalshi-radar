@@ -11,9 +11,9 @@
   {
    "id": 13,
    "text": "Let me pause live trading per account, not only all of it: pause one or more accounts for the rest of the day, for a set time, or until I resume, from the accounts section on the home page. Useful when an account has had a good day and I want it to stop.",
-   "status": "read",
-   "note": "Needs the owner. Pausing an account changes when live orders go out, which never ships from a request on its own. Today each account can be turned off and on by hand: open it in the accounts panel on Home, or use the Books page. The question is whether to add a timed pause (rest of the day, a set time, or until resumed) that turns the account back on by itself, for all accounts or the ones you pick.",
-   "version": ""
+   "status": "released",
+   "note": "Released in 1.3.100. Accounts panel on Home: Pause accounts (or Pause on an account's sheet) stops the tracker's own buying on the accounts you tick, for the rest of today, until a time you pick, or until you resume; the rest keep trading. A paused account still takes hand buys and sells, the cash out rule still acts on its open trades, and they settle as usual. A timed pause lifts itself, Resume lifts it sooner, and the account shows Paused with when it buys again.",
+   "version": "1.3.100"
   },
   {
    "id": 12,
