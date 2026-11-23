@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.106 (Nov 23, 2026): the new phone Home, tightened
+
+- [improved] New Home: the Mode and Live today tiles no longer sit above the tabs. Today's result and cash are one line at the top, which gives the first third of the screen back.
+- [improved] Window panel: each coin card is shorter. Its status stays on one line and the reading line is compact (the bar is the cushion, then the path, the Check's edge and the win chance), so nearly all nine coins fit on one screen.
+- [improved] Trades panel: an open position is one line (coin, side, size, winning or losing, time left). Tap it for the full card with the chart and Sell. The day's trades start right under them.
+- [fixed] New Home: tapping an open position or a coin card could jump away from Home. Taps now only open and close the card.
+
 ## 1.3.105 (Nov 23, 2026): a new Home for phones, to try
 
 - [new] On a phone, Home has a "Try the new Home" button. It splits Home into three panels you swipe or tap between: Window, Trades and Accounts. Each opens at the top, so there is far less to scroll past. "Classic Home" switches back at any time, and the choice is saved on that device. Nothing changes unless you turn it on.
