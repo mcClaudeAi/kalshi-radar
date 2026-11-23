@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.110 (Nov 23, 2026): Equity ranges
+
+- [fixed] With Analytics on 7D, the Equity card's buttons read Day, Week, 7D, and the last two were the same chart. Equity now has its own four: Day, Week, Month and All, whatever range the rest of the page is on.
+
 ## 1.3.109 (Nov 23, 2026): a Mitch pick that filled nothing is tried again
 
 - [fixed] When several accounts send the same Mitch pick order in the same second, the first can take everything on offer and another account's order comes back with nothing filled. That account then sat out the market even when the price stayed in range. It now gets another go on the next 10-second look.
