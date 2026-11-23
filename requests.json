@@ -1,6 +1,13 @@
 {
- "updated": "Nov 15, 2026",
+ "updated": "Nov 22, 2026",
  "items": [
+  {
+   "id": 12,
+   "text": "Give me the ability to turn protect profit off if I choose to. Also, when I tried to remove some of the protect profit rows it would not let me clear them out; I had to change them to something else. Let me clear rows out of this setting.",
+   "status": "released",
+   "note": "Released in 1.3.96. Protect profit now has an On / Off choice above its steps (Settings, Paper or Live, and per account). Off switches all of it off and keeps your numbers for when you turn it back on. Clearing a step works too: empty the amount box and save, and that step is unused. It stays on unless you pick Off.",
+   "version": "1.3.96"
+  },
   {
    "id": 11,
    "text": "Now that the API is upgraded, create subaccounts called books and copy each live trade into every book marked for copy trading. In live settings, let me pick which books copy trades; only a checked book gets the trade. All books use the same live settings for now, replicated to new books as they are created.",

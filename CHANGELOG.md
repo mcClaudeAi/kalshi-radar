@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.96 (Nov 22, 2026): protect profit can be switched off, and its steps cleared
+
+- [new] Protect profit has an On / Off choice above its steps, in Paper and Live settings and for each account. Off switches every step off and keeps your numbers, so turning it back on brings the same steps back. It stays on unless you choose Off. Requested by a user.
+- [fixed] A protect profit step could not be cleared: an emptied box was treated as "leave it as it was", so the old number came back. An empty box now means the step is unused, and its keep is cleared with it.
+
 ## 1.3.95 (Nov 22, 2026): Mitch pick buys keep the reading they were bought on
 
 - [fixed] A Mitch pick buy's saved reading (cushion, dip, likely line) was the market's reading from the trade check or the later watch, not the one the buy was decided on, and sub accounts kept none of their own. Every account's row now keeps the exact reading the buy used, so the story on Trades and the CSV export match the decision.
