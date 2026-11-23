@@ -2,6 +2,20 @@
  "updated": "Nov 22, 2026",
  "items": [
   {
+   "id": 14,
+   "text": "On the Trades tab I used to be able to open a trade, see its chart and play the trade back. That is gone now. Find what removed it and bring it back.",
+   "status": "released",
+   "note": "Released in 1.3.99. The replay was missing from live trades bought as Mitch picks or later buys: those rows had not kept the market's target, so the page had nothing to draw. Every live row now keeps its target, rows already made are filled in within a minute of updating, and How it played out shows again when you open the trade.",
+   "version": "1.3.99"
+  },
+  {
+   "id": 13,
+   "text": "Let me pause live trading per account, not only all of it: pause one or more accounts for the rest of the day, for a set time, or until I resume, from the accounts section on the home page. Useful when an account has had a good day and I want it to stop.",
+   "status": "read",
+   "note": "Needs the owner. Pausing an account changes when live orders go out, which never ships from a request on its own. Today each account can be turned off and on by hand: open it in the accounts panel on Home, or use the Books page. The question is whether to add a timed pause (rest of the day, a set time, or until resumed) that turns the account back on by itself, for all accounts or the ones you pick.",
+   "version": ""
+  },
+  {
    "id": 12,
    "text": "Give me the ability to turn protect profit off if I choose to. Also, when I tried to remove some of the protect profit rows it would not let me clear them out; I had to change them to something else. Let me clear rows out of this setting.",
    "status": "released",
