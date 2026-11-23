@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.102 (Nov 23, 2026): the Accounts buttons fit on a phone
+
+- [fixed] On a phone the Move money, Pause accounts and Manage accounts buttons sat on top of the Accounts title. They now sit in their own row under it.
+
 ## 1.3.101 (Nov 23, 2026): Mitch picks before the trade check start at a cushion of 2
 
 - [improved] "Mitch picks before the trade check: least cushion" now starts at 2 (was 1.3) for every account that has not set its own. A purple coin with more than 10 minutes left waits until it is 2 usual moves clear of its target; it is still looked at every 10 seconds and bought after the trade check at the rule's own 1. A value you saved yourself is kept.

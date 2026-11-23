@@ -1300,7 +1300,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.kx-bkr td,.kx-bkr td *
    The layout follows the panel's own width, as before, because the panel is much narrower than the browser with the menu out. */
 .kx-acc{container-type:inline-size;container-name:kxacc}
 .ka-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.ka-head>div{display:flex;align-items:baseline;gap:12px;min-width:0}.kx-acc h3{margin:0;font-size:16px;letter-spacing:-.01em}
-.ka-btns{display:flex;gap:8px;flex:none}.ka-live{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--mute);white-space:nowrap}.ka-live i{width:7px;height:7px;border-radius:50%;background:var(--faint)}.ka-live.on i{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
+.ka-btns{display:flex;gap:8px;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end}.ka-live{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--mute);white-space:nowrap}.ka-live i{width:7px;height:7px;border-radius:50%;background:var(--faint)}.ka-live.on i{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
 .ka-sum{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--bg) 50%,transparent);overflow:hidden}
 .ka-sum>div{padding:12px 16px;min-width:0}.ka-sum>div+div{border-left:1px solid var(--line)}.ka-sum span,.ka-cols span{display:block;font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .ka-sum b{display:block;margin-top:3px;font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}.ka-sum small{display:block;margin-top:1px;font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1330,7 +1330,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.kx-bkr td,.kx-bkr td *
  /* MC 2026-11-19 a long playbook name (Claude's pick, later watched) was cut to "later w..." on a phone; the name line and the
     account name wrap there instead of being cut */
  .ka-row .who b,.ka-row .who small{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}.ka-row .who{align-items:flex-start}
- .ka-row .c b{font-size:13.5px}.ka-row .c small{font-size:10.5px}.ka-bar{margin-left:0;max-width:56px}.ka-row .why{grid-area:auto;grid-column:1/-1;margin-top:0}.ka-head>div{flex-direction:column;gap:2px}}
+ .ka-row .c b{font-size:13.5px}.ka-row .c small{font-size:10.5px}.ka-bar{margin-left:0;max-width:56px}.ka-row .why{grid-area:auto;grid-column:1/-1;margin-top:0}.ka-head>div{flex-direction:column;gap:2px}
+ /* MC 2026-11-23 the Pause accounts button made three; on a phone they sat on top of the Accounts title, so the row wraps under it */
+ .ka-head{flex-wrap:wrap}.ka-btns{flex:1 1 100%;justify-content:flex-start}.ka-btns .btn{flex:1 1 auto}}
 @media(max-width:760px){.kx-acc{padding:14px 12px;border-radius:16px}.kx-accbar{flex-direction:column;align-items:stretch}.kx-accb{display:table;margin:3px 0 0}}
 @media(prefers-reduced-motion:reduce){.ka-row{transition:none}}
 .kx-sbr{grid-column:1/-1;min-width:0;display:flex;flex-wrap:wrap;gap:6px}.kx-sbr:empty{display:none}.kx-rd{display:inline-flex;align-items:baseline;gap:5px;padding:3px 9px;border-radius:8px;border:1px solid var(--line);font-size:11.5px;color:var(--mute);white-space:nowrap;cursor:help}.kx-rd i{font-style:normal;font-size:9.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}.kx-rd b{font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}.kx-rd em{font-style:normal;font-weight:650}.kx-rd.pos{border-color:color-mix(in srgb,var(--good) 40%,var(--line))}.kx-rd.pos b{color:var(--good)}.kx-rd.warn{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}.kx-rd.warn b{color:var(--warn)}.kx-rd.neg{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}.kx-rd.neg b{color:var(--bad)}.kx-rd em.pos{color:var(--good)}.kx-rd em.neg{color:var(--bad)}@media(max-width:560px){.kx-sbr{gap:4px}.kx-rd{white-space:normal;font-size:10.5px;padding:2px 7px;gap:4px}.kx-rd i{font-size:9px}}
@@ -6197,7 +6199,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.101',KR_DATE='Nov 23, 2026';
+const KR_VERSION='1.3.102',KR_DATE='Nov 23, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
