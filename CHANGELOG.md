@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.98 (Nov 22, 2026): Mitch picks get their own cushion before the trade check
+
+- [new] Live settings, under Buy Mitch picks: "Mitch picks before the trade check: least cushion". A Mitch pick bought with more than 10 minutes left has to be at least this many usual moves clear of its target. It starts at 1.3 and can be set from 1 to 3, per account. From the trade check on, the rule's own 1 applies as before. A coin under the bar is looked at again every 10 seconds, so it can still be bought if it clears the bar or once the check has passed.
+- [improved] When this is why a purple coin was not bought, the Auto-buy note on its row says so with the cushion it saw and the cushion it needs. The purple glow itself is unchanged.
+
 ## 1.3.97 (Nov 22, 2026): protect profit's On / Off sits above its steps
 
 - [fixed] In 1.3.96 the new On / Off choice for protect profit was drawn on top of the steps. It now sits above them, and the steps dim when it is off.
