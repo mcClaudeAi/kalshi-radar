@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.97 (Nov 22, 2026): protect profit's On / Off sits above its steps
+
+- [fixed] In 1.3.96 the new On / Off choice for protect profit was drawn on top of the steps. It now sits above them, and the steps dim when it is off.
+
 ## 1.3.96 (Nov 22, 2026): protect profit can be switched off, and its steps cleared
 
 - [new] Protect profit has an On / Off choice above its steps, in Paper and Live settings and for each account. Off switches every step off and keeps your numbers, so turning it back on brings the same steps back. It stays on unless you choose Off. Requested by a user.
