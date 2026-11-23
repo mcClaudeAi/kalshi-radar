@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.107 (Nov 23, 2026): Mitch pick needs a cushion of 1.2
+
+- [improved] A Mitch pick now has to be at least 1.2 usual moves clear of its target, up from 1. This applies to the purple glow on the scanner and to Auto-buy on every account.
+- [improved] On 90 days of history the higher bar dropped about 3% of the buys and those were the weaker ones: the win rate went from 94.0% to 94.3% and the pay per trade went up.
+- [improved] The before-the-trade-check cushion setting still works the same way. A number under 1.2 there now acts as 1.2.
+
 ## 1.3.106 (Nov 23, 2026): the new phone Home, tightened
 
 - [improved] New Home: the Mode and Live today tiles no longer sit above the tabs. Today's result and cash are one line at the top, which gives the first third of the screen back.

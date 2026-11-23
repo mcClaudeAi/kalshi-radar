@@ -55,6 +55,7 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
+const MPZ = 1.2;
 const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'mpBuy', 'mpPreZ', 'lateZ', 'chkZ', 'lateCrowd', 'lateM', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'lockAt2', 'lockKeep2', 'lockAt3', 'lockKeep3', 'lockOff', 'lossTaper', 'skipSlots', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
@@ -1307,11 +1308,15 @@ export function createKalshi(state, env, keep) {
       let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
-      if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < 1) { no(s, `cushion ${v.z} on the tracker's reading, needs 1`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
+      if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < MPZ - 1e-9) { no(s, `cushion ${v.z} on the tracker's reading, needs ${MPZ}`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
+      // MC 2026-11-23 Mitchell: a Mitch pick buy needs a cushion of 1.2, not 1, on every account (MPZ, the page's KXMPZ is the
+      // same number so the purple glow and the buy agree). On the 90 days of Edge data at $35 a buy: 1.0 gave 3,475 buys, 94.0%
+      // won, $0.72 a trade; 1.2 gave 3,374, 94.3%, $0.80, and both halves of the period were better. 1.1 changed nothing and
+      // 1.5 cut a sixth of the buys for the same pay a trade. An account's before-the-check setting under 1.2 now acts as 1.2.
       // MC 2026-11-22 Mitchell, after the first Mitch pick loss (BTC bought with 12 minutes left, lost by $5.87): a setting for
       // the cushion a Mitch pick needs when it is bought before the trade check, 1.3 unless changed (he said 1.5, then 1.3).
       // Each account has its own (mpPreZ), so one may take a buy another passes on. From the trade check on the rule's own
-      // 1 applies as before. A 94-day backtest of 1.3 early changed 13 buys in 6,227, so this is a guard, not an edge.
+      // cushion applies as before (1 then, 1.2 from Nov 23). A 94-day backtest of 1.3 early changed 13 buys in 6,227, so this is a guard, not an edge.
       // MC 2026-11-23 the owner moved his own to 2 after a night of watching it and asked for 2 to be the start for everyone.
       const pre = left > 10, okZ = cfg => !pre || v.z >= (cfg.mpPreZ ?? 2) - 1e-9, mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg);
       if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ); if (!mw && !bw) { no(s, `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
