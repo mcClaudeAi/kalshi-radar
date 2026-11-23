@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.104 (Nov 23, 2026): Main no longer reads "$0.00 on crypto" by mistake
+
+- [fixed] With sub accounts, Main could show "$0.00 on crypto" while its money was there. When a payout or a fill landed between two balance reads, the tracker took the sub accounts' money off Main's figures a second time and was left with nothing on either balance. In that state the automatic top-up had nothing to move and said nothing. The sub accounts' money is now only taken off when Kalshi's answer really included it, and an empty reading for an account that has cash is read again, not kept.
+
 ## 1.3.103 (Nov 23, 2026): the real reason live passed on a later buy
 
 - [fixed] A later buy that paper took could show "Main · not taken: live was not trading when this market was checked" while live was on. Live had passed on it for one of its own later-buy bars and kept no note, so the page guessed. The tracker now keeps the reason, for example "later buy passed: cushion 1.11, live's later buys need 1.5", and the card shows it.

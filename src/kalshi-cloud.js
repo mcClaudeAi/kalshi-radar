@@ -660,9 +660,18 @@ export function createKalshi(state, env, keep) {
         // account is never shown, or sized, with money that belongs to a book.
         const [a0, ax] = await Promise.all([kreq('GET', '/portfolio/balance?subaccount=0&exchange_index=0'), kreq('GET', `/portfolio/balance?subaccount=0&exchange_index=${XI}`)]);
         let v0 = val(a0) ?? st.shard[0] ?? 0, vx = val(ax) ?? st.shard[XI] ?? 0;
-        if (v0 + vx > st.bal + 0.01) { let b0 = 0, bx = 0; try { for (const k of books.view()) { const c = k.crypto ?? 0; bx += c; b0 += Math.max(0, (k.bal ?? 0) - c); } } catch { } v0 = Math.max(0, v0 - b0); vx = Math.max(0, vx - bx); }
+        // MC 2026-11-23 Mitchell's Main showed "$0.00 on crypto" against $335.56 of cash while it was trading. The step below took
+        // what the books hold off Main's two shards whenever they added up to more than Main's cash by over a cent. That is
+        // right when Kalshi's answer counted the books' money, but the same test also trips when a payout or a fill lands
+        // between the total read and the two shard reads, and then the books' $1,137 came off shards that were Main's alone,
+        // leaving 0 and 0. With nothing shown on either shard the top-up had nothing to move and said nothing. The books' money
+        // is now only taken off when the excess is about what the books hold; any other excess is a timing gap and the trim
+        // below holds the split to the account's cash. A split that comes back empty for an account with cash is not kept.
+        if (v0 + vx > st.bal + 0.01) { let b0 = 0, bx = 0; try { for (const k of books.view()) { const c = k.crypto ?? 0; bx += c; b0 += Math.max(0, (k.bal ?? 0) - c); } } catch { }
+          const over = v0 + vx - st.bal, bk = b0 + bx; if (bk > 0 && Math.abs(over - bk) <= Math.max(1, bk * 0.02)) { v0 = Math.max(0, v0 - b0); vx = Math.max(0, vx - bx); } }
         if (v0 + vx > st.bal + 0.01) { vx = Math.min(vx, st.bal); v0 = Math.max(0, +(st.bal - vx).toFixed(2)); }
-        st.shard = { 0: +v0.toFixed(2), [XI]: +vx.toFixed(2) }; st.shAt = Date.now(); }
+        if (v0 + vx < 0.01 && st.bal > 1) { st.shard = keep && Object.keys(keep).length ? keep : {}; st.shAt = 0; say('LIVE balance split came back empty, asking again next time'); }
+        else { st.shard = { 0: +v0.toFixed(2), [XI]: +vx.toFixed(2) }; st.shAt = Date.now(); } }
       } }
     else if (/subrequest/i.test(errOf(r) || '') || r?.status === 429) say(`LIVE ${r?.status === 429 ? 'Kalshi asked to slow down' : 'out of calls this run'}, balance kept`);
     else { st.keyOk = r?.status === 401 ? false : st.keyOk; fail(`balance check failed: ${r?.status} ${errOf(r)}`); }
