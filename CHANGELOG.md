@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.108 (Nov 23, 2026): how close a trade finished
+
+- [new] A trade's replay now says how far from its target the market settled, as a percent and which side, next to "settled at" and "target". Hover or press it for the gap in price.
+- [new] When the gap is under 0.03% the replay adds a photo finish note. A gap that small is thinner than the line on the chart, so a loss can look like a win there.
+
 ## 1.3.107 (Nov 23, 2026): Mitch pick needs a cushion of 1.2
 
 - [improved] A Mitch pick now has to be at least 1.2 usual moves clear of its target, up from 1. This applies to the purple glow on the scanner and to Auto-buy on every account.

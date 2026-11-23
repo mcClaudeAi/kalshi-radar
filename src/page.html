@@ -971,6 +971,7 @@ html,body,button,a,[data-tab],.nv,.kp,.kx-seg button,.ck-coin,.bnav button{touch
 
 .kp-hud{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line);min-height:48px}
 .kp-hud span{display:flex;flex-direction:column;font:700 14px 'JetBrains Mono',monospace;color:var(--ink)}.kp-hud small{font:600 10.5px Sora,Inter,sans-serif;color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
+.kp-hud .kp-tight b{font:600 12px Sora,Inter,sans-serif;color:var(--warn,#f0c36b)}
 .kp-hud .kp-st{flex-direction:row;font:800 12px Sora,Inter,sans-serif;letter-spacing:.08em;padding:6px 10px;border-radius:8px}.kp-st.win{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}.kp-st.lose{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
 .kp-ring{opacity:0;transform-box:fill-box;transform-origin:center}.kp-ring.go{animation:kpring 1s ease-out}@keyframes kpring{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(4.5)}}.kp-cu{paint-order:stroke;stroke:var(--bg);stroke-width:3.5px;stroke-linejoin:round}
 .kp-ctl{display:flex;align-items:center;gap:10px;margin-top:10px}.kp-ctl input[type=range]{flex:1;accent-color:var(--kx);min-width:0}
@@ -4267,6 +4268,16 @@ function kxPlayTrade(tk){return KXP[tk]?.t||kxPlayTwin(tk)||kxLiveAsT(tk)}
 // spread of the minute-to-minute moves in a replay's own prices, as a share of price
 function kxPlaySg(pts){if(pts.length<3)return null;const R=[];let last=null;for(let x=pts[0][0];x<=pts.at(-1)[0];x+=60){const v=kxAt(pts,x);if(last!=null&&last>0&&v>0)R.push(Math.log(v/last));last=v}if(R.length<5)return null;const m=R.reduce((a,b)=>a+b,0)/R.length;return Math.sqrt(R.reduce((a,b)=>a+(b-m)**2,0)/(R.length-1))||null}
 function kxPlayFit(pts,s0,s1){let n=0,sx=0,sy=0;for(const p of pts)if(p[0]>=s0&&p[0]<=s1){n++;sx+=p[0];sy+=p[1]}if(n<3)return null;const mx=sx/n,my=sy/n;let sxx=0,sxy=0;for(const p of pts)if(p[0]>=s0&&p[0]<=s1){sxx+=(p[0]-mx)**2;sxy+=(p[0]-mx)*(p[1]-my)}if(!sxx)return null;const m=sxy/sxx;return {a:my+m*(s0-mx),b:my+m*(s1-mx),m}}
+// MC 2026-11-23 after a DOGE loss that looked like a win on the chart: it settled 0.016% above its target, one price step on
+// that coin, which is thinner than the line the chart draws. The header already had "settled at" and "target", but at the
+// usual decimals the two can print the same. This adds the gap between them as a percent (and in price at two more decimals),
+// says which side of the target it finished, and under 0.03% says outright that the chart cannot show a gap that small.
+function kxGapHud(t){
+  if(t.final==null||!(t.strike>0))return '';
+  const d=t.final-t.strike,pc=Math.abs(d)/t.strike*100,dec=kxDec(t.strike)+2,amt='$'+Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const side=d>0?'above':d<0?'below':'on',tight=pc<0.03;
+  return `<span title="Settled value minus target: ${d>=0?'+':'-'}${amt}"><small>finished</small><b>${pc<0.001?'on the target':pc.toFixed(pc<0.1?3:2)+'% '+side}</b></span>${tight?`<span class="kp-tight"><small>photo finish</small><b>${amt} ${side==='on'?'apart':side}, too small to see on the chart</b></span>`:''}`;
+}
 function kxPlayPaint(tk,t){const P=KXP[tk];if(!P?.geo)return;t=t||kxPlayTrade(tk);if(!t)return;const g=P.geo,id=g.id,s=P.s??g.x1,$i=x=>document.getElementById(x+id);if(!$i('kph'))return;
   const r=$i('kpr');r.setAttribute('width',Math.max(0,g.X(s)));const ln=$i('kpl'),dt=$i('kpd'),showHead=P.s!=null&&P.s<g.x1;ln.style.display=dt.style.display=showHead?'':'none';
   const px=kxAt(P.pts,s),win=px==null?null:(t.side==='yes'?px>=t.strike:px<t.strike);
@@ -4280,7 +4291,7 @@ function kxPlayPaint(tk,t){const P=KXP[tk];if(!P?.geo)return;t=t||kxPlayTrade(tk
     const pe=TR&&(!showHead||s>T1)?Math.min(showHead?s:g.x1,g.x1):null;tp.style.display=pe==null?'none':'';if(pe!=null){tp.setAttribute('x1',g.X(T1));tp.setAttribute('y1',cl(TR.b));tp.setAttribute('x2',g.X(pe));tp.setAttribute('y2',cl(TR.b+TR.m*(pe-T1)));tp.setAttribute('stroke',TR.colr)}}
   const cz=B?.mv&&px!=null?(t.side==='yes'?px-t.strike:t.strike-px)/B.mv:null,twd=tw==null?'':`<span><small>trend${s<T1?' so far':''}</small><b class="${tw===0?'':(tw>0)===(t.side==='yes')?'pos':'neg'}">${tw===0?'flat':tw>0?'up':'down'}</b></span>`;
   const left=Math.max(0,g.x1-s),mg=px==null?null:(px-t.strike)/t.strike*(t.side==='yes'?1:-1),kp=kxAt(P.kal,s),before=s<t.t/1000;
-  $i('kph').innerHTML=!showHead&&t.done?`<span class="kp-st ${t.sold?'':t.won?'win':'lose'}">${t.sold?'SOLD':t.won?'WON':'LOST'}</span>${t.sold&&t.held!=null?`<span><small>if held</small><b class="${t.held?'pos':'neg'}">would have ${t.held?'won':'lost'}</b></span>`:''}<span><small>settled at</small><b>${t.final!=null?esc(kxFmt(t.final,t.strike)):'–'}</b></span><span><small>target</small><b>${esc(kxFmt(t.strike,t.strike))}</b></span><span><small>result</small><b class="${t.pnl!=null?cls(t.pnl):t.real?(t.won?'pos':'neg'):''}">${t.pnl!=null?usd(t.pnl):t.real?(t.won?'won':'lost'):t.won?'would have won':'would have lost'}</b></span>`
+  $i('kph').innerHTML=!showHead&&t.done?`<span class="kp-st ${t.sold?'':t.won?'win':'lose'}">${t.sold?'SOLD':t.won?'WON':'LOST'}</span>${t.sold&&t.held!=null?`<span><small>if held</small><b class="${t.held?'pos':'neg'}">would have ${t.held?'won':'lost'}</b></span>`:''}<span><small>settled at</small><b>${t.final!=null?esc(kxFmt(t.final,t.strike)):'–'}</b></span><span><small>target</small><b>${esc(kxFmt(t.strike,t.strike))}</b></span>${kxGapHud(t)}<span><small>result</small><b class="${t.pnl!=null?cls(t.pnl):t.real?(t.won?'pos':'neg'):''}">${t.pnl!=null?usd(t.pnl):t.real?(t.won?'won':'lost'):t.won?'would have won':'would have lost'}</b></span>`
     :`<span class="kp-st ${win?'win':'lose'}">${before?'BEFORE BUY · ':''}${win?'WINNING':'LOSING'}</span><span><small>left</small><b>${kxCd(left*1000)}</b></span><span><small>${esc(t.coin)}</small><b>${esc(kxFmt(px,t.strike))}</b></span><span><small>${cz!=null?'cushion':'vs target'}</small><b class="${mg>=0?'pos':'neg'}">${mg==null?'–':cz!=null?cz.toFixed(1)+' moves':(mg>=0?'+':'')+(mg*100).toFixed(2)+'%'}</b></span>${twd}${kp!=null&&!before?`<span><small>Kalshi ${t.side.toUpperCase()}</small><b>${Math.round(kp*100)}¢</b></span>`:''}`;
   const b=$i('kpb');if(b){b.textContent=P.playing?'❚❚':'▶';b.classList.toggle('on',P.playing)}const sl=$i('kps');if(sl&&document.activeElement!==sl)sl.value=Math.round((s-g.x0)/(g.x1-g.x0)*1000)}
 function kxPlayToggle(tk){const P=KXP[tk];if(!P?.geo)return;if(P.playing){P.playing=false;kxPlayPaint(tk);return}if(P.s==null||P.s>=P.geo.x1-.5)P.s=P.geo.x0;P.playing=true;P.hold=0;P.last=performance.now();kxPlayLoop(tk)}
@@ -6273,7 +6284,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.107',KR_DATE='Nov 23, 2026';
+const KR_VERSION='1.3.108',KR_DATE='Nov 23, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
