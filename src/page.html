@@ -4550,7 +4550,7 @@ function kxLvWhy(x){const S=x.side.toUpperCase(),L=[],t=kxPaperOf(x)||(x.strike!
       if(x.sold)L.push(`<div><b>${x.sold.cash?'Cashed out':'Sold'}</b><span>${x.sold.fill}${x.sold.fill<x.fill?' of '+x.fill:''} sold at ${kxC(x.sold.px)}${x.sold.cash?' at the 10-minute mark, because the trend ran against the bet and less of the lead was left than your Live settings allow':' before the close'}.${x.sold.fill<x.fill?' The rest was held to the close.':''}${(h=>x.result==='sold'&&h?` Held to the close it would have ${h===x.side?'<b class="pos">won</b>':'<b class="neg">lost</b>'}: Kalshi settled ${h.toUpperCase()}${x.final!=null&&x.strike!=null?` at ${kxFx(x.final,x.strike)} against a target of ${kxFx(x.strike,x.final)}${Number(x.final)===Number(x.strike)?' (level counts as YES)':''}`:''}.`:'')(kxHeldR(x))}</span></div>`);
       if(x.result&&x.result!=='sold')L.push(`<div><b>Settled</b><span>${x.won?`${S} won: paid $${x.fill}.00, ${usd(x.pnl)} after cost.`:`${S} lost, so the contracts paid nothing (${usd(x.pnl)}).`}</span></div>`);
       else if(!x.result)L.push(`<div><b>Settles</b><span>${tm2s(x.close)}, in about ${Math.max(0,Math.round((x.close-Date.now())/60000))} min.${Date.now()<x.close&&!x._bk?` <button class="btn sm dng" style="margin-left:8px" onclick="event.stopPropagation();kxSellOne('${esc(x.tk)}')">Sell now</button>`:''}</span></div>`)}}
-  if(t?.strike!=null)L.push(`<div><b>How it played out</b><div class="kx-play" data-play="${esc(x.tk)}"></div></div>`);
+  if((t?.strike??x.strike)!=null)L.push(`<div><b>How it played out</b><div class="kx-play" data-play="${esc(x.tk)}"></div></div>`);
   L.push(`<div class="kx-tk" style="color:var(--faint)">${esc(x.tk)}</div>`);
   return kxWhyOut(L,'L:'+(x._bk||'')+x.tk)}
 // date and time for the all-days trade tables; on a phone the date sits above the time so the table fits
@@ -6174,7 +6174,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.98',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.99',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

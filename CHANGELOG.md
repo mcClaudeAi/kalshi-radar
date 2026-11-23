@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.99 (Nov 22, 2026): replays are back on live trades
+
+- [fixed] The replay ("How it played out") was missing from live trades bought as Mitch picks or later buys. Those rows had not kept the market's target, and the page only looked for it on a trade-check record. Every live row now keeps its target, rows already made are filled in within a minute of updating, and the replay shows again.
+
 ## 1.3.98 (Nov 22, 2026): Mitch picks get their own cushion before the trade check
 
 - [new] Live settings, under Buy Mitch picks: "Mitch picks before the trade check: least cushion". A Mitch pick bought with more than 10 minutes left has to be at least this many usual moves clear of its target. It starts at 1.3 and can be set from 1 to 3, per account. From the trade check on, the rule's own 1 applies as before. A coin under the bar is looked at again every 10 seconds, so it can still be bought if it clears the bar or once the check has passed.
