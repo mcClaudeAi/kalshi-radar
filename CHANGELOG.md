@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.95 (Nov 22, 2026): Mitch pick buys keep the reading they were bought on
+
+- [fixed] A Mitch pick buy's saved reading (cushion, dip, likely line) was the market's reading from the trade check or the later watch, not the one the buy was decided on, and sub accounts kept none of their own. Every account's row now keeps the exact reading the buy used, so the story on Trades and the CSV export match the decision.
+- [new] The CSV export has a new last column, check_edge_cents_at_buy: the Check's edge at the real offer when a Mitch pick was bought.
+
 ## 1.3.94 (Nov 22, 2026): saving a setting no longer blanks the screen
 
 - [fixed] After saving a setting, the settings page went blank for a few seconds and jumped back to the top, most noticeable on a phone. The page now stays as it is, at the same spot, and updates in place once the save is confirmed.

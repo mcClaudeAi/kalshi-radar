@@ -1290,6 +1290,13 @@ export function createKalshi(state, env, keep) {
         const x = L.get(s.tk); if (!x) { if (prev) L.set(s.tk, prev); } else { x.late = 1; x.mp = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
       await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('Mitch pick order error: ' + e.message)))), books.onLate(r, now, MPL, cfgL, cfg => mpOk(cfg, s.coin, now), cfg => coldSet(now, cfg), missed, '*').catch(e => say('books error: ' + e.message))]);
       try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
+      // MC 2026-11-22 the first Mitch pick loss could not be checked against the rule. The export showed cushion 1.13 for a buy
+      // that needed the check at +1c, and several earlier wins showed a cushion under 1. The reading on the export was the
+      // market's own record (taken at the trade check or the later watch), not the one this look bought on, and the
+      // sub accounts' rows kept no reading at all. Every row this buy made now keeps the look's own reading (vol, fl) and
+      // the check's edge at the real offer (mpE), so the Trades story and the CSV show what the buy was decided on.
+      { const vp = volPick(v), fl = flOf(r, v), e = +edge(ask).toFixed(2), mark = x => { if (!x || x.skipped || x.strat !== 'mp') return false; x.vol = vp; if (fl) x.fl = fl; x.mpE = e; return true; };
+        const x = L.get(s.tk); if (mark(x)) saveL(x); for (const y of books.rowsOf(s.tk)) if (mark(y)) books.saveAny(y); }
       resv = 0; viewDirty = true;
       { const x = L.get(s.tk); no(s, x?.skipped ? 'not bought: ' + x.skipped : x?.fill > 0 ? `bought ${x.fill} at ${(x.px * 100).toFixed(1)}c` : x?.err ? 'order refused: ' + x.err : x ? 'order sent, nothing filled' : mainWants ? 'no order went out' : 'sent for the subaccounts'); mpDone.get(s.tk).why = s.mpWhy; }
     }
@@ -2022,7 +2029,7 @@ export function createKalshi(state, env, keep) {
   // every live trade with a fill, Main's and the books', for the export under Trades
   // MC 2026-11-19 a later-watched buy exported the trade check's readings (cushion 0.41 on a buy made at 1.0 or more), which
   // made it look like the tracker bought under its own bar. It now exports the readings taken when it was bought.
-  async function liveAll() { await load(); await books.load(); const one = (x, acct) => ({ acct, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, px: x.px ?? null, fill: x.fill ?? 0, cost: x.cost ?? null, hand: x.hand ? 1 : 0, strat: x.strat || null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, strike: x.strike ?? rec.get(x.tk)?.strike ?? null, final: x.final ?? rec.get(x.tk)?.final ?? null, sold: x.sold ? { px: x.sold.px, fill: x.sold.fill } : null, v: x.vol || (x.hand ? null : x.late && rec4.get(x.tk)?.vol ? volPick(rec4.get(x.tk).vol) : (rec.get(x.tk)?.vol ? volPick(rec.get(x.tk).vol) : null)), late: x.late ? 1 : 0 });
+  async function liveAll() { await load(); await books.load(); const one = (x, acct) => ({ acct, tk: x.tk, coin: x.coin, side: x.side, at: x.at, close: x.close, px: x.px ?? null, fill: x.fill ?? 0, cost: x.cost ?? null, hand: x.hand ? 1 : 0, strat: x.strat || null, result: x.result || null, won: x.won ?? null, pnl: x.pnl ?? null, strike: x.strike ?? rec.get(x.tk)?.strike ?? null, final: x.final ?? rec.get(x.tk)?.final ?? null, sold: x.sold ? { px: x.sold.px, fill: x.sold.fill } : null, mpE: x.mpE ?? null, v: x.vol || (x.hand ? null : x.late && rec4.get(x.tk)?.vol ? volPick(rec4.get(x.tk).vol) : (rec.get(x.tk)?.vol ? volPick(rec.get(x.tk).vol) : null)), late: x.late ? 1 : 0 });
     return [...[...L.values()].filter(x => x.fill > 0).map(x => one(x, 'Main')), ...books.allRows().filter(x => x.fill > 0).map(x => one(x, books.nameOf(x)))].sort((a, b) => b.at - a.at); }
   let tfAt = 0, tfN = 0, tfReset = false;
   // MC 2026-11-16 asked for: find deposits and withdrawals on their own, for Steven's copy and his. Kalshi lists both
