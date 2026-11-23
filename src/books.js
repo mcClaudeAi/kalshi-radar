@@ -245,7 +245,7 @@ export function createBooks(D) {
     // other choice; Mitchell picked the plain skip.
     { const need = n * maxPx + D.fee(maxPx, n), free = (s.bal ?? bal) - s.resv; if (free < need - 0.005) return skip(b, r, `cash $${Math.max(0, free).toFixed(2)} does not cover a $${size.toFixed(0)} trade`); }
     const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4);
-    const cid = `cr${b.sub}-${r.ticker}`, body = r.side === 'yes'
+    const cid = `cr${b.sub}-${r.ticker}${r.cidx || ''}`, body = r.side === 'yes'
       ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid }
       : { ticker: r.ticker, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: cid };
     const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, limWhy: lim.why, size, fill: 0, strat: lab?.id || 'rule', pend: 1 };
@@ -323,14 +323,23 @@ export function createBooks(D) {
   // MC 2026-11-22 the Mitch pick buy (kalshi-cloud.js mpLive) uses onLate with pb '*': any playbook, the book only has to have
   // the setting on in the rules it follows. mpAny: is it on for any live book; mpOpen: a book that wants this market and has no order in it.
   const mpAny = cfg0 => (list || []).some(b => live(b) && cfgOf(b, cfg0).mpBuy === 1);
-  const mpOpen = (tk, cn, now, cfg0, ok) => (list || []).some(b => { if (!live(b) || !ok(cfgOf(b, cfg0), cn, now)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
+  // MC 2026-11-23 Mitchell: Main's Mitch pick order found nothing for sale (his own accounts all send in the same second and
+  // the top of the book only covered one of them), and that was the end of that market for Main while the price sat 1.5c
+  // lower for minutes. An order that Kalshi answered with nothing filled no longer closes the market for that account: the
+  // next 10-second look runs the whole rule again on a fresh reading and, if it still passes, sends again. Two more orders a
+  // market at most (mpTry), each with its own order id (Kalshi refuses a repeated one). "Try again for a missed fill" was
+  // not enough here: it gives up when the offer has dropped more than 1c, which is what happened. mpMiss is that test, used
+  // by the main account too (kalshi-cloud.js mpLive1); avgYes is only on a row once Kalshi has answered the order.
+  const mpMiss = p => !!p && p.strat === 'mp' && !p.skipped && !p.pend && !p.err && p.fill === 0 && p.avgYes !== undefined && (p.mpTry || 0) < 2 && !p.result;
+  const mpOpen = (tk, cn, now, cfg0, ok) => (list || []).some(b => { if (!live(b) || !ok(cfgOf(b, cfg0), cn, now)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped || mpMiss(p); });
+  const mpMissAny = tk => (list || []).some(b => live(b) && mpMiss(L[b.id]?.get(tk)));
   async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null, pb = 'cpl') {
     await load();
     await Promise.all(list.filter(b => live(b) && (pb === '*' || (D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb))).map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
-      const prev = Lb.get(r.ticker); if (prev && !prev.skipped) return; if (prev) Lb.delete(r.ticker);
-      try { await buy(b, r, lab, cfgP, benchOf(cfgP), sends, missed);
-        const x = Lb.get(r.ticker); if (!x) { if (prev) Lb.set(r.ticker, prev); } else { x.late = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveRow(b, x); }
+      const prev = Lb.get(r.ticker), re = pb === '*' && mpMiss(prev); if (prev && !prev.skipped && !re) return; if (prev) Lb.delete(r.ticker);
+      try { await buy(b, re ? { ...r, cidx: '-m' + ((prev.mpTry || 0) + 1) } : r, lab, cfgP, benchOf(cfgP), sends, missed);
+        const x = Lb.get(r.ticker); if (!x) { if (prev) Lb.set(r.ticker, prev); } else { x.late = 1; if (re) x.mpTry = (prev.mpTry || 0) + 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveRow(b, x); }
         await Promise.all(sends.map(f => f().catch(e => fail(b, 'order error: ' + e.message))));
       } catch (e) { fail(b, 'order error: ' + e.message); } finally { S[b.id].resv = 0; }
     }));
@@ -646,5 +655,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
+  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, mpMiss, mpMissAny, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }

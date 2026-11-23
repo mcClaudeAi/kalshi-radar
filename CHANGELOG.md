@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.109 (Nov 23, 2026): a Mitch pick that filled nothing is tried again
+
+- [fixed] When several accounts send the same Mitch pick order in the same second, the first can take everything on offer and another account's order comes back with nothing filled. That account then sat out the market even when the price stayed in range. It now gets another go on the next 10-second look.
+- [improved] The second order is not a blind repeat: the whole rule is checked again on a fresh reading (price band, cushion, coins leaning, the Check, likely line) and it only goes out if the buy still passes. Two more orders a market at most, same size, same top price rules.
+- [improved] Accounts that already filled are left alone.
+
 ## 1.3.108 (Nov 23, 2026): how close a trade finished
 
 - [new] A trade's replay now says how far from its target the market settled, as a percent and which side, next to "settled at" and "target". Hover or press it for the gap in price.

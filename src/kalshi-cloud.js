@@ -759,8 +759,8 @@ export function createKalshi(state, env, keep) {
     if (n < 1) return;
     const grid = p => (p < 0.1 || p >= 0.9) ? 0.001 : 0.01, down = p => +(Math.floor(p / grid(p) + 1e-9) * grid(p)).toFixed(4), up = p => +(Math.ceil(p / grid(p) - 1e-9) * grid(p)).toFixed(4);
     const body = r.side === 'yes'
-      ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: `cr-${r.ticker}` }
-      : { ticker: r.ticker, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: `cr-${r.ticker}` };
+      ? { ticker: r.ticker, side: 'bid', count: String(n), price: down(maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: `cr-${r.ticker}${r.cidx || ''}` }
+      : { ticker: r.ticker, side: 'ask', count: String(n), price: up(1 - maxPx).toFixed(4), time_in_force: 'immediate_or_cancel', self_trade_prevention_type: 'taker_at_cross', client_order_id: `cr-${r.ticker}${r.cidx || ''}` };
     const row = { tk: r.ticker, coin: cn, side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, ask: r.ask, read: r.at, want: n, limit: maxPx, limWhy: lim.why, size: sizeUsd, fill: 0, strat: lab?.id || 'rule', pend: 1, fl: flOf(r) };
     L.set(r.ticker, row); saveL(row); resv += sizeUsd;
     const send = async () => {
@@ -1297,7 +1297,7 @@ export function createKalshi(state, env, keep) {
     // hair. Every look now leaves its answer on the scanner row (mpWhy, mpAt) and the page shows it beside the purple tag.
     const W = out.filter(s => s.leader && s.lask != null && s.strike > 0); let reads = 0; const no = (s, why) => { s.mpWhy = why; s.mpAt = Date.now(); };
     for (const s of W) {
-      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13) continue; if (!fast && el > 285000 && el < 345000) { no(s, 'waiting out the trade check'); continue; } if (mpDone.has(s.tk)) { no(s, mpDone.get(s.tk).why || 'already tried this market once'); continue; }   // the minute scan sits out the check's minute; the 10-second look has its own pause (fastWant)
+      const left = (s.close - now) / 60000, el = now - s.open; if (left < 2 || left > 13) continue; if (!fast && el > 285000 && el < 345000) { no(s, 'waiting out the trade check'); continue; } if (mpDone.has(s.tk) && !(books.mpMiss(L.get(s.tk)) || books.mpMissAny(s.tk))) { no(s, mpDone.get(s.tk).why || 'already tried this market once'); continue; }   // the minute scan sits out the check's minute; the 10-second look has its own pause (fastWant)
       // MC 2026-11-22 Mitchell: purple rows that did not buy said "the tracker has not looked at it yet" when it had. A coin the
       // tracker's own price put outside the band left no note at all, and the notes were dropped each minute when the scanner
       // rows were rebuilt (tick now carries them over). A price outside the band is said only when it is close enough to
@@ -1305,7 +1305,7 @@ export function createKalshi(state, env, keep) {
       if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) { if (s.lask >= 0.8) no(s, `the tracker has it at ${(s.lask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; }
       const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) { no(s, `only ${same} of ${W.filter(o => o.close === s.close).length} coins lean its way on the tracker's prices`); continue; }
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
-      let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
+      let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped || books.mpMiss(p)), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
       if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < MPZ - 1e-9) { no(s, `cushion ${v.z} on the tracker's reading, needs ${MPZ}`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
@@ -1329,9 +1329,10 @@ export function createKalshi(state, env, keep) {
       const r = { lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]), ticker: s.tk, late: 1, mp: 1, series: ser, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya: b.yesAsks[0]?.[0] ?? null, na: b.noAsks[0]?.[0] ?? null, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };
       say(`${s.tk} ${s.leader.toUpperCase()} at ${(ask * 100).toFixed(1)}c <- Mitch pick: ${v.z} moves clear, ${same} of ${W.filter(o => o.close === s.close).length} on its side, edge +${edge(ask).toFixed(1)}c, ${left.toFixed(1)} min left`);
       const sends = [], missed = [];
-      if (mainWants) { const prev = L.get(s.tk); if (!prev || prev.skipped) { if (prev) L.delete(s.tk);
-        try { await onRule(r, MPL, sends, missed); } catch (e) { fail('Mitch pick order error: ' + e.message); }
-        const x = L.get(s.tk); if (!x) { if (prev) L.set(s.tk, prev); } else { x.late = 1; x.mp = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
+      // a row Kalshi answered with nothing filled is tried again here on this look's fresh reading (books.js mpMiss, two more at most)
+      if (mainWants) { const prev = L.get(s.tk), re = books.mpMiss(prev); if (!prev || prev.skipped || re) { if (prev) L.delete(s.tk);
+        try { await onRule(re ? { ...r, cidx: '-m' + ((prev.mpTry || 0) + 1) } : r, MPL, sends, missed); } catch (e) { fail('Mitch pick order error: ' + e.message); }
+        const x = L.get(s.tk); if (!x) { if (prev) L.set(s.tk, prev); } else { x.late = 1; x.mp = 1; if (re) x.mpTry = (prev.mpTry || 0) + 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
       await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('Mitch pick order error: ' + e.message)))), books.onLate(r, now, MPL, cfgL, cfg => mpOkZ(cfg, s.coin, now), cfg => coldSet(now, cfg), missed, '*').catch(e => say('books error: ' + e.message))]);
       try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
       // MC 2026-11-22 the first Mitch pick loss could not be checked against the rule. The export showed cushion 1.13 for a buy
