@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.101 (Nov 23, 2026): Mitch picks before the trade check start at a cushion of 2
+
+- [improved] "Mitch picks before the trade check: least cushion" now starts at 2 (was 1.3) for every account that has not set its own. A purple coin with more than 10 minutes left waits until it is 2 usual moves clear of its target; it is still looked at every 10 seconds and bought after the trade check at the rule's own 1. A value you saved yourself is kept.
+
 ## 1.3.100 (Nov 22, 2026): pause one account, or a few, by hand
 
 - [new] Accounts panel on Home: "Pause accounts" (and Pause on each account's sheet) stops the tracker's own buying on the accounts you tick, for the rest of today, until a time you pick, or until you resume. The main account and every book can be paused on their own while the rest keep trading. A paused account still takes hand buys and sells, the cash out rule still acts on its open trades, and they settle as usual. A timed pause lifts itself; Resume lifts it sooner. Requested by a user.

@@ -1292,8 +1292,9 @@ export function createKalshi(state, env, keep) {
       // the cushion a Mitch pick needs when it is bought before the trade check, 1.3 unless changed (he said 1.5, then 1.3).
       // Each account has its own (mpPreZ), so one may take a buy another passes on. From the trade check on the rule's own
       // 1 applies as before. A 94-day backtest of 1.3 early changed 13 buys in 6,227, so this is a guard, not an edge.
-      const pre = left > 10, okZ = cfg => !pre || v.z >= (cfg.mpPreZ ?? 1.3) - 1e-9, mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg);
-      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ); if (!mw && !bw) { no(s, `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 1.3} (it is looked at again after the check)`); continue; } mainWants = mw; }
+      // MC 2026-11-23 the owner moved his own to 2 after a night of watching it and asked for 2 to be the start for everyone.
+      const pre = left > 10, okZ = cfg => !pre || v.z >= (cfg.mpPreZ ?? 2) - 1e-9, mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg);
+      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ); if (!mw && !bw) { no(s, `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
       if (!(edge(s.lask) >= 1)) { no(s, `check ${edge(s.lask) >= 0 ? '+' : ''}${edge(s.lask).toFixed(1)}c on the tracker's reading, needs +1c`); continue; }
       const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null) { no(s, 'nothing on offer in the order book'); continue; }
