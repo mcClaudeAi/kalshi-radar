@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.100 (Nov 22, 2026): pause one account, or a few, by hand
+
+- [new] Accounts panel on Home: "Pause accounts" (and Pause on each account's sheet) stops the tracker's own buying on the accounts you tick, for the rest of today, until a time you pick, or until you resume. The main account and every book can be paused on their own while the rest keep trading. A paused account still takes hand buys and sells, the cash out rule still acts on its open trades, and they settle as usual. A timed pause lifts itself; Resume lifts it sooner. Requested by a user.
+- [improved] A paused account shows Paused in the accounts panel and on the Books page, with when it buys again, and a trade it passed on while paused says so on Trades.
+
 ## 1.3.99 (Nov 22, 2026): replays are back on live trades
 
 - [fixed] The replay ("How it played out") was missing from live trades bought as Mitch picks or later buys. Those rows had not kept the market's target, and the page only looked for it on a trade-check record. Every live row now keeps its target, rows already made are filled in within a minute of updating, and the replay shows again.
