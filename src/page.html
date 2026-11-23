@@ -2705,7 +2705,7 @@ async function cmd(type,args,label){
   t.upd(botAge()>20?'Queued. The bot looks slow to check in; it runs within 45s or not at all.':'Waiting for the bot…');
   for(let i=0;i<45;i++){await sleep(1200);const l=await getJ('/api/cmds');if(l)ST.cmds=l;const c=(l||[]).find(x=>x.id===r.id);
     if(c&&c.status==='running')t.upd('The bot is on it…');
-    if(c&&['done','failed','expired'].includes(c.status)){(c.status==='done'?t.ok:t.err)(label,c.msg||c.status);if(c.status==='done'&&(ST.tab==='kset'||ST.tab==='kslive')){const w=document.querySelector('.kx-setw');if(w)w.remove()}load();if(ST.tab==='controls')render();return c}}
+    if(c&&['done','failed','expired'].includes(c.status)){(c.status==='done'?t.ok:t.err)(label,c.msg||c.status);if(c.status==='done'&&(ST.tab==='kset'||ST.tab==='kslive')){const w=document.querySelector('.kx-setw');if(w)w.dataset.stale='1'}load();if(ST.tab==='controls')render();return c}}
   t.err(label,'No answer yet. See Controls → Activity.');return null}
 const liveOpen=()=>(ST.D?.open||[]).filter(x=>x.live);
 async function sellFlow(mint,pct){const D=ST.D,o=(D.open||[]).find(x=>x.mint===mint);if(!o){toastP('','').err('Already closed','That copy is no longer open.');return}
@@ -5357,7 +5357,10 @@ function kxSetWatch(){const w=document.querySelector('.kx-setw');if(!w||w.datase
   w.addEventListener('input',upd);w.addEventListener('change',upd);w.addEventListener('click',e=>{if(e.target.closest('[aria-pressed]'))setTimeout(upd,0)})}
 // MC 2026-11-10 Backtest and Release notes are also left alone by the poll once they have loaded: nothing on them comes from
 // live data, and the redraw every few seconds threw the day table back to the top while it was being read.
-const kxSetHold=()=>((ST.tab==='kset'||ST.tab==='kslive')&&!!document.querySelector('.kx-setw'))||(ST.tab==='kbt'&&!!BT.d)||(ST.tab==='krel'&&!!KRL.list);
+// while it is open (so typing is not wiped), and a save used to delete the form to let the fresh one be drawn. Until the
+// page's data came back, seconds on a phone, there was nothing on screen, and the page had jumped to the top. A saved form is
+// now only marked stale: it stays where it is and the next redraw replaces it.
+const kxSetHold=()=>((ST.tab==='kset'||ST.tab==='kslive')&&!!document.querySelector('.kx-setw:not([data-stale])'))||(ST.tab==='kbt'&&!!BT.d)||(ST.tab==='krel'&&!!KRL.list);
 const typingNow=()=>{const ae=document.activeElement;return !!ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)&&ae.id!=='palq'};
 const AUDBADGE='<span class="audb" title="Passed the on-chain audit: profitable after costs in both halves of its own history">Audited</span>';
 
@@ -6166,7 +6169,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.93',KR_DATE='Nov 22, 2026';
+const KR_VERSION='1.3.94',KR_DATE='Nov 22, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

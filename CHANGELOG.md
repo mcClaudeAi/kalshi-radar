@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.94 (Nov 22, 2026): saving a setting no longer blanks the screen
+
+- [fixed] After saving a setting, the settings page went blank for a few seconds and jumped back to the top, most noticeable on a phone. The page now stays as it is, at the same spot, and updates in place once the save is confirmed.
+
 ## 1.3.93 (Nov 22, 2026): no false error while moving money
 
 - [fixed] Moving money out of an account could leave it showing a red "Could not move ... to the crypto shard: insufficient balance" for a minute. The automatic top-up was running in the middle of the move. It now waits for the move to finish, and a refusal right after a move is retried quietly the next minute.
