@@ -26,7 +26,7 @@ export const BOOK_MAX = 50, BOOK_MIN = 5;
 // is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
 // day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
 // as the high does, whatever order the tiers were typed in.
-export const OWN_NEW = { mpBuy: 0, mpPreZ: 1.3, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
+export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
 // MC 2026-11-22 Steven asked to be able to turn protect profit off. lockOff 1 switches every step off and leaves the numbers
 // saved, so turning it back on brings the same steps back. It is off (0) unless chosen, so nothing changes for anyone else.
 export const lockTiers = c => c?.lockOff === 1 ? [] : [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
@@ -206,7 +206,8 @@ export function createBooks(D) {
   }
 
   // MC 2026-11-20 same as Main: the riding kind clears when its window closes
-  function skip(b, r, why) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); S[b.id].stopped = why; S[b.id].stoppedDay = /^(daily |give-back|bank drawdown|cash)/.test(why) || (/^(protecting|near the daily stop)/.test(why) && !/ riding /.test(why)); S[b.id].stoppedTo = S[b.id].stoppedDay ? null : r.close; }   // MC 2026-11-16 a one-window reason ends with its window, as on Main
+  // MC 2026-11-22 quiet: write the pass down without making it the book's "not trading" reason (a pause by hand, request 13)
+  function skip(b, r, why, quiet = false) { if (L[b.id].has(r.ticker)) return; const x = { tk: r.ticker, coin: D.coin(r.series), side: r.side, at: Date.now(), close: r.close, paperPx: r.avgN || r.ask, skipped: why, strat: D.stratAt(b.strat, Date.now()) }; L[b.id].set(r.ticker, x); saveRow(b, x); if (quiet) return; S[b.id].stopped = why; S[b.id].stoppedDay = /^(daily |give-back|bank drawdown|cash)/.test(why) || (/^(protecting|near the daily stop)/.test(why) && !/ riding /.test(why)); S[b.id].stoppedTo = S[b.id].stoppedDay ? null : r.close; }   // MC 2026-11-16 a one-window reason ends with its window, as on Main
   // the same checks and order as the main live book (kalshi-cloud.js onRule), with this book's size, loss cap and floor
   // MC 2026-11-14 like the main book: each book checks its orders one by one against its own limits (its own window cap, day,
   // loss cap, floor and fills), counting a planned order as if it filled, then sends them all at once. Books run side by side.
@@ -292,11 +293,16 @@ export function createBooks(D) {
   // MC 2026-11-21 a book's own copy saved before the protect steps, the progressive stop and the half-hour schedule existed has
   // none of them: they stay off for it (its own hours still count) rather than following Main's, until saved for that book
   const cfgOf = (b, main) => b.cfg ? { ...main, ...OWN_NEW, ...b.cfg } : main;
+  // MC 2026-11-22 request 13: a book paused by hand (pauseTo, set from the accounts panel; -1 is until resumed) is on but places
+  // no automatic buys: the trade check, later buys and Mitch picks pass it over, while hand buys and sells, the cash out rule
+  // and settlement go on. live(b) is "on and not paused"; the pause lifts itself when its time passes.
+  const paused = b => D.pauseOn(+b.pauseTo || 0), live = b => b.on && !paused(b), pausedWhy = b => `${b.name} is paused by hand ${D.pauseText(+b.pauseTo)}`;
   async function onMark(hits0, now, gate0, cfg0, bench0, missed = null, own = null) {
     await load(); if (!hits0.length && !own) return;
     await Promise.all(list.filter(b => b.on).map(async b => {
       const sid = D.stratAt(b.strat, now), sends = [], o = b.cfg && own ? own(cfgOf(b, cfg0)) : null, hits = o ? o.hits : hits0, gate = o ? o.gate : gate0, cfgP = o ? o.cfg : cfg0, bench = o ? o.bench : bench0;
       const sl = slotOf(now, D.etHour), offNow = offSlots(cfgP).has(sl);
+      if (paused(b)) { for (const r of hits) skip(b, r, pausedWhy(b), true); return; }   // written down like Main's pause, so Trades says why
       try {
         for (const r of hits) {
           if (offNow) { skip(b, r, `off schedule (${slotName(sl)} ET half hour)`); continue; }
@@ -313,14 +319,14 @@ export function createBooks(D) {
   // floor, window cap and order limit hold. A market the book only has a skip note for can be bought; one where an order was
   // already sent is left alone.
   // a book that runs later watched with the setting on and has no order in this market yet (kalshi-cloud.js lateWants)
-  const lateOpen = (tk, now, cfg0, pb = 'cpl') => (list || []).some(b => { if (!b.on || D.stratAt(b.strat, now) !== pb || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
+  const lateOpen = (tk, now, cfg0, pb = 'cpl') => (list || []).some(b => { if (!live(b) || D.stratAt(b.strat, now) !== pb || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
   // MC 2026-11-22 the Mitch pick buy (kalshi-cloud.js mpLive) uses onLate with pb '*': any playbook, the book only has to have
   // the setting on in the rules it follows. mpAny: is it on for any live book; mpOpen: a book that wants this market and has no order in it.
-  const mpAny = cfg0 => (list || []).some(b => b.on && cfgOf(b, cfg0).mpBuy === 1);
-  const mpOpen = (tk, cn, now, cfg0, ok) => (list || []).some(b => { if (!b.on || !ok(cfgOf(b, cfg0), cn, now)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
+  const mpAny = cfg0 => (list || []).some(b => live(b) && cfgOf(b, cfg0).mpBuy === 1);
+  const mpOpen = (tk, cn, now, cfg0, ok) => (list || []).some(b => { if (!live(b) || !ok(cfgOf(b, cfg0), cn, now)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
   async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null, pb = 'cpl') {
     await load();
-    await Promise.all(list.filter(b => b.on && (pb === '*' || (D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb))).map(async b => {
+    await Promise.all(list.filter(b => live(b) && (pb === '*' || (D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb))).map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
       const prev = Lb.get(r.ticker); if (prev && !prev.skipped) return; if (prev) Lb.delete(r.ticker);
       try { await buy(b, r, lab, cfgP, benchOf(cfgP), sends, missed);
@@ -466,6 +472,7 @@ export function createBooks(D) {
     for (const b of list) {
       try {
         if (b.sellAt && b.sellAt > (b.sellDone || 0)) { b.sellDone = b.sellAt; await saveList(); await sellAll(b); }
+        if (b.pauseTo > 0 && b.pauseTo <= now) { delete b.pauseTo; await saveList(); D.say(`BOOK ${b.name}: the pause ended, buying again by itself`); }   // request 13: a timed pause that ran out
         if (b.on || now - S[b.id].balAt > 5 * 60000) await balance(b);
         if (b.on && S[b.id].balAt) await fund(b);
       } catch (e) { fail(b, e.message); }
@@ -474,7 +481,7 @@ export function createBooks(D) {
   function view() {
     if (!list) return [];
     return list.map(b => { const s = S[b.id], all = [...L[b.id].values()].sort((a, z) => z.at - a.at), t = today(b).filter(x => x.fill > 0), done = t.filter(x => x.result);
-      return { id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
+      return { id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, paused: paused(b), pauseTo: paused(b) ? +b.pauseTo : 0, pauseTxt: paused(b) ? D.pauseText(+b.pauseTo) : null, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
         bal: s.bal, balAt: s.balAt || null, crypto: s.shard[D.XI] ?? null, keyOk: s.keyOk, err: s.err && Date.now() - s.errAt < 3600000 ? s.err : null, stopped: s.stopped && (!s.stoppedTo || Date.now() < s.stoppedTo) ? s.stopped : null, stoppedDay: !!s.stoppedDay, xfer: s.lastXfer,
         playbook: { id: D.stratAt(b.strat, Date.now()), since: D.stratSince(b.strat, Date.now()) },
         // MC 2026-11-20 the same split Main sends (by hand, later buys, passed) so Today on Home can show any one account
@@ -619,6 +626,14 @@ export function createBooks(D) {
     return { ok: false, msg: 'Unknown book request.' };
   }
   const anyOn = () => !!list?.some(b => b.on);
+  // MC 2026-11-22 request 13: pause or resume the named books (the engine has checked `to`: a time in ms, -1 until resumed, 0 to
+  // resume). Returns the names that changed; a resume on a book that was not paused changes nothing.
+  async function pause(ids, to, now = Date.now()) {
+    await load(); const ch = [];
+    for (const b of list) { if (!ids.includes(b.id)) continue; if (to) { b.pauseTo = to; b.pauseAt = now; ch.push(b.name); } else if (paused(b)) { delete b.pauseTo; delete b.pauseAt; ch.push(b.name); } }
+    if (ch.length) await saveList();
+    return ch;
+  }
   // the engine checks and bounds the values (the same checks as the main account's live rules) before handing them over
   async function setCfg(id, cfg, note) { await load(); const b = list.find(x => x.id === id); if (!b) return false; b.cfg = cfg; await saveList(); D.say(`BOOK ${b.name} own live rules: ${note}`); return true; }
   const get = id => (list || []).find(x => x.id === id) || null;
@@ -631,5 +646,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, onSettle, upkeep, afterSettle, payWait, view, command, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
+  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }

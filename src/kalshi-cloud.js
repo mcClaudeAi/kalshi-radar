@@ -319,6 +319,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
 const fHr = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false });
 const etDay = t => fDay.format(t), etHour = t => +fHr.format(t) % 24;
+// MC 2026-11-22 request 13: one account can be paused by hand on its own (the main account here, each book in books.js), for
+// the rest of today, until a chosen time, or until resumed, beside the pause for every account (autoPause). pauseTo is that
+// time in ms, -1 for until resumed, 0 or missing for not paused. Nothing has to run when the time passes: pauseOn simply stops
+// being true, and the next upkeep tidies the field away. pauseText is the wording the skip notes and the page share.
+const fClk = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }), fWd = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' });
+const pauseOn = (to, now = Date.now()) => to === -1 || to > now;
+const pauseText = (to, now = Date.now()) => to === -1 ? 'until resumed' : etDay(to - 1) === etDay(now) && etHour(to) === 0 && new Date(to).getUTCMinutes() === 0 ? 'for the rest of today' : `until ${fClk.format(to)} ET${etDay(to) === etDay(now) ? '' : ' on ' + fWd.format(to)}`;
+// the first moment of tomorrow, Eastern time (stepped by the hour and then the minute, so a clock change on the way is no matter)
+const etDayEnd = now => { const d = etDay(now); let t = now - now % 60000; while (etDay(t + 3600000) === d) t += 3600000; while (etDay(t) === d) t += 60000; return t; };
 // MC 2026-11-10 self-learning: the seed is parsed on first use (not at load, to keep worker start-up cheap). Each row carries its
 // ET day so "everything before this morning" is a string compare.
 let seedRows = null;
@@ -559,7 +568,7 @@ export function createKalshi(state, env, keep) {
   const saveL = x => sql.exec('INSERT OR REPLACE INTO ko (tk, at, j) VALUES (?, ?, ?)', x.key || x.tk, x.at, JSON.stringify(x));
   // MC 2026-11-21 a sold trade set apart so its market can be bought again (books.js addOf): its own key, the market's key freed
   const setApart = x => { if (L.get(x.tk) === x) L.delete(x.tk); x.key = apartKey(x); L.set(x.key, x); saveL(x); };
-  const ctl = () => ({ enabled: ctlL.enabled === true, autoPause: ctlL.autoPause === true || ctlL.pauseDay === etDay(Date.now()), pauseToday: ctlL.autoPause !== true && ctlL.pauseDay === etDay(Date.now()), sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
+  const ctl = () => ({ enabled: ctlL.enabled === true, autoPause: ctlL.autoPause === true || ctlL.pauseDay === etDay(Date.now()), pauseToday: ctlL.autoPause !== true && ctlL.pauseDay === etDay(Date.now()), pauseTo: +ctlL.pauseTo || 0, paused: pauseOn(+ctlL.pauseTo || 0), sizeUsd: Math.min(HARD.maxSize, Math.max(5, +ctlL.sizeUsd || 10)), dailyLossUsd: Math.max(10, +ctlL.dailyLossUsd || 100), sellAllAt: +ctlL.sellAllAt || 0, at: ctlL.at || 0, minBank: ctlL.minBank ?? HARD.minBank, strat: Array.isArray(ctlL.strat) ? ctlL.strat : [] });
 
   // ---------- signed requests ----------
   let KEY = null;
@@ -600,7 +609,7 @@ export function createKalshi(state, env, keep) {
   async function kreq(method, p, body) { for (let a = 0; a < 4; a++) { const r = await kreq1(method, p, body); if (r?.status !== 429 || a === 3) return r; await sleep(700 * (a + 1)); } }
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
   // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
-  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, strikeOf: tk => rec.get(tk)?.strike ?? rec4?.get(tk)?.strike ?? null, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
+  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, pauseOn, pauseText, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, strikeOf: tk => rec.get(tk)?.strike ?? rec4?.get(tk)?.strike ?? null, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
   const vq = [];   // vault notices waiting for the next push
   const vault = createVault({ kv, say, XI, etDay, etHour, fail, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(),
@@ -696,6 +705,9 @@ export function createKalshi(state, env, keep) {
   const ridingL = () => [...L.values()].filter(x => busy(x) && !x.result && x.close > Date.now() - 3600000).reduce((a, x) => a + (x.cost || (x.pend ? x.size : 0) || 0), 0);
   async function onRule(r, lab = null, later = null, missed = null) {
     const c = ctl(); if (!c.enabled || L.has(r.ticker)) return;
+    // MC 2026-11-22 request 13: the main account paused on its own. The pass is written down like the every-account pause, so
+    // Trades says why nothing was bought, and the account's own "not trading" reason is left alone (the page shows the pause).
+    if (c.paused) return skipLive(r, `Main is paused by hand ${pauseText(c.pauseTo)}`);
     const cn = coin(r.series), why = (() => {
       if (coldSet(Date.now(), cfgL).has(cn)) return `${cn} is benched (down over its last ${cfgL.coldDays} days)`;
       const t = todayL(); if (realized(t) <= -c.dailyLossUsd) return `daily loss cap hit (${realized(t).toFixed(2)})`;
@@ -943,7 +955,7 @@ export function createKalshi(state, env, keep) {
   const logoOf = async id => { await load(); const x = klogos[String(id || '')]; if (!x) return null; const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(x.d); return m ? { type: m[1], b64: m[2] } : null; };
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
-    return { on: c.enabled, autoPause: c.autoPause, pauseToday: c.pauseToday, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
+    return { on: c.enabled, autoPause: c.autoPause, pauseToday: c.pauseToday, paused: c.paused, pauseTo: c.paused ? c.pauseTo : 0, pauseTxt: c.paused ? pauseText(c.pauseTo) : null, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, hand: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => x.hand)),
@@ -1215,14 +1227,14 @@ export function createKalshi(state, env, keep) {
   // is left alone, filled or not.
   // does any live account still want this later buy: it runs the playbook with the setting on and has no order in the market yet
   const lateWants = (r, now, pb = 'cpl') => { const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys()) return false; const p = L.get(r.ticker);
-    return (stratAt(c.strat, now) === pb && cfgL.lateBuy === 1 && (!p || !!p.skipped)) || books.lateOpen(r.ticker, now, cfgL, pb); };
+    return (stratAt(c.strat, now) === pb && cfgL.lateBuy === 1 && !c.paused && (!p || !!p.skipped)) || books.lateOpen(r.ticker, now, cfgL, pb); };
   async function lateLive(r, now, pb = 'cpl') {
     const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys()) return;
     const lab = labDefs(cfgL).find(l => l.id === pb), sends = [], missed = [], cn = coin(r.series), hc = pb === 'cph';
     // MC 2026-11-18 lateZ: the least cushion a later buy needs (1 = the playbook's own bar). Asked for after a NEAR later buy at
     // 1.18 moves turned into a coin flip in its last minutes on all three accounts.
     const ok = cfg => cfg.lateBuy === 1 && (r.vol?.z ?? 0) >= Math.max(hc ? HC_Z : 1, cfg.lateZ ?? 1) - 1e-9 && !((hc || cfg.lateCrowd !== 0) && (r.crowd || r.cz > XC_Z)) && lateMOk(r.vol, Math.max(hc ? 0.2 : 0, cfg.lateM ?? 0.2)) && (!cfg.coins?.length || cfg.coins.includes(cn)) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9 && !offSlots(cfg).has(slotOf(now, etHour));
-    if (stratAt(c.strat, now) === pb && stratAt(c.strat, r.close - 600000) === pb && ok(cfgL) && liveSeries().includes(r.series)) { const prev = L.get(r.ticker);
+    if (!c.paused && stratAt(c.strat, now) === pb && stratAt(c.strat, r.close - 600000) === pb && ok(cfgL) && liveSeries().includes(r.series)) { const prev = L.get(r.ticker);   // a paused Main sits out (request 13); the books still look
       if (!prev || prev.skipped) { if (prev) L.delete(r.ticker);
         try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); }
         const x = L.get(r.ticker); if (!x) { if (prev) L.set(r.ticker, prev); } else { x.late = 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
@@ -1264,11 +1276,11 @@ export function createKalshi(state, env, keep) {
   const MPL = { id: 'mp', name: 'Mitch pick' }, mpDone = new Map();
   const mpOk = (cfg, cn, now) => cfg.mpBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && !offSlots(cfg).has(slotOf(now, etHour));
   let mpBusy = false; const mpRead = new Map();
-  const mpWanted = () => { const c = ctl(); return !!c.enabled && !c.autoPause && hasKeys() && (cfgL.mpBuy === 1 || books.mpAny(cfgL)); };
+  const mpWanted = () => { const c = ctl(); return !!c.enabled && !c.autoPause && hasKeys() && ((cfgL.mpBuy === 1 && !c.paused) || books.mpAny(cfgL)); };
   async function mpLive(out, now, fast = false) { if (mpBusy) return; mpBusy = true; try { await mpLive1(out, now, fast); } finally { mpBusy = false; } }
   async function mpLive1(out, now, fast) {
     const c = ctl(); if (!c.enabled || c.autoPause || !hasKeys() || entryBusy) return;
-    if (cfgL.mpBuy !== 1 && !books.mpAny(cfgL)) return;
+    if ((cfgL.mpBuy !== 1 || c.paused) && !books.mpAny(cfgL)) return;
     for (const [k, t] of mpDone) if (t.t < now) mpDone.delete(k);
     // MC 2026-11-22 Mitchell: one popped up purple and it did not buy, and nothing said why. The glow is the browser's reading
     // and the buy is the tracker's own, taken on its own prices and then on the real order book, so they can disagree by a
@@ -1283,7 +1295,7 @@ export function createKalshi(state, env, keep) {
       if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) { if (s.lask >= 0.8) no(s, `the tracker has it at ${(s.lask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; }
       const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) { no(s, `only ${same} of ${W.filter(o => o.close === s.close).length} coins lean its way on the tracker's prices`); continue; }
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
-      let mainWants = !!series && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
+      let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && (!p || !!p.skipped), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk); if (!mainWants && !bkWants) { no(s, p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
       if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < 1) { no(s, `cushion ${v.z} on the tracker's reading, needs 1`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
@@ -1291,8 +1303,9 @@ export function createKalshi(state, env, keep) {
       // the cushion a Mitch pick needs when it is bought before the trade check, 1.3 unless changed (he said 1.5, then 1.3).
       // Each account has its own (mpPreZ), so one may take a buy another passes on. From the trade check on the rule's own
       // 1 applies as before. A 94-day backtest of 1.3 early changed 13 buys in 6,227, so this is a guard, not an edge.
-      const pre = left > 10, okZ = cfg => !pre || v.z >= (cfg.mpPreZ ?? 1.3) - 1e-9, mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg);
-      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ); if (!mw && !bw) { no(s, `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 1.3} (it is looked at again after the check)`); continue; } mainWants = mw; }
+      // MC 2026-11-23 the owner moved his own to 2 after a night of watching it and asked for 2 to be the start for everyone.
+      const pre = left > 10, okZ = cfg => !pre || v.z >= (cfg.mpPreZ ?? 2) - 1e-9, mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg);
+      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ); if (!mw && !bw) { no(s, `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
       if (!(edge(s.lask) >= 1)) { no(s, `check ${edge(s.lask) >= 0 ? '+' : ''}${edge(s.lask).toFixed(1)}c on the tracker's reading, needs +1c`); continue; }
       const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null) { no(s, 'nothing on offer in the order book'); continue; }
@@ -1396,6 +1409,8 @@ export function createKalshi(state, env, keep) {
     if (c.sellAllAt && c.sellAllAt > st.sellAllDone) { st.sellAllDone = c.sellAllAt; await kv.put('kst', { sellAllDone: st.sellAllDone }); say('LIVE sell-all requested'); try { await sellAll(); } catch (e) { fail('sell-all error: ' + e.message); } }
     if (hasKeys() && (c.enabled || now - st.balAt > 5 * 60000)) { try { await balance(); } catch (e) { fail(e.message); } }
     if (c.enabled && st.balAt) { try { await fund(c); } catch (e) { fail('funding error: ' + e.message); } }
+    // a timed pause on the main account that has run out is cleared and said (request 13); buying already resumed when the time passed
+    if (ctlL.pauseTo > 0 && ctlL.pauseTo <= now) { ctlL = { ...ctlL, pauseTo: 0 }; await kv.put('kctl', ctlL); say('LIVE Main: the pause ended, buying again by itself'); viewDirty = true; }
     try { await books.upkeep(now); } catch (e) { say('books upkeep error: ' + e.message); }
     try { await vault.upkeep(now); } catch (e) { say('vault upkeep error: ' + e.message); }
     const a = await state.storage.getAlarm(), want = nextAlarm(now); if (!a || a < now || a > want) await state.storage.setAlarm(want);
@@ -2580,6 +2595,22 @@ export function createKalshi(state, env, keep) {
       return { ok: true, msg: `Sold ${o.f} of ${x.fill} ${x.coin} ${x.side.toUpperCase()} at ${(o.px * 100).toFixed(1)}¢${x.result === 'sold' ? `, ${x.pnl >= 0 ? '+' : '-'}$${Math.abs(x.pnl).toFixed(2)} on the trade` : '. The rest is still open'}.` };
     }
     if (type === 'kalshiLive') {
+      // MC 2026-11-22 request 13: pause one account, some, or all of them, for the rest of today, until a time, or until resumed,
+      // from the accounts panel on Home; the same call resumes. ids name the accounts ('main' and book ids), to is 'day', 'hold',
+      // 'resume' or a time in ms up to seven days out. Only the tracker's own buying stops on a paused account: hand buys and
+      // sells, the cash out rule and settlement go on, and open trades ride as they would have. A timed pause lifts itself.
+      if (a.pause && typeof a.pause === 'object') {
+        const now = Date.now(), p = a.pause, ids = Array.isArray(p.ids) ? p.ids.map(String).slice(0, 80) : [];
+        const to = p.to === 'resume' ? 0 : p.to === 'hold' ? -1 : p.to === 'day' ? etDayEnd(now) : Math.round(+p.to);
+        if (!ids.length) return { ok: false, msg: 'Pick at least one account.' };
+        if (!(to === 0 || to === -1 || (to > now + 30000 && to <= now + 7 * 86400000))) return { ok: false, msg: 'Pick a time between a minute and seven days from now.' };
+        const ch = [], word = to ? `paused ${pauseText(to, now)}` : 'resumed';
+        if (ids.includes('main') && (to || pauseOn(+ctlL.pauseTo || 0, now))) { ctlL = { ...ctlL, pauseTo: to, pauseAt: now, at: now, by: 'dashboard' }; await kv.put('kctl', ctlL); ch.push('Main'); }
+        ch.push(...await books.pause(ids.filter(i => i !== 'main'), to, now));
+        if (!ch.length) return { ok: false, msg: to ? 'Nothing changed.' : 'None of those accounts was paused.' };
+        say(`LIVE ${to ? 'paused' : 'resumed'} by hand: ${ch.join(', ')}${to ? ', ' + pauseText(to, now) : ''}`); viewDirty = true; await publish(true);
+        return { ok: true, msg: `${ch.join(', ')} ${word}.` };
+      }
       const next = { ...ctlL }, ch = [];
       if (a.enabled === true || a.enabled === false) { if (next.enabled !== a.enabled) ch.push(a.enabled ? 'live trading ON' : 'live trading OFF'); next.enabled = a.enabled; }
       if (a.sizeUsd != null && isFinite(+a.sizeUsd)) { const v = Math.min(HARD.maxSize, Math.max(5, Math.round(+a.sizeUsd))); if (v !== next.sizeUsd) ch.push(`size $${next.sizeUsd} -> $${v}`); next.sizeUsd = v; }
