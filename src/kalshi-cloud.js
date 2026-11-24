@@ -55,7 +55,9 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-11 live cap raised from $25 to $50 a trade (asked, for the subaccount books at $50); the floor and limits are unchanged
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
-const MPZ = 1.2;
+// MC 2026-11-24 Mitchell: 1.3 from 1.2, for everyone. With the Check bar at +2c it moves little in the 90 days of Edge data
+// (1,119 buys to 1,101, 94.7% won to 94.9%, $17 a day both ways), so it is a slightly tighter guard and not a new edge.
+const MPZ = 1.3;
 // MC 2026-11-24 the Check a Mitch pick needs. It was +1c in the rule, then +1.3c for everyone this morning, and an hour later
 // Mitchell asked for it as a setting, each account its own, starting at +2c (mpEdge, 1 to 5, MPE is the start; the page's
 // KXMPE is the same number). Three days live: 236 buys, 84% won where the backtest said 94%, and the buys with the Check at

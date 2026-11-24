@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.114 (Nov 24, 2026): Mitch pick needs a cushion of 1.3
+
+- [improved] A Mitch pick now has to be at least 1.3 usual moves clear of its target, up from 1.2, for the purple glow and for Auto-buy on every account.
+- [improved] With the Check bar at +2¢ this changes few buys in 90 days of history (about 2% fewer, win rate 94.7% to 94.9%), so it is a slightly tighter guard. A before-the-check cushion setting under 1.3 now acts as 1.3.
+
 ## 1.3.113 (Nov 24, 2026): the Mitch pick Check bar is a setting
 
 - [new] "Mitch picks: least Check" in each account's live settings, beside Buy Mitch picks. It is how much the Check has to say a contract is worth over its price before that account buys, +1¢ to +5¢, and each account has its own.
