@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.115 (Nov 24, 2026): hide skipped rows in live trades
+
+- [new] A "Hide skipped" button on the live trades table, beside Today and All days. It hides the rows where no order went in, and shows how many it is hiding. It works under All accounts and under each account.
+- [improved] Under All accounts a market stays on the list when any account bought it, even if another passed. The choice is remembered on that device.
+
 ## 1.3.114 (Nov 24, 2026): Mitch pick needs a cushion of 1.3
 
 - [improved] A Mitch pick now has to be at least 1.3 usual moves clear of its target, up from 1.2, for the purple glow and for Auto-buy on every account.
