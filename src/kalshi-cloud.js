@@ -56,6 +56,12 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-14 the rules live trading keeps apart from paper (asked to separate paper and live settings). Everything else in
 // PAPER_DEF (bank, paper size and stop, paper run, cash out) is paper only; live size, loss cap and floor stay in kctl.
 const MPZ = 1.2;
+// MC 2026-11-24 the Check a Mitch pick needs went from +1c to +1.3c a contract, every account and the public edition too (the
+// page's KXMPE is the same number). Three days live: 236 buys, 84% won where the backtest said 94%, and the buys with the Check
+// at +1.0c to +1.5c were the trouble (19 of 27 markets won); +1.5c and up were about flat. In the 90 days of Edge data +1.3c
+// keeps $25 of the $30 a day at $35 a buy and the worst day goes from -$302 to -$220. Not yet known why live is behind the
+// backtest: live looks every 10 seconds and the backtest once a minute, which may be buying a bar it only touches.
+const MPE = 1.3;
 const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'mpBuy', 'mpPreZ', 'mpCap', 'lateZ', 'chkZ', 'lateCrowd', 'lateM', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'lockAt2', 'lockKeep2', 'lockAt3', 'lockKeep3', 'lockOff', 'lossTaper', 'skipSlots', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
@@ -1321,9 +1327,9 @@ export function createKalshi(state, env, keep) {
       const pre = left > 10, okZ = cfg => !pre || v.z >= (cfg.mpPreZ ?? 2) - 1e-9, mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg);
       if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw) { no(s, `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
-      if (!(edge(s.lask) >= 1)) { no(s, `check ${edge(s.lask) >= 0 ? '+' : ''}${edge(s.lask).toFixed(1)}c on the tracker's reading, needs +1c`); continue; }
+      if (!(edge(s.lask) >= MPE)) { no(s, `check ${edge(s.lask) >= 0 ? '+' : ''}${edge(s.lask).toFixed(1)}c on the tracker's reading, needs +${MPE}c`); continue; }
       const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null) { no(s, 'nothing on offer in the order book'); continue; }
-      if (!(ask >= 0.85 && ask < 0.965 - 1e-9)) { no(s, `the real offer is ${(ask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; } if (!(edge(ask) >= 1)) { no(s, `at the real offer of ${(ask * 100).toFixed(1)}c the check is ${edge(ask).toFixed(1)}c, needs +1c`); continue; }   // the real ask moved it out of the rule: look again next minute
+      if (!(ask >= 0.85 && ask < 0.965 - 1e-9)) { no(s, `the real offer is ${(ask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; } if (!(edge(ask) >= MPE)) { no(s, `at the real offer of ${(ask * 100).toFixed(1)}c the check is ${edge(ask).toFixed(1)}c, needs +${MPE}c`); continue; }   // the real ask moved it out of the rule: look again next minute
       mpDone.set(s.tk, { t: s.close + 60000, why: 'order sent' }); no(s, 'order sent');
       const avgN = walk(asks, BOOK_N), ser = series || scanSeries().find(x => coin(x) === s.coin);
       const r = { lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]), ticker: s.tk, late: 1, mp: 1, series: ser, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya: b.yesAsks[0]?.[0] ?? null, na: b.noAsks[0]?.[0] ?? null, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };

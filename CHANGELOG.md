@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.112 (Nov 24, 2026): Mitch pick needs a Check of +1.3¢
+
+- [improved] A Mitch pick now needs the Check to say +1.3¢ a contract or better, up from +1¢. This applies to the purple glow on the scanner and to Auto-buy on every account.
+- [improved] The picks just over the old bar were the weakest in live trading. In 90 days of history the higher bar keeps most of the profit with about a quarter fewer buys, and the worst day is smaller.
+
 ## 1.3.111 (Nov 23, 2026): a cap on Mitch picks a window
 
 - [new] "Mitch picks a window, at most" in each account's live settings, beside Buy Mitch picks. It starts at 2; set 9 for no cap. They are taken in the order they pass, and each account counts its own.
