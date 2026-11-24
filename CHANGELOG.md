@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.111 (Nov 23, 2026): a cap on Mitch picks a window
+
+- [new] "Mitch picks a window, at most" in each account's live settings, beside Buy Mitch picks. It starts at 2; set 9 for no cap. They are taken in the order they pass, and each account counts its own.
+- [improved] A Mitch pick needs 7 of the 9 coins leaning the same way, so several in one window win or lose together. In 90 days of history a cap of 2 kept about three quarters of the profit and halved the worst day, and the fifth buy on in a window lost money on average.
+- [improved] "Most trades a window" is unchanged and still counts every buy. The new cap counts Mitch picks only, so the trade-check buys are not limited by it.
+
 ## 1.3.110 (Nov 23, 2026): Equity ranges
 
 - [fixed] With Analytics on 7D, the Equity card's buttons read Day, Week, 7D, and the last two were the same chart. Equity now has its own four: Day, Week, Month and All, whatever range the rest of the page is on.

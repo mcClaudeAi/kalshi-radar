@@ -26,7 +26,7 @@ export const BOOK_MAX = 50, BOOK_MIN = 5;
 // is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
 // day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
 // as the high does, whatever order the tiers were typed in.
-export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
+export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, mpCap: 2, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
 // MC 2026-11-22 Steven asked to be able to turn protect profit off. lockOff 1 switches every step off and leaves the numbers
 // saved, so turning it back on brings the same steps back. It is off (0) unless chosen, so nothing changes for anyone else.
 export const lockTiers = c => c?.lockOff === 1 ? [] : [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
@@ -331,12 +331,22 @@ export function createBooks(D) {
   // not enough here: it gives up when the offer has dropped more than 1c, which is what happened. mpMiss is that test, used
   // by the main account too (kalshi-cloud.js mpLive1); avgYes is only on a row once Kalshi has answered the order.
   const mpMiss = p => !!p && p.strat === 'mp' && !p.skipped && !p.pend && !p.err && p.fill === 0 && p.avgYes !== undefined && (p.mpTry || 0) < 2 && !p.result;
-  const mpOpen = (tk, cn, now, cfg0, ok) => (list || []).some(b => { if (!live(b) || !ok(cfgOf(b, cfg0), cn, now)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped || mpMiss(p); });
+  // MC 2026-11-23 Mitchell, after one window took four Mitch picks in each of three accounts and lost all twelve (ETH, SOL, BNB
+  // and ZEC all leaning NO, the market bounced): a cap on Mitch picks a window, each account its own (mpCap, 2 unless changed,
+  // 9 is no cap). A Mitch pick needs 7 of 9 coins leaning one way, so several in one window are close to one bet. On 90 days
+  // at $50 a buy: no cap $43 a day with a worst window of -$295, cap 4 $44 and -$200, cap 3 $39 and -$150, cap 2 $33 and
+  // -$101; the fifth buy on loses money on average. Taken in the order they pass, as live does. mpCount is the Mitch picks an
+  // account holds or has an order out for in the window, leaving out this market (so a no-fill can still be tried again).
+  // "Most trades a window" (winCap) still counts everything; this one counts Mitch picks only.
+  const mpCount = (Lb, close, tk) => { let n = 0; if (Lb) for (const x of Lb.values()) if (x.close === close && x.tk !== tk && x.strat === 'mp' && !x.skipped && !x.err && (x.fill > 0 || x.pend)) n++; return n; };
+  const mpFull = (Lb, cfg, close, tk) => { const cap = cfg.mpCap ?? 2; return cap < 9 && close != null && mpCount(Lb, close, tk) >= cap; };
+  const mpOpen = (tk, cn, now, cfg0, ok, close = null) => (list || []).some(b => { const cf = cfgOf(b, cfg0); if (!live(b) || !ok(cf, cn, now) || mpFull(L[b.id], cf, close, tk)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped || mpMiss(p); });
   const mpMissAny = tk => (list || []).some(b => live(b) && mpMiss(L[b.id]?.get(tk)));
   async function onLate(r, now, lab, cfg0, ok, benchOf, missed = null, pb = 'cpl') {
     await load();
     await Promise.all(list.filter(b => live(b) && (pb === '*' || (D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb))).map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
+      if (pb === '*' && mpFull(Lb, cfgP, r.close, r.ticker)) { skip(b, r, `Mitch pick cap: ${cfgP.mpCap ?? 2} a window already taken`, true); return; }
       const prev = Lb.get(r.ticker), re = pb === '*' && mpMiss(prev); if (prev && !prev.skipped && !re) return; if (prev) Lb.delete(r.ticker);
       try { await buy(b, re ? { ...r, cidx: '-m' + ((prev.mpTry || 0) + 1) } : r, lab, cfgP, benchOf(cfgP), sends, missed);
         const x = Lb.get(r.ticker); if (!x) { if (prev) Lb.set(r.ticker, prev); } else { x.late = 1; if (re) x.mpTry = (prev.mpTry || 0) + 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveRow(b, x); }
@@ -655,5 +665,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, mpMiss, mpMissAny, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
+  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, mpMiss, mpMissAny, mpFull, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }
