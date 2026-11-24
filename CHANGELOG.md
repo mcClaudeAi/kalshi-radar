@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.116 (Nov 24, 2026): two time limits on Mitch picks
+
+- [new] "Mitch picks: stop with this many minutes left", 4 to start. No Mitch pick is bought later than that. A late buy pays a few cents and can lose the whole stake on a last-second move, and the 90 days of history have no buy with under 4 minutes left, so that stretch was never tested.
+- [new] "Mitch picks: after the trade check, wait until this many minutes are left", 8 to start (10 is no wait). Buys at 8 to 9 minutes left were the weak ones in history and in live trading, and skipping them costs very little.
+- [improved] Both are in each account's live settings beside Buy Mitch picks, each account has its own, and the scanner note says when a pick is waiting on one of them. Buys before the trade check are not affected.
+
 ## 1.3.115 (Nov 24, 2026): hide skipped rows in live trades
 
 - [new] A "Hide skipped" button on the live trades table, beside Today and All days. It hides the rows where no order went in, and shows how many it is hiding. It works under All accounts and under each account.
