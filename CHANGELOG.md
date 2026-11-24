@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.113 (Nov 24, 2026): the Mitch pick Check bar is a setting
+
+- [new] "Mitch picks: least Check" in each account's live settings, beside Buy Mitch picks. It is how much the Check has to say a contract is worth over its price before that account buys, +1¢ to +5¢, and each account has its own.
+- [improved] It starts at +2¢ for every account. In 90 days of history +2¢ takes about a third as many buys as +1¢ for about half the profit and a worst day half as bad; in the first days of live trading the buys under +1.5¢ were the ones that lost.
+- [improved] The purple glow on the scanner follows the setting: it uses the lowest bar among the accounts buying Mitch picks, so purple means at least one of them would take it.
+
 ## 1.3.112 (Nov 24, 2026): Mitch pick needs a Check of +1.3¢
 
 - [improved] A Mitch pick now needs the Check to say +1.3¢ a contract or better, up from +1¢. This applies to the purple glow on the scanner and to Auto-buy on every account.
