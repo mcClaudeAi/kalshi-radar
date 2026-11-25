@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.123 (Nov 24, 2026): nothing cut off on the Settings page
+
+- [fixed] On a phone the line under each group's name was cut off with three dots. Each part is now its own small tag and they wrap, so "On", "Check +2¢", "2 a window" and "early and late" can all be read.
+- [fixed] Switch labels and section names wrap instead of being cut. Checked at three phone widths and on desktop.
+- [improved] The account banner at the top of Settings no longer leaves an empty strip down its left side on a phone.
+
 ## 1.3.122 (Nov 24, 2026): the schedule by day of the week
 
 - [new] The Schedule in Settings has a row of days above the grid: Every day, Mon to Fri, Sat and Sun, and each day on its own. Pick one and the half hours you switch off apply to those days only, so 9 to 10 AM can be off on weekdays and on at the weekend.

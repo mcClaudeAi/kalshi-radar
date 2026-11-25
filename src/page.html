@@ -1901,7 +1901,7 @@ window.CR_THEMES=[
 .kx-snl{display:flex;flex-direction:column;gap:2px;margin-top:12px}
 .kx-setw .kx-snl a{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;border:1px solid transparent;text-decoration:none}
 .kx-setw .kx-snl a i{width:8px;height:8px;border-radius:3px;background:var(--g);opacity:.5;transition:opacity .15s,box-shadow .15s}
-.kx-setw .kx-snl a b{display:block;font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kx-setw .kx-snl a b{display:block;font-size:13px;font-weight:600;color:var(--ink2);line-height:1.25}
 .kx-setw .kx-snl a span{display:block;margin:0;font:600 10.5px/1 var(--mono);color:var(--faint)}
 .kx-setw .kx-snl a:hover{background:color-mix(in srgb,var(--g) 6%,transparent);border-color:color-mix(in srgb,var(--g) 18%,transparent)}
 .kx-setw .kx-snl a.on{background:color-mix(in srgb,var(--g) 10%,transparent);border-color:color-mix(in srgb,var(--g) 34%,transparent)}.kx-setw .kx-snl a.on b{color:var(--ink)}.kx-setw .kx-snl a.on i{opacity:1;box-shadow:0 0 10px var(--g)}
@@ -1917,7 +1917,10 @@ window.CR_THEMES=[
 .kx-sgi{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;color:var(--g);background:color-mix(in srgb,var(--g) 12%,transparent);border:1px solid color-mix(in srgb,var(--g) 38%,transparent);box-shadow:0 0 24px -8px var(--g),0 1px 0 rgba(255,255,255,.08) inset}
 .kx-sgw{display:block;min-width:0}
 .kx-setw .kx-sgw .kx-sgh{display:block;margin:0;font-size:16.5px;font-weight:700;letter-spacing:-.015em;text-transform:none;color:var(--ink);line-height:1.2}
-.kx-sgs{display:block;margin-top:4px;font:500 11.5px/1.35 var(--mono);color:color-mix(in srgb,var(--g) 55%,var(--mute));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* MC 2026-11-24 the summary under a group's name was one line cut off with three dots, which on a phone hid most of it. Each
+   part is its own small tag now and they wrap onto as many lines as they need. Switch labels wrap too, nothing is cut. */
+.kx-sgs{display:flex;flex-wrap:wrap;gap:4px 5px;margin-top:6px;font:500 11px/1.3 var(--mono);color:color-mix(in srgb,var(--g) 45%,var(--ink2))}
+.kx-sgs i{font-style:normal;padding:2px 7px;border-radius:6px;border:1px solid color-mix(in srgb,var(--g) 24%,var(--line));background:color-mix(in srgb,var(--g) 6%,transparent);overflow-wrap:anywhere}.kx-sgs:empty{display:none}
 .kx-sgn{font:700 11px/1 var(--mono);letter-spacing:.12em;color:color-mix(in srgb,var(--g) 50%,var(--faint))}
 .kx-sgc{width:9px;height:9px;border-right:1.7px solid var(--mute);border-bottom:1.7px solid var(--mute);transform:rotate(-135deg);transition:transform .18s;justify-self:center;margin-top:4px}
 .kx-sg.shut .kx-sgc{transform:rotate(45deg);margin-top:-4px}
@@ -1939,7 +1942,7 @@ window.CR_THEMES=[
 select.kx-sx{display:none!important}
 .kx-tg{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:13px;border:1px solid var(--line2);background:color-mix(in srgb,var(--bg) 80%,transparent);min-width:0}
 .kx-sg .fld>.kx-tg{grid-area:i;align-self:center}.kx-sg .fld>.kx-tgc{grid-area:i;align-self:end;display:none}
-.kx-tg button{all:unset;box-sizing:border-box;min-width:0;height:34px;line-height:34px;padding:0 8px;border-radius:10px;text-align:center;font-size:12.5px;font-weight:650;color:var(--mute);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s,color .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
+.kx-tg button{all:unset;box-sizing:border-box;min-width:0;min-height:34px;display:grid;place-items:center;line-height:1.2;padding:4px 8px;border-radius:10px;text-align:center;font-size:12.5px;font-weight:650;color:var(--mute);cursor:pointer;overflow-wrap:anywhere;transition:background .15s,color .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
 .kx-tg button:disabled{cursor:default;opacity:.6}.kx-tg button:focus-visible{outline:2px solid var(--g);outline-offset:1px}
 .kx-tg button[aria-pressed="true"]{background:color-mix(in srgb,var(--g) 20%,transparent);color:var(--ink);box-shadow:0 0 0 1px color-mix(in srgb,var(--g) 60%,transparent),0 0 18px -5px var(--g)}
 .kx-tg button[aria-pressed="true"][data-off]{background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 0 0 1px var(--line2)}
@@ -1980,14 +1983,16 @@ select.kx-sx{display:none!important}
 .kx-hh .kx-hp{position:relative}.kx-hh .kx-hp.some::after{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
 .kx-hh .kx-hp.lk{border-style:dashed;cursor:not-allowed}
 @media(max-width:700px){.kx-schsc{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.kx-schsc::-webkit-scrollbar{display:none}.kx-schsc button{flex:none;height:36px;line-height:34px}}
+.kx-setw .kx-bk{align-items:flex-start}
 .kx-setw .kx-savebar{border-radius:16px;border-color:var(--line2);background:color-mix(in srgb,var(--s1) 86%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .kx-setw .kx-savebar.dirty{border-color:color-mix(in srgb,var(--kx) 60%,transparent);box-shadow:0 10px 40px -10px rgba(0,0,0,.6),0 0 30px -10px var(--kx)}
 @media(max-width:1100px){.kx-setw{grid-template-columns:1fr;gap:14px}.kx-setw .kx-snav{position:static;flex-direction:column;flex-wrap:nowrap;padding:10px;margin:0;min-width:0}.kx-sfind{margin:0}
   .kx-snl{flex-direction:row;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:1px}.kx-snl::-webkit-scrollbar{display:none}
-  .kx-setw .kx-snl a{flex:none;grid-template-columns:8px auto;padding:7px 11px;gap:8px;border-color:var(--line)}.kx-setw .kx-snl a span{display:none}.kx-setw .kx-sbody{max-width:none}}
+  .kx-setw .kx-snl a b{white-space:nowrap}.kx-setw .kx-snl a{flex:none;grid-template-columns:8px auto;padding:7px 11px;gap:8px;border-color:var(--line)}.kx-setw .kx-snl a span{display:none}.kx-setw .kx-sbody{max-width:none}}
 @media(max-width:700px){.kx-sgt{grid-template-columns:36px minmax(0,1fr) 16px;gap:12px;padding:13px 14px}.kx-sgn{display:none}.kx-sgi{width:36px;height:36px;border-radius:11px}.kx-sgb{padding:0 14px 6px}.kx-setw .kx-sg{border-radius:17px;margin-bottom:11px}
-  .kx-setw .kx-sg .fld{grid-template-columns:1fr;grid-template-areas:"l" "h" "i" "a" "d";row-gap:7px;padding:14px 0 13px}.kx-sg .fld>.kx-tg{align-self:stretch}.kx-tg button{height:38px;line-height:38px;font-size:13px}.kx-lkoff .kx-tg{max-width:none}
+  .kx-setw .kx-sg .fld{grid-template-columns:1fr;grid-template-areas:"l" "h" "i" "a" "d";row-gap:7px;padding:14px 0 13px}.kx-sg .fld>.kx-tg{align-self:stretch}.kx-tg button{min-height:38px;font-size:13px}.kx-lkoff .kx-tg{max-width:none}
   .kx-setw .fld.kx-dim>label::after{display:block;width:max-content;margin:5px 0 0}
+  .kx-setw .kx-bk{padding:14px}.kx-setw .kx-bki{display:none}.kx-setw .kx-bkb{min-width:0;flex:1 1 100%}.kx-setw .kx-bka{flex-wrap:wrap}
   .kx-setw .kx-savebar{padding:10px 12px;gap:8px 10px;flex-wrap:nowrap;background:color-mix(in srgb,var(--s1) 97%,transparent)}.kx-setw .kx-savebar:not(.dirty):not(.locked){display:none}.kx-setw .kx-savebar.dirty span{display:none}.kx-setw .kx-savebar>div:first-child{flex:1 1 auto}.kx-setw .kx-savebar.locked{flex-wrap:wrap}.kx-mptl{padding:12px 12px 10px}.kx-whead span{font-size:11.5px}.kx-setw .kx-sgw .kx-sgh{font-size:15.5px}}
 @media(prefers-reduced-motion:reduce){.kx-sgc,.kx-tg button,.kx-setw .kx-sg .fld{transition:none}}
 </style>
@@ -5670,7 +5675,7 @@ function kxSetLive(w){const el=id=>w.querySelector('#kxs-'+id),v=id=>el(id)?.val
     cash:()=>!el('trendExit')?'':on('trendExit')?`On · keeps ${d(v('trendKeep'))}% of the lead`:'Off: hold to the close',
     sound:()=>{if(typeof KXS==='undefined'||typeof KXSND==='undefined')return '';const nm=k=>(KXSND[k].find(x=>x[0]===KXS[k])||[])[1]||'';return KXS.on?`On · ${nm('win')} for a win · ${nm('loss')} for a loss`:'Off'},
     sched:()=>{if(!KXSCH)return '';const o=KXSCH.base.size,L=kxSchList(),dn=L.filter(x=>x.length).length;return [o?`${o} half hour${o===1?'':'s'} off every day`:'',dn?`more off on ${dn===7?'every day':dn+' day'+(dn===1?'':'s')}`:''].filter(Boolean).join(' · ')||'Trading every half hour'}};
-  for(const g of w.querySelectorAll('.kx-sg')){const s=g.querySelector('.kx-sgs');if(!s)continue;let t='';try{t=(S[g.id.replace('kxg-','')]||(()=>''))()}catch(e){}s.textContent=t||(+s.dataset.n?`${s.dataset.n} setting${s.dataset.n==='1'?'':'s'}`:'')}
+  for(const g of w.querySelectorAll('.kx-sg')){const s=g.querySelector('.kx-sgs');if(!s)continue;let t='';try{t=(S[g.id.replace('kxg-','')]||(()=>''))()}catch(e){}t=t||(+s.dataset.n?`${s.dataset.n} setting${s.dataset.n==='1'?'':'s'}`:'');if(s.dataset.t!==t){s.dataset.t=t;s.innerHTML=t.split(' · ').filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join('')}}
   const tl=w.querySelector('#kxmptl');if(tl&&el('mpBuy')){const buy=on('mpBuy'),early=buy&&!on('mpNoPre'),af=Math.min(10,Math.max(5,num('mpAfter')??8)),en=Math.min(af,Math.max(2,num('mpEnd')??4)),late=buy&&af>en,P=m=>((15-m)/15*100).toFixed(2)+'%';
     const seg=(a,b,c,t)=>a-b>0.01?`<i class="${c}" style="flex:${(a-b).toFixed(2)}" title="${t}">${a-b>=1.6&&/buy/.test(c)?`<b>${c.includes('e1')?'Early':'Late'}</b>`:''}</i>`:'';
     tl.className='kx-mptl'+(buy?'':' off');tl.innerHTML=`<div class="kx-whead"><b>One 15-minute window</b><span>${buy?'Lit stretches are when this account can buy a Full Signal pick':'Buy Full Signal picks is off: the purple glow is a signal only'}</span></div>
@@ -6498,7 +6503,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.122',KR_DATE='Nov 24, 2026';
+const KR_VERSION='1.3.123',KR_DATE='Nov 24, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}
