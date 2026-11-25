@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.120 (Nov 24, 2026): Sounds matches the new Settings page
+
+- [improved] The Sounds group was still the old card sitting inside the new one. It now has the same look as the rest of Settings, and its header says what is picked, for example "On · To the moon for a win · Rug pull for a loss".
+- [improved] The note about phone notifications is reworded; the sounds themselves and how they save are unchanged.
+
 ## 1.3.119 (Nov 24, 2026): a new Settings page, and Today split four ways
 
 - [new] Settings are regrouped by what they decide: Money, Orders and fills, The rule, Mitch picks, Later buys, Protect the day, Cash out early, Your mix, Schedule and Sounds. Each group is a card that folds, with its own colour and a one-line summary of what it is set to right now.
