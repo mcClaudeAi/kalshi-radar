@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.126 (Nov 25, 2026): Full Signal picks sit out big US releases
+
+- [new] No Full Signal pick from 15 minutes before to 15 minutes after CPI, the jobs report and PPI (8:15 to 8:45 AM ET on those days), and from 1:45 to 2:45 PM on Fed decision days so the press conference is covered too. The market can jump either way the moment the numbers land.
+- [new] It is on for every account. "Sit out big US releases" in Settings, Live, Full Signal picks turns it off for an account, and the setting lists the next few dates.
+- [new] Home shows a heads-up chip from an hour before a release ("Full Signal sits out 8:15 to 8:45 AM · CPI") and while the pause is on. The scanner note says why a pick was skipped.
+- [improved] In 96 days of history the picks bought in those windows won 87.5% against about 95% for the rest, and two of them were $50 losses. Claude's pick at the trade check is not affected.
+- [improved] The dates come from the published BLS and Fed schedules and run to December 2027. Settings warns when fewer than 45 days are left on the list.
+
 ## 1.3.125 (Nov 24, 2026): the day's high and low
 
 - [new] Home's Today card shows the day's high and low under the total, with the time each was reached. It is the running total of today's settled trades in the order they closed, for whichever account the card is showing.
