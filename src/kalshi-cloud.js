@@ -3,6 +3,7 @@ import { createBooks, OWN_NEW, lockTiers, buyRoom, roomWhy, handRoom, offSlots, 
 import { createVault } from './vault.js';
 import { SEED } from './learn-seed.js';
 import { XSEED } from './labs-seed.js';
+import { BSEED } from './btc-seed.js';
 // MC 2026-11-07 Kalshi tracker moved off the PC (asked to run it somewhere other than his computer; Cloudflare picked over a $5 VPS).
 // This is kalshi-paper.mjs + kalshi-live-lib.mjs + notify.js's kalshiView, rebuilt to run inside the dashboard's Durable Object:
 //   - the worker's cron calls tick() every minute: read the 9 coins' open markets (scanner + live board), add a price point to every
@@ -296,6 +297,9 @@ function labDefs(K) {
     { id: 'cph', name: "Claude's pick, high confidence", x: 'h', run: true, desc: "Claude's pick, only on coins at least 1.75 usual moves clear of their target, at the trade check and after it. Later buys (8 to 4 minutes left) also need room inside every line (cushion 1.75+, dip above -1.8, straightness under 0.5) and are never the straggler of a crowded move. Far fewer trades, each surer: in 90 days of quoted prices about 7 a day, 97.2% won, about $2.00 each at $50. Live takes the later buys only with \"Buy later-watched coins\" on. Before the evening of Nov 19 its later buys are rebuilt from Kalshi's one-minute history at quoted prices.", color: '#FFB86B', filter: t => t.x ? true : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= Math.max(HC_Z, CZ) - 1e-9 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
     { id: 'cpn', name: "Claude's pick, later watched, no stragglers", x: 'l', desc: "Later watched, minus one kind of later buy: a coin that only just qualifies while the other coins leaning the same way are already far past their targets (more than 1.5 moves clear on average). Those stragglers lost money in 90 days of quoted prices; skipping them kept 88% of the later buys and made more in total. Labs only: it is the same playbook as later watched with the \"Skip later buys that trail a crowded move\" setting on. Before the evening of Nov 18 (back to Nov 2) its early and later buys are rebuilt from Kalshi's one-minute history at quoted prices; from then on they are what the order book really offered.", color: '#F4B8E4', filter: t => t.x ? (t.cz != null && t.cz > XC_Z ? false : true) : (t.z == null || t.dp == null || t.r2 == null ? null : t.z >= CZ - 1e-9 && t.px < 0.95 && t.dp > -2 && t.r2 < 0.7) },
     { id: 'epk', name: 'Early pack', ep: true, desc: 'Buys the leader early and cheaper: 60¢ to 90¢ at the trade check (10 minutes left), only when at least 3 coins are leading the same way, before 9 PM ET, and never HYPE. Built from your own winning hand buys. Labs only for now; the paper and live price bands start higher.', color: '#F15BB5', filter: t => t.hr == null ? null : t.px >= EP_LO && t.px < EP_HI && t.same >= 3 && t.hr < 21 && t.coin !== 'HYPE' },
+    // MC 2026-11-25 the BTC catch-up test as a lab line (note at bcLook). Its own picks only, never the trade check's, so it
+    // cannot be picked for paper or live (bc keeps it out of the pickers the way ep does for Early pack).
+    { id: 'btcu', name: 'BTC catch-up', bc: true, desc: 'A test, Labs only. When five or more other coins are at 85¢ or better on one side and BTC leans the same way but is still 80¢ to under 85¢ (cushion 0.6 or more, 3 to 8 minutes left), it buys BTC. One buy a market. From Nov 25 it is priced at the real order book; before that the line is filled in from quoted prices, and before Nov 19 those quotes were estimated, so the early part flatters it. It needs about 84% to break even.', color: '#F7931A', filter: () => true },
     { id: 'mv15', name: 'Margin vs volatility, 1.5 moves', desc: 'Margin vs volatility under 95¢ with a higher bar: the coin must be at least 1.5 normal 10-minute moves past its target, not 1. About 40% of the trades and half the profit in the history, but the worst day and the worst drop were both about half as deep, and the win rate went from 94.2% to 95.2%.', color: '#80FFDB', filter: t => t.z == null ? null : t.z >= 1.5 && t.px < 0.95 },
     // MC 2026-11-10 asked for a rule that is green every day. None exists in the history: of 251 candidate rules with enough trades,
     // none had a second half without a red day, because one loss costs about 15 wins. This is the steadiest that held up when
@@ -1086,7 +1090,7 @@ export function createKalshi(state, env, keep) {
     // the playbook check for one hit, shared by the main live book and the subaccount books
     // MC 2026-11-15 the check is built from a set of live rules and that set's trades, so a book with its own rules gets its own
     const mkGate = (cfg, H) => { let kS0 = null; const kState = () => { if (!kS0) { kS0 = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfg.minAsk && x.close <= now) kAdd(kS0, x.avgN || x.ask, !!x.won); } return kS0; };
-      return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep || (lab.x && !lab.run)) return { ok: false, why: 'playbook not available live' };
+      return (sid, r) => { const lab = labDefs(cfg).find(l => l.id === sid); if (!lab || lab.m10Only || lab.ep || lab.bc || (lab.x && !lab.run)) return { ok: false, why: 'playbook not available live' };
         if (sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly')) { r.kf = kOf(kState(), r.avgN || r.ask).kf; r.win = H.length; }
         const f = sid === 'rule' ? true : lab.filter({ px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null });
         if (f === true) return { ok: true, lab }; const tt = { px: r.avgN || r.ask, win: H.length, same: H.filter(h => h.side === r.side).length, z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: r.kf ?? null, pl: r.lp ?? null };
@@ -1157,7 +1161,7 @@ export function createKalshi(state, env, keep) {
     if (sid === 'rule') for (const s of H) { s.pb = 1; s.pbSide = s.leader; }
     // MC 2026-11-18 the readings are taken whichever playbook runs, so the two Claude's pick labs below can record. Only the
     // would-buy answer on the row depends on the running playbook.
-    const mark = !(sid === 'rule' || !lab || lab.m10Only || lab.ep || (lab.x && !lab.run) || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly'));
+    const mark = !(sid === 'rule' || !lab || lab.m10Only || lab.ep || lab.bc || (lab.x && !lab.run) || sid === 'kelly' || (sid === 'mix' && cfg.mixSize === 'kelly'));
     const carry = H.some(s => !s.pbLate && s.close - now - 600000 < 50000), old = new Map(scan.map(z => [z.tk + z.leader, z]));
     const V = await Promise.all(H.map(s => { const o = old.get(s.tk + s.leader); return carry ? (o?.pbV || null) : s.strike > 0 ? volAt(s.coin, s.strike, s.leader).catch(() => null) : null; }));
     try { await xNote(H, V, now, out); } catch (e) { say('early/late lab error: ' + e.message); }
@@ -2398,7 +2402,11 @@ export function createKalshi(state, env, keep) {
     const xFirst = {}; for (const r of xRows) xFirst[r.k] = Math.min(xFirst[r.k] ?? Infinity, r.close);
     const xAll = [...XSEED.filter(r => r.close < (xFirst[r.k] ?? Infinity)), ...xRows];   // each kind switches over when the tracker's own rows of that kind begin
     const xT = xAll.filter(r => r.res !== 'void' && r.px != null).map(r => ({ lad: r.lad || null, cz: r.cz ?? null, dp: r.dp ?? null, r2: r.r2 ?? null, x: r.k, tk: r.tk, t: r.at, close: r.close, coin: r.c, side: r.side, px: +r.px.toFixed(3), done: !!r.res, won: !!r.won, z: r.z ?? null, win: 1, same: 1, off: offK.has(slotOf(r.at, etHour)) }));
-    const labs = runLabs(trades, K, lateT, m10T, epT, lsT, xT);
+    // MC 2026-11-25 Mitchell asked for the BTC catch-up test as a lab with its history filled in. Its line is the tracker's own
+    // log (bRows, real order book) with the seed (btc-seed.js, quoted prices from Nov 2) for markets before the first logged one.
+    const bFirst = bRows.length ? Math.min(...bRows.map(r => r.close)) : Infinity;
+    const bcT = [...BSEED.filter(r => r.close < bFirst).map(r => ({ ...r, res: 1 })), ...bRows.filter(r => r.res !== 'void')].map(r => ({ bc: 1, tk: r.tk, t: r.at, close: r.close, coin: 'BTC', side: r.side, px: +r.px.toFixed(3), done: !!r.res, won: !!r.won, z: r.z ?? null, win: 1, same: (r.oth || 0) + 1, off: offK.has(slotOf(r.at, etHour)) })).sort((a, b) => a.t - b.t);
+    const labs = runLabs(trades, K, lateT, m10T, epT, lsT, xT, bcT);
     pnT = trades; pnBank = bal;
     const doneAll = trades.filter(t => t.done && !t.capped), done = doneAll.filter(t => t.run), today = done.filter(t => etDay(t.close) === etDay(Date.now()));
     // MC 2026-11-12 today's taken paper trades in the worker log every 10 minutes, so a day's total can be checked from the tail
@@ -2474,7 +2482,7 @@ export function createKalshi(state, env, keep) {
     return Object.values(by).map(b => { b.d.sort((x, y) => x - y); const o = { coin: b.coin, n: b.d.length, med: b.d.length ? Math.round(b.d[b.d.length >> 1]) : null };
       for (const n of [100, 250, 500, 1000]) { const x = b.s[n]; o['n' + n] = x[0]; o['ok' + n] = x[0] ? +(x[1] / x[0]).toFixed(3) : null; o['c' + n] = x[1] ? +(x[2] / x[1]).toFixed(2) : null; } return o; }).sort((a, b) => (b.med ?? 0) - (a.med ?? 0));
   }
-  function runLabs(tradesIn, K, lateT = [], m10T = [], epT = [], lsT = [], xT = []) {
+  function runLabs(tradesIn, K, lateT = [], m10T = [], epT = [], lsT = [], xT = [], bcT = []) {
     labRowsMem = {};
     const lockOn = lockTiers(K).length > 0;   // MC 2026-11-21 protect profit tiers or the progressive stop (see sim)
     const LABS = labDefs(K), plain = tradesIn.filter(t => !t.late), withLate = lateT.length ? [...plain, ...lateT].sort((a, b) => a.t - b.t) : plain;
@@ -2509,7 +2517,7 @@ export function createKalshi(state, env, keep) {
     const sim = (lab, from, baseline, cash = false, keep = false) => {
       const rows = keep ? [] : null;
       let bank = K.startUsd, peak = bank, dd = 0, n = 0, won = 0, sk = 0, skNet = 0; const day = {}, dayPk = {}, stopD = {}, eq = [], td = { n: 0, won: 0, net: 0 }, lockR = {}, wS = {}, tw = {}, wCap = K.winCap ?? 9; let ddRef = bank, ddLast = null;
-      const trades = lab.ls ? lsT : lab.ep ? epT : lab.x && !baseline ? xMix[lab.x] : lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
+      const trades = lab.ls ? lsT : lab.bc ? bcT : lab.ep ? epT : lab.x && !baseline ? xMix[lab.x] : lab.m10Only && !baseline ? m10T : lab.late && !baseline ? withLate : plain;
       for (const t of trades) {
         const cx = cash && !t.late && t.xPx != null, held = t.hw ?? t.won;
         if (!(cx || (t.fin ?? t.done)) || t.close < from) continue;
@@ -2538,12 +2546,12 @@ export function createKalshi(state, env, keep) {
     return LABS.map(lab => {
       // MC 2026-11-19 a Claude's pick lab starts with its first trade of either kind, not its first early or later buy: with a
       // cushion bar of 1.75 the first later buy came on Nov 6, which left four days of its trade-check buys off the line
-      const trades = lab.ls ? lsT : lab.ep ? epT : lab.x ? xMix[lab.x] : lab.m10Only ? m10T : plain;
+      const trades = lab.ls ? lsT : lab.bc ? bcT : lab.ep ? epT : lab.x ? xMix[lab.x] : lab.m10Only ? m10T : plain;
       const first = trades.find(t => t.done && t.win <= K.maxPerWindow && lab.filter(t) != null);
-      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || lab.found || (lab.x && !lab.run)), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
+      if (!first) return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, labOnly: !!(lab.m10Only || lab.ep || lab.bc || lab.found || (lab.x && !lab.run)), arch: ARCH.has(lab.id), since: null, n: 0, won: 0, net: 0, dd: 0, today: { n: 0, won: 0, net: 0 }, skipped: { n: 0, net: 0 }, eq: [], base: null, delta: null };
       const both = cash => { const r = sim(lab, first.close, false, cash, !cash), b = lab.id === 'rule' ? null : sim(lab, first.close, true, cash); if (r.rows) labRowsMem[lab.id] = r.rows.slice(-20000); delete r.rows;
         return { ...r, base: b ? { n: b.n, won: b.won, net: b.net, dd: b.dd, today: b.today } : null, delta: b ? +(r.net - b.net).toFixed(2) : null }; };
-      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || lab.found || (lab.x && !lab.run)), found: !!lab.found, since: first.close, ...both(false), cx: both(true) };
+      return { id: lab.id, name: lab.name, desc: lab.desc, color: lab.color, arch: ARCH.has(lab.id), labOnly: !!(lab.m10Only || lab.ep || lab.bc || lab.found || (lab.x && !lab.run)), found: !!lab.found, since: first.close, ...both(false), cx: both(true) };
     });
   }
 
@@ -2790,14 +2798,14 @@ export function createKalshi(state, env, keep) {
     if (type === 'kalshiBook') {
       if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
       if (a?.op === 'match') { const c = ctl(); a.main = { strat: stratAt(c.strat, Date.now()), size: c.sizeUsd, loss: c.dailyLossUsd, floor: c.minBank ?? HARD.minBank }; }
-      const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep && !(l.x && !l.run); })); viewDirty = true; await publish(true); return r;
+      const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep && !l.bc && !(l.x && !l.run); })); viewDirty = true; await publish(true); return r;
     }
     if (type === 'kalshiStrat') {
       // MC 2026-11-08 switch the paper book or the live gate to a lab (or back to the rule), logged with a timestamp so the
       // books apply it from now on and the history before it stays as it was.
       const id = String(a.id || 'rule'), book = a.book === 'live' ? 'live' : 'paper';
       if (!LAB_IDS.includes(id)) return { ok: false, msg: 'Unknown playbook.' };
-      { const l = labDefs(cfgP).find(l => l.id === id); if (l.m10Only || l.ep || (l.x && !l.run)) return { ok: false, msg: `${l.name} runs in Labs only for now.` }; }
+      { const l = labDefs(cfgP).find(l => l.id === id); if (l.m10Only || l.ep || l.bc || (l.x && !l.run)) return { ok: false, msg: `${l.name} runs in Labs only for now.` }; }
       const name = labDefs(cfgP).find(l => l.id === id).name, now = Date.now();
       if (book === 'paper') {
         if (stratAt(cfgP.strat, now) === id) return { ok: false, msg: `Paper already runs ${name}.` };

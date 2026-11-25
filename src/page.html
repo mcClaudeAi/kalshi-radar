@@ -5599,7 +5599,7 @@ function kxBcuOpen(){const b=ST.D?.kalshi?.bcu;if(!b)return;const R=b.rule||{},t
   const rows=(b.rows||[]).map(r=>`<div class="kx-bcl"><span>${tm(r.at)}</span><span><b class="kx-side ${r.side}">${r.side.toUpperCase()}</b> ${r.n} × ${(r.px*100).toFixed(1)}¢</span><span>${r.oth} others · cushion ${Number(r.z).toFixed(2)} · ${Number(r.left).toFixed(0)} min left</span><b class="${r.pnl==null?'':cls(r.pnl)}">${r.res==='void'?'void':r.pnl==null?'open':usd(r.pnl)}</b></div>`).join('');
   modal(`<h2>BTC catch-up <span class="kx-bct">paper test</span></h2><p>When ${R.others??5} or more other coins are at 85¢ or better on one side and BTC leans the same way but is still ${Math.round((R.lo??.8)*100)}¢ to under ${Math.round((R.hi??.85)*100)}¢, with a cushion of ${R.z??.6} or more and 3 to 8 minutes left, this logs what $${R.usd??50} would have bought at the real order book. One a market. It is a test: it is not in the paper bank, the labs or live trading.</p>
    <div class="kx-bcs"><div><small>Logged</small><b>${a.n}</b></div><div><small>Won</small><b>${wr}</b></div><div><small>Net</small><b class="${a.n?cls(a.net):''}">${a.n?usd(a.net):'–'}</b></div><div><small>Needs</small><b>about 84%</b></div></div>
-   <p class="kx-bcn">In the backtest it won 90.6% of 532 buys, but the older prices were estimated, so judge it on what it logs here. A few hundred picks is a fair test; a few days is not.</p>
+   <p class="kx-bcn">In the backtest it won 90.6% of 532 buys, but the older prices were estimated, so judge it on what it logs here. A few hundred picks is a fair test; a few days is not. Labs has it as a line too, with the history filled in from Nov 2 at quoted prices.</p>
    ${rows?`<div class="kx-bcw">${rows}</div>`:'<div class="empty">Nothing logged yet. It only looks when BTC is the one lagging, about five times a day in the backtest.</div>'}
    <div class="acts"><button class="btn pri" onclick="closeModal()">Close</button></div>`)}
 function kxTodayRec(t){const n=t.n||0,w=t.won||0,pass=t.passed?`<span><b>${t.passed}</b> passed${t.pWon+t.pLost?` (${t.pWon}-${t.pLost})`:''}</span>`:'',ln=(n,w)=>`<span><b>${n}</b> settled</span><span><b>${w}</b> won</span>${n-w>0?`<span><b class="neg">${n-w}</b> lost</span>`:''}`;
@@ -6602,7 +6602,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.129',KR_DATE='Nov 25, 2026';
+const KR_VERSION='1.3.130',KR_DATE='Nov 25, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

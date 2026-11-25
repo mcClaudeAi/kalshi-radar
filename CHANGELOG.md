@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.130 (Nov 25, 2026): BTC catch-up in Labs, with history
+
+- [new] BTC catch-up is now a line in Labs, filled in from Nov 2 so it can be compared with the other labs from the same start.
+- [improved] From Nov 25 on, its picks are priced at the real order book. Earlier picks use quoted prices, and before Nov 19 those quotes were estimated, so the early part of the line flatters it.
+- [improved] It stays a test: Labs only, and it cannot be picked as the paper or live playbook.
+
 ## 1.3.129 (Nov 25, 2026): BTC catch-up test and a clearer Paper header
 
 - [new] BTC catch-up, a paper test: when five or more other coins are at 85¢ or better on one side and BTC leans the same way but is still 80¢ to under 85¢ (cushion 0.6 or more, 3 to 8 minutes left), it logs what $50 would have bought at the real order book. It is a log only: not in the paper bank, the labs or live trading.
