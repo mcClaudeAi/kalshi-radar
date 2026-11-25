@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.131 (Nov 25, 2026): Full Signal and BTC catch-up on paper
+
+- [new] Full Signal picks can run on paper, on top of the paper playbook. Paper buys the picks live would, at paper's trade size and the real order book, and follows the Main account's live Full Signal settings as they stand (Check, picks a window, early buys, the wait after the check, the last minute and the release blackout).
+- [new] BTC catch-up can be added to the paper bank too. Until you add it, it keeps logging as a test outside the bank.
+- [improved] The Paper header's Today card has four tiles: the playbook's trade-check buys, its later buys, Full Signal and BTC catch-up. Tap either of the last two for its picks and its switch. A dashed tile is not in the bank.
+- [improved] One position a market on paper: a coin the playbook already holds is not bought again by Full Signal or BTC catch-up.
+- [improved] Both switches start off, and neither touches live trading.
+
 ## 1.3.130 (Nov 25, 2026): BTC catch-up in Labs, with history
 
 - [new] BTC catch-up is now a line in Labs, filled in from Nov 2 so it can be compared with the other labs from the same start.
