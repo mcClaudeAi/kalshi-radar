@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.122 (Nov 24, 2026): the schedule by day of the week
+
+- [new] The Schedule in Settings has a row of days above the grid: Every day, Mon to Fri, Sat and Sun, and each day on its own. Pick one and the half hours you switch off apply to those days only, so 9 to 10 AM can be off on weekdays and on at the weekend.
+- [improved] Every day works as before. In a day view a half hour that is off every day shows locked, and in the Every day view a dot marks a half hour that is off on some days only. Each day's button counts what it has off.
+- [improved] Paper and live each keep their own, the same as before, and the day is the Eastern one. Nothing already saved in a schedule is changed.
+- [fixed] Tapping a section in the Settings list sometimes took three or four tries to get there. It goes straight to it on the first tap now.
+
 ## 1.3.121 (Nov 24, 2026): Mitch pick is now Full Signal pick
 
 - [improved] The purple-glow rule is renamed Full Signal pick everywhere: the scanner, settings, trade rows and chips, Today, Labs and the notes on why a coin was or was not bought. The name says what it waits for: price, cushion, the Check and the other coins all agreeing.

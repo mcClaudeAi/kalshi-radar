@@ -26,7 +26,7 @@ export const BOOK_MAX = 50, BOOK_MIN = 5;
 // is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
 // day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
 // as the high does, whatever order the tiers were typed in.
-export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, mpNoPre: 0, mpCap: 2, mpEdge: 2, mpEnd: 4, mpAfter: 8, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
+export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, mpNoPre: 0, mpCap: 2, mpEdge: 2, mpEnd: 4, mpAfter: 8, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null, skipDays: null };
 // MC 2026-11-22 Steven asked to be able to turn protect profit off. lockOff 1 switches every step off and leaves the numbers
 // saved, so turning it back on brings the same steps back. It is off (0) unless chosen, so nothing changes for anyone else.
 export const lockTiers = c => c?.lockOff === 1 ? [] : [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
@@ -58,6 +58,11 @@ export function handRoom(c, loss, run, pk, riding, min) {
 // half hour its own time falls in. Eastern time is a whole number of hours off UTC, so the half comes from the UTC minutes.
 export const offSlots = c => new Set(Array.isArray(c?.skipSlots) ? c.skipSlots : (c?.skipHours || []).flatMap(h => [h * 2, h * 2 + 1]));
 export const slotOf = (t, etHour) => etHour(t) * 2 + (new Date(t).getUTCMinutes() >= 30 ? 1 : 0);
+// MC 2026-11-24 Mitchell: the schedule had no days, so 9 to 10 AM could not be off on weekdays only. skipDays is seven lists of
+// half hours, Sunday first, off on that day of the week on top of skipSlots (off every day). The day is the Eastern one: the
+// gap between the UTC hour and etHour is the offset, so no second date formatter is needed. offAt is the one test to use.
+export const dayOff = (c, t, etHour) => { const D = c?.skipDays; if (!Array.isArray(D)) return false; const gap = (new Date(t).getUTCHours() - etHour(t) + 24) % 24, a = D[new Date(t - gap * 3600000).getUTCDay()]; return Array.isArray(a) && a.includes(slotOf(t, etHour)); };
+export const offAt = (c, t, etHour) => offSlots(c).has(slotOf(t, etHour)) || dayOff(c, t, etHour);
 export const slotName = s => `${(Math.floor(s / 2) % 12) || 12}:${s % 2 ? '30' : '00'} ${s < 24 ? 'AM' : 'PM'}`;
 // MC 2026-11-21 a hand buy filled 1 of 40 and nothing could buy the rest; selling that one to start again left the market
 // counted as held, so it could not be bought at all. addOf(x, side, size) reads the row an account already has for a market:
@@ -303,7 +308,7 @@ export function createBooks(D) {
     await load(); if (!hits0.length && !own) return;
     await Promise.all(list.filter(b => b.on).map(async b => {
       const sid = D.stratAt(b.strat, now), sends = [], o = b.cfg && own ? own(cfgOf(b, cfg0)) : null, hits = o ? o.hits : hits0, gate = o ? o.gate : gate0, cfgP = o ? o.cfg : cfg0, bench = o ? o.bench : bench0;
-      const sl = slotOf(now, D.etHour), offNow = offSlots(cfgP).has(sl);
+      const sl = slotOf(now, D.etHour), offNow = offAt(cfgP, now, D.etHour);
       if (paused(b)) { for (const r of hits) skip(b, r, pausedWhy(b), true); return; }   // written down like Main's pause, so Trades says why
       try {
         for (const r of hits) {

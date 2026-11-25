@@ -1,5 +1,5 @@
 import { feats, fit, predict, logit, LEARN_F, LEARN_NAME } from './learn.js';
-import { createBooks, OWN_NEW, lockTiers, buyRoom, roomWhy, handRoom, offSlots, slotOf, slotName, addOf, apartKey, ordersOf } from './books.js';
+import { createBooks, OWN_NEW, lockTiers, buyRoom, roomWhy, handRoom, offSlots, offAt, dayOff, slotOf, slotName, addOf, apartKey, ordersOf } from './books.js';
 import { createVault } from './vault.js';
 import { SEED } from './learn-seed.js';
 import { XSEED } from './labs-seed.js';
@@ -66,7 +66,7 @@ const MPZ = 1.3;
 // day went -$302, -$220, -$207, -$143. The 10-second look was checked as the cause and is not it: up to 7 PM on Nov 23 live
 // won 90.9% of 44 markets against 92.3% of 52 for a once-a-minute rule, and the 23 buys only the 10-second look saw won 22.
 const MPE = 2;
-const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'mpBuy', 'mpPreZ', 'mpNoPre', 'mpCap', 'mpEdge', 'mpEnd', 'mpAfter', 'lateZ', 'chkZ', 'lateCrowd', 'lateM', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'lockAt2', 'lockKeep2', 'lockAt3', 'lockKeep3', 'lockOff', 'lossTaper', 'skipSlots', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
+const LIVE_KEYS = ['slipC', 'capPb', 'retryFill', 'lateBuy', 'mpBuy', 'mpPreZ', 'mpNoPre', 'mpCap', 'mpEdge', 'mpEnd', 'mpAfter', 'lateZ', 'chkZ', 'lateCrowd', 'lateM', 'trendExit', 'trendKeep', 'minAsk', 'maxAsk', 'winCap', 'coldDays', 'coins', 'skipHours', 'skipDays', 'dailyWinUsd', 'giveBackPct', 'giveBackMin', 'bankDdPct', 'lockAt', 'lockKeep', 'lockAt2', 'lockKeep2', 'lockAt3', 'lockKeep3', 'lockOff', 'lossTaper', 'skipSlots', 'mixSame', 'mixSameMax', 'mixMaxPx', 'mixVol', 'mixSize', 'mixPct', 'ratchetAdd', 'ratchetEvery'];
 const HARD = { maxSize: 50, minBank: 300, maxPerWindow: 9, maxPerDay: 150 };
 const XI = 2;   // the 15-minute crypto markets trade on exchange shard 2
 const PAPER_DEF = { slipC: 1, capPb: 1, startUsd: 1000, sizeUsd: 50, maxPerWindow: 9, minAsk: 0.9, maxAsk: 0.99, dailyLossUsd: 250, coldDays: 30, coins: null, mixSame: 3, mixSameMax: 9, mixMaxPx: 0.95, mixVol: 0, mixSize: 'fixed', mixPct: 5, skipHours: [], giveBackPct: 0, giveBackMin: 25, dailyWinUsd: 0, bankDdPct: 0, ratchetAdd: 10, ratchetEvery: 200, paperFrom: 0, lockOff: 0, lockAt: 0, lockKeep: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, trendExit: 0, trendKeep: 50, winCap: 9, lateZ: 1, chkZ: 1, labAccts: 1, lateCrowd: 1, lateM: 0.2 };
@@ -937,7 +937,7 @@ export function createKalshi(state, env, keep) {
     else if (best < (cfgL.minAsk ?? 0.9) || best > (cfgL.maxAsk ?? 0.99)) notes.push(`${(best * 100).toFixed(1)}¢ is outside your live price band (${Math.round((cfgL.minAsk ?? 0.9) * 100)} to ${Math.round((cfgL.maxAsk ?? 0.99) * 100)}¢)`);
     if (cfgL.coins?.length && !cfgL.coins.includes(cn)) notes.push(`${cn} is not one of your live coins`);
     if (coldSet(now, cfgL).has(cn)) notes.push(`${cn} is benched`);
-    if (offSlots(cfgL).has(slotOf(now, etHour))) notes.push(`${slotName(slotOf(now, etHour))} is one of your off half hours`);
+    if (offAt(cfgL, now, etHour)) notes.push(`${slotName(slotOf(now, etHour))} is one of your off half hours`);
     if (cfgL.dailyWinUsd > 0 && realized(t) >= cfgL.dailyWinUsd) notes.push(`live's daily profit target is already hit (+$${realized(t).toFixed(2)})`);
     { const cap = Math.min(HARD.maxPerWindow, cfgL.winCap ?? 9), inW = [...L.values()].filter(x => x.close === close && busy(x)).length; if (inW >= cap) notes.push(`this window already has ${inW} live trade${inW === 1 ? '' : 's'}, your cap is ${cap}`); }
     return { ok: true, tk, coin: cn, side, best, avg: +avg.toFixed(4), maxPx, room, n, est, size, cost, fee: fe, ifWin: +(est - cost).toFixed(2), ifLose: -cost, close, notes, mainHeld, accts: [{ id: 'main', name: 'Main', size, ok: !mainHeld, why: mainHeld ? (/other side/.test(g || '') ? 'holds the other side' : /going through/.test(g || '') ? 'a buy is still going through' : /settled/.test(g || '') ? 'already settled' : 'already holds it at full size') : null, prot: lockRoomL(), ...(ad?.add && !mainHeld ? { add: ad.held } : {}) }, ...bkL] };
@@ -1079,7 +1079,7 @@ export function createKalshi(state, env, keep) {
       const sid = stratAt(c.strat, now), lab = labDefs(cfgL).find(l => l.id === sid);
       let kS = null; if (sid === 'kelly' || (sid === 'mix' && cfgL.mixSize === 'kelly')) { kS = kNew(); for (const x of rec.values()) if (x.result && x.result !== 'void' && x.ask >= cfgL.minAsk && x.close <= now) kAdd(kS, x.avgN || x.ask, !!x.won); }
       // MC 2026-11-09 schedule: hours (ET, by entry time) picked as off are skipped (MC 2026-11-14 live's own off hours now)
-      const sl = slotOf(now, etHour), offNow = offSlots(cfgL).has(sl);   // MC 2026-11-21 in half hours
+      const sl = slotOf(now, etHour), offNow = offAt(cfgL, now, etHour);   // MC 2026-11-21 in half hours
       hitsL.sort((a, b) => (b.vol?.z ?? -9) - (a.vol?.z ?? -9));   // clearest first, so profit protection gives them the room
       for (const r of hitsL) {
         if (offNow) { skipLive(r, `off schedule (${slotName(sl)} ET half hour)`); continue; }
@@ -1260,7 +1260,7 @@ export function createKalshi(state, env, keep) {
     const lab = labDefs(cfgL).find(l => l.id === pb), sends = [], missed = [], cn = coin(r.series), hc = pb === 'cph';
     // MC 2026-11-18 lateZ: the least cushion a later buy needs (1 = the playbook's own bar). Asked for after a NEAR later buy at
     // 1.18 moves turned into a coin flip in its last minutes on all three accounts.
-    const ok = cfg => cfg.lateBuy === 1 && (r.vol?.z ?? 0) >= Math.max(hc ? HC_Z : 1, cfg.lateZ ?? 1) - 1e-9 && !((hc || cfg.lateCrowd !== 0) && (r.crowd || r.cz > XC_Z)) && lateMOk(r.vol, Math.max(hc ? 0.2 : 0, cfg.lateM ?? 0.2)) && (!cfg.coins?.length || cfg.coins.includes(cn)) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9 && !offSlots(cfg).has(slotOf(now, etHour));
+    const ok = cfg => cfg.lateBuy === 1 && (r.vol?.z ?? 0) >= Math.max(hc ? HC_Z : 1, cfg.lateZ ?? 1) - 1e-9 && !((hc || cfg.lateCrowd !== 0) && (r.crowd || r.cz > XC_Z)) && lateMOk(r.vol, Math.max(hc ? 0.2 : 0, cfg.lateM ?? 0.2)) && (!cfg.coins?.length || cfg.coins.includes(cn)) && r.ask >= cfg.minAsk && r.ask <= (cfg.maxAsk ?? 0.99) + 1e-9 && !offAt(cfg, now, etHour);
     if (!c.paused && stratAt(c.strat, now) === pb && stratAt(c.strat, r.close - 600000) === pb && ok(cfgL) && liveSeries().includes(r.series)) { const prev = L.get(r.ticker);   // a paused Main sits out (request 13); the books still look
       if (!prev || prev.skipped) { if (prev) L.delete(r.ticker);
         try { await onRule(r, lab, sends, missed); } catch (e) { fail('order error: ' + e.message); }
@@ -1271,7 +1271,7 @@ export function createKalshi(state, env, keep) {
     // still buys, the note is then replaced by the order as with any skip).
     else if (stratAt(c.strat, now) === pb && liveSeries().includes(r.series) && !L.has(r.ticker)) { const z = r.vol?.z ?? 0, zN = Math.max(hc ? HC_Z : 1, cfgL.lateZ ?? 1), m = Math.max(hc ? 0.2 : 0, cfgL.lateM ?? 0.2);
       const why = cfgL.lateBuy !== 1 ? null : cfgL.coins?.length && !cfgL.coins.includes(cn) ? null : !(r.ask >= cfgL.minAsk && r.ask <= (cfgL.maxAsk ?? 0.99) + 1e-9) ? null
-        : offSlots(cfgL).has(slotOf(now, etHour)) ? `later buy passed: off schedule (${slotName(slotOf(now, etHour))} ET half hour)`
+        : offAt(cfgL, now, etHour) ? `later buy passed: off schedule (${slotName(slotOf(now, etHour))} ET half hour)`
         : z < zN - 1e-9 ? `later buy passed: cushion ${z}, live's later buys need ${zN}`
         : (hc || cfgL.lateCrowd !== 0) && (r.crowd || r.cz > XC_Z) ? 'later buy passed: it trails a crowded move (the other coins are already far clear)'
         : !lateMOk(r.vol, m) ? `later buy passed: not inside every line by live's margin of ${m}` : null;
@@ -1301,7 +1301,7 @@ export function createKalshi(state, env, keep) {
   // off hours and the coin list all hold, and the limit stays under 96.5c. One go a market: bought or refused, it is not
   // tried again, and an account that already has an order in the market is left alone. Nothing here touches paper.
   const MPL = { id: 'mp', name: 'Full Signal pick' }, mpDone = new Map();
-  const mpOk = (cfg, cn, now) => cfg.mpBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && !offSlots(cfg).has(slotOf(now, etHour));
+  const mpOk = (cfg, cn, now) => cfg.mpBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && !offAt(cfg, now, etHour);
   let mpBusy = false; const mpRead = new Map();
   const mpWanted = () => { const c = ctl(); return !!c.enabled && !c.autoPause && hasKeys() && ((cfgL.mpBuy === 1 && !c.paused) || books.mpAny(cfgL)); };
   async function mpLive(out, now, fast = false) { if (mpBusy) return; mpBusy = true; try { await mpLive1(out, now, fast); } finally { mpBusy = false; } }
@@ -1322,7 +1322,7 @@ export function createKalshi(state, env, keep) {
       if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) { if (s.lask >= 0.8) no(s, `the tracker has it at ${(s.lask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; }
       const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) { no(s, `only ${same} of ${W.filter(o => o.close === s.close).length} coins lean its way on the tracker's prices`); continue; }
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
-      const mainFull = books.mpFull(L, cfgL, s.close, s.tk); let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && !mainFull && (!p || !!p.skipped || books.mpMiss(p)), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk, s.close); if (!mainWants && !bkWants) { no(s, mainFull && cfgL.mpBuy === 1 ? `Full Signal pick cap: Main has its ${cfgL.mpCap ?? 2} for this window (Settings, Live)` : p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
+      const mainFull = books.mpFull(L, cfgL, s.close, s.tk); let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && !mainFull && (!p || !!p.skipped || books.mpMiss(p)), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk, s.close); if (!mainWants && !bkWants) { no(s, mainFull && cfgL.mpBuy === 1 ? `Full Signal pick cap: Main has its ${cfgL.mpCap ?? 2} for this window (Settings, Live)` : p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offAt(cfgL, now, etHour) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
       if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < MPZ - 1e-9) { no(s, `cushion ${v.z} on the tracker's reading, needs ${MPZ}`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
@@ -2276,7 +2276,7 @@ export function createKalshi(state, env, keep) {
       const ko = kOf(kS, px);
       const f = late ? true : lab ? lab.filter({ px, win: winN[w], same: sameN[w + r.side], z: r.vol?.z ?? null, z2: r.vol?.z2 ?? null, z10: r.vol?.z10 ?? null, tl: r.vol?.tl ?? null, lk: r.vol?.lk ?? null, sw: r.vol?.sw ?? null, dp: r.vol?.dp ?? null, r2: r.vol?.r2 ?? null, kf: ko.kf, pl: r.lp ?? null }) : true, strat = f !== true ? sid : null;
       const sizeUsd = lab?.size ? lab.size(bal, { kf: ko.kf, win: winN[w] }, { peak, start: K.startUsd }) : K.sizeUsd;
-      const off = offK.has(slotOf(r.at, etHour)), capped0 = !hand && ((!late && perWin[w] > K.maxPerWindow) || halted || (cold && !late) || off || !!strat);
+      const off = offK.has(slotOf(r.at, etHour)) || dayOff(K, r.at, etHour), capped0 = !hand && ((!late && perWin[w] > K.maxPerWindow) || halted || (cold && !late) || off || !!strat);
       // MC 2026-11-10 protect today's profit (Steven's request). Once the day's high reaches lockAt, a window may stake no more than
       // today's profit minus lockKeep% of the day's high, so the worst a window can do is take the day back to that floor (keep 0:
       // back to even). The budget is fixed when the window's first trade comes up and shared across its coins, clearest first; a
@@ -2511,6 +2511,12 @@ export function createKalshi(state, env, keep) {
       if (Array.isArray(a.skipSlots) || Array.isArray(a.skipHours)) { const v = Array.isArray(a.skipSlots) ? [...new Set(a.skipSlots.map(Number).filter(h => Number.isInteger(h) && h >= 0 && h < 48))].sort((x, y) => x - y) : [...new Set(a.skipHours.map(Number).filter(h => Number.isInteger(h) && h >= 0 && h < 24))].flatMap(h => [h * 2, h * 2 + 1]).sort((x, y) => x - y);
         if (v.length === 48) return { ok: false, msg: 'Leave at least one half hour on.' };
         const was = [...offSlots(cur)].sort((x, y) => x - y); if (JSON.stringify(v) !== JSON.stringify(was)) { out.skipSlots = v; out.skipHours = [...Array(24).keys()].filter(h => v.includes(h * 2) && v.includes(h * 2 + 1)); ch.push(`off half hours ${v.length ? v.map(slotName).join(', ') : 'none'}`); } }
+      // MC 2026-11-24 half hours off on some days of the week only (skipDays, books.js dayOff). A half hour already off every day
+      // is left out of a day's list, and seven empty lists are saved as none.
+      if (Array.isArray(a.skipDays)) { const base = new Set(out.skipSlots || [...offSlots(cur)]), v = Array.from({ length: 7 }, (_, d) => [...new Set((Array.isArray(a.skipDays[d]) ? a.skipDays[d] : []).map(Number).filter(h => Number.isInteger(h) && h >= 0 && h < 48 && !base.has(h)))].sort((x, y) => x - y));
+        if (v.some(x => x.length + base.size >= 48)) return { ok: false, msg: 'Leave at least one half hour on every day.' };
+        const nv = v.some(x => x.length) ? v : null, norm = x => JSON.stringify(Array.isArray(x) && x.some(y => y?.length) ? Array.from({ length: 7 }, (_, d) => x[d] || []) : null);
+        if (norm(nv) !== norm(cur.skipDays)) { out.skipDays = nv; const DN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; ch.push(`off by day ${nv ? nv.map((x, d) => x.length ? `${DN[d]} ${x.map(slotName).join(' ')}` : '').filter(Boolean).join('; ') : 'none'}`); } }
       if (!ch.length) return { ok: false, msg: 'Nothing changed.' };
       if (bk) { await books.setCfg(bk.id, pickL({ ...cur, ...out }), ch.join(', ')); viewDirty = true; await publish(true); return { ok: true, msg: `${bk.name} now has its own live rules: ${ch.join(', ')}.` }; }
       if (isL) { cfgL = { ...cfgL, ...out }; await kv.put('kcfgL', cfgL); say(`LIVE settings: ${ch.join(', ')}`); } else { cfgP = { ...cfgP, ...out }; await kv.put('kcfg', cfgP); }
