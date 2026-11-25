@@ -296,7 +296,7 @@ export function createBooks(D) {
   // none of them: they stay off for it (its own hours still count) rather than following Main's, until saved for that book
   const cfgOf = (b, main) => b.cfg ? { ...main, ...OWN_NEW, ...b.cfg } : main;
   // MC 2026-11-22 request 13: a book paused by hand (pauseTo, set from the accounts panel; -1 is until resumed) is on but places
-  // no automatic buys: the trade check, later buys and Mitch picks pass it over, while hand buys and sells, the cash out rule
+  // no automatic buys: the trade check, later buys and Full Signal picks pass it over, while hand buys and sells, the cash out rule
   // and settlement go on. live(b) is "on and not paused"; the pause lifts itself when its time passes.
   const paused = b => D.pauseOn(+b.pauseTo || 0), live = b => b.on && !paused(b), pausedWhy = b => `${b.name} is paused by hand ${D.pauseText(+b.pauseTo)}`;
   async function onMark(hits0, now, gate0, cfg0, bench0, missed = null, own = null) {
@@ -322,10 +322,10 @@ export function createBooks(D) {
   // already sent is left alone.
   // a book that runs later watched with the setting on and has no order in this market yet (kalshi-cloud.js lateWants)
   const lateOpen = (tk, now, cfg0, pb = 'cpl') => (list || []).some(b => { if (!live(b) || D.stratAt(b.strat, now) !== pb || cfgOf(b, cfg0).lateBuy !== 1) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped; });
-  // MC 2026-11-22 the Mitch pick buy (kalshi-cloud.js mpLive) uses onLate with pb '*': any playbook, the book only has to have
+  // MC 2026-11-22 the Full Signal pick buy (kalshi-cloud.js mpLive) uses onLate with pb '*': any playbook, the book only has to have
   // the setting on in the rules it follows. mpAny: is it on for any live book; mpOpen: a book that wants this market and has no order in it.
   const mpAny = cfg0 => (list || []).some(b => live(b) && cfgOf(b, cfg0).mpBuy === 1);
-  // MC 2026-11-23 Mitchell: Main's Mitch pick order found nothing for sale (his own accounts all send in the same second and
+  // MC 2026-11-23 Mitchell: Main's Full Signal pick order found nothing for sale (his own accounts all send in the same second and
   // the top of the book only covered one of them), and that was the end of that market for Main while the price sat 1.5c
   // lower for minutes. An order that Kalshi answered with nothing filled no longer closes the market for that account: the
   // next 10-second look runs the whole rule again on a fresh reading and, if it still passes, sends again. Two more orders a
@@ -333,13 +333,13 @@ export function createBooks(D) {
   // not enough here: it gives up when the offer has dropped more than 1c, which is what happened. mpMiss is that test, used
   // by the main account too (kalshi-cloud.js mpLive1); avgYes is only on a row once Kalshi has answered the order.
   const mpMiss = p => !!p && p.strat === 'mp' && !p.skipped && !p.pend && !p.err && p.fill === 0 && p.avgYes !== undefined && (p.mpTry || 0) < 2 && !p.result;
-  // MC 2026-11-23 Mitchell, after one window took four Mitch picks in each of three accounts and lost all twelve (ETH, SOL, BNB
-  // and ZEC all leaning NO, the market bounced): a cap on Mitch picks a window, each account its own (mpCap, 2 unless changed,
-  // 9 is no cap). A Mitch pick needs 7 of 9 coins leaning one way, so several in one window are close to one bet. On 90 days
+  // MC 2026-11-23 Mitchell, after one window took four Full Signal picks in each of three accounts and lost all twelve (ETH, SOL, BNB
+  // and ZEC all leaning NO, the market bounced): a cap on Full Signal picks a window, each account its own (mpCap, 2 unless changed,
+  // 9 is no cap). A Full Signal pick needs 7 of 9 coins leaning one way, so several in one window are close to one bet. On 90 days
   // at $50 a buy: no cap $43 a day with a worst window of -$295, cap 4 $44 and -$200, cap 3 $39 and -$150, cap 2 $33 and
-  // -$101; the fifth buy on loses money on average. Taken in the order they pass, as live does. mpCount is the Mitch picks an
+  // -$101; the fifth buy on loses money on average. Taken in the order they pass, as live does. mpCount is the Full Signal picks an
   // account holds or has an order out for in the window, leaving out this market (so a no-fill can still be tried again).
-  // "Most trades a window" (winCap) still counts everything; this one counts Mitch picks only.
+  // "Most trades a window" (winCap) still counts everything; this one counts Full Signal picks only.
   const mpCount = (Lb, close, tk) => { let n = 0; if (Lb) for (const x of Lb.values()) if (x.close === close && x.tk !== tk && x.strat === 'mp' && !x.skipped && !x.err && (x.fill > 0 || x.pend)) n++; return n; };
   const mpFull = (Lb, cfg, close, tk) => { const cap = cfg.mpCap ?? 2; return cap < 9 && close != null && mpCount(Lb, close, tk) >= cap; };
   const mpOpen = (tk, cn, now, cfg0, ok, close = null) => (list || []).some(b => { const cf = cfgOf(b, cfg0); if (!live(b) || !ok(cf, cn, now) || mpFull(L[b.id], cf, close, tk)) return false; const p = L[b.id]?.get(tk); return !p || !!p.skipped || mpMiss(p); });
@@ -348,7 +348,7 @@ export function createBooks(D) {
     await load();
     await Promise.all(list.filter(b => live(b) && (pb === '*' || (D.stratAt(b.strat, now) === pb && D.stratAt(b.strat, r.close - 600000) === pb))).map(async b => {
       const cfgP = cfgOf(b, cfg0), Lb = L[b.id], sends = []; if (!ok(cfgP)) return;
-      if (pb === '*' && mpFull(Lb, cfgP, r.close, r.ticker)) { skip(b, r, `Mitch pick cap: ${cfgP.mpCap ?? 2} a window already taken`, true); return; }
+      if (pb === '*' && mpFull(Lb, cfgP, r.close, r.ticker)) { skip(b, r, `Full Signal pick cap: ${cfgP.mpCap ?? 2} a window already taken`, true); return; }
       const prev = Lb.get(r.ticker), re = pb === '*' && mpMiss(prev); if (prev && !prev.skipped && !re) return; if (prev) Lb.delete(r.ticker);
       try { await buy(b, re ? { ...r, cidx: '-m' + ((prev.mpTry || 0) + 1) } : r, lab, cfgP, benchOf(cfgP), sends, missed);
         const x = Lb.get(r.ticker); if (!x) { if (prev) Lb.set(r.ticker, prev); } else { x.late = 1; if (re) x.mpTry = (prev.mpTry || 0) + 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveRow(b, x); }

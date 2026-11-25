@@ -58,7 +58,7 @@ const L2_LO = 0.9099, L2_HI = 0.9501, L2_MIN_LEFT = 4;   // second look: price b
 // MC 2026-11-24 Mitchell: 1.3 from 1.2, for everyone. With the Check bar at +2c it moves little in the 90 days of Edge data
 // (1,119 buys to 1,101, 94.7% won to 94.9%, $17 a day both ways), so it is a slightly tighter guard and not a new edge.
 const MPZ = 1.3;
-// MC 2026-11-24 the Check a Mitch pick needs. It was +1c in the rule, then +1.3c for everyone this morning, and an hour later
+// MC 2026-11-24 the Check a Full Signal pick needs. It was +1c in the rule, then +1.3c for everyone this morning, and an hour later
 // Mitchell asked for it as a setting, each account its own, starting at +2c (mpEdge, 1 to 5, MPE is the start; the page's
 // KXMPE is the same number). Three days live: 236 buys, 84% won where the backtest said 94%, and the buys with the Check at
 // +1.0c to +1.5c were the trouble (19 of 27 markets won). Live on Nov 23 and 24: +1.3c 104 buys with 11 lost, +1.5c 84 with 8,
@@ -110,7 +110,7 @@ function labWhy(id, t, K = {}) {
   return null;
 }
 const PB_CAP = { no95: 0.95, mv95: 0.95, mvl: 0.95, mv15: 0.95, mvai: 0.95, mvsw: 0.95, mvcc: 0.95, cpk: 0.95, cpl: 0.95, cpe: 0.95, cph: 0.95, all: 0.95, mv96: 0.96, mp: 0.965 };
-// MC 2026-11-22 the hand-buy check's edge (page.html KXM, kxHcEst), here for the Mitch pick buy: its win chance for a leader
+// MC 2026-11-22 the hand-buy check's edge (page.html KXM, kxHcEst), here for the Full Signal pick buy: its win chance for a leader
 // less the price and Kalshi's fee, in cents a contract. r: ask, z cushion, dp deepest dip, pv last window same way, spr spread
 // in cents, left minutes. A reading that is missing takes its usual value at that price.
 const HCM0 = { c0: .2929, lp: .7726, z: .6225, spr: -.0336, pv: -.0535, dp: .0956, lf: -.0397 }, HCR0 = { z: [.1914, .3266], spr: [2.7108, -.69], pv: [.4947, 0], dp: [-1.0711, .0482] };
@@ -983,8 +983,8 @@ export function createKalshi(state, env, keep) {
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, hand: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => x.hand)),
-        // MC 2026-11-24 Mitchell: Today split four ways now, Claude's pick at the check and late, Mitch picks early and late. mpe is
-        // a Mitch pick bought before the trade check (over 10 minutes left), mpl one bought after; both are inside late.
+        // MC 2026-11-24 Mitchell: Today split four ways now, Claude's pick at the check and late, Full Signal picks early and late. mpe is
+        // a Full Signal pick bought before the trade check (over 10 minutes left), mpl one bought after; both are inside late.
         mpe: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => !x.hand && x.strat === 'mp' && x.close - x.at > 600000)), mpl: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => !x.hand && x.strat === 'mp' && !(x.close - x.at > 600000))),
         late: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => !x.hand && x.late)),   // MC 2026-11-20 the automatic part split into trade-check buys and later buys, for Today   // MC 2026-11-18 the part of today that was bought by hand, so the page can show the two records apart
         ...(() => { const ps = todayL().filter(x => x.skipped && x.strat && !(x.fill > 0)), rs = ps.map(x => [x, rec.get(x.tk)?.result]).filter(z => z[1] === 'yes' || z[1] === 'no'); return { passed: ps.length, pWon: rs.filter(z => z[1] === z[0].side).length, pLost: rs.filter(z => z[1] !== z[0].side).length }; })() }, bench: [...coldSet(Date.now(), cfgL)], cfg: cfgL, where: 'cloud',
@@ -1290,7 +1290,7 @@ export function createKalshi(state, env, keep) {
       r.res = res; r.won = res === r.side ? 1 : 0; days.add(etDay(r.close)); }
     for (const d of days) xSave(d); if (days.size) viewDirty = true;
   }
-  // MC 2026-11-22 Mitchell asked for a switch that buys a Mitch pick (the scanner's purple glow) with real money, on top of the
+  // MC 2026-11-22 Mitchell asked for a switch that buys a Full Signal pick (the scanner's purple glow) with real money, on top of the
   // playbook the account runs. Off unless turned on (live setting mpBuy; a book with its own rules has its own). The rule, the
   // one backtested the same day: leader at 85c to under 96.5c, 13 down to 2 minutes left, cushion 1 or more, likely line on
   // its side, at least 7 of the window's leaders on the same side, and the hand-buy check at +1c a contract or better. It is
@@ -1300,7 +1300,7 @@ export function createKalshi(state, env, keep) {
   // every other live order (onRule, and buy in books.js): size, daily stops, protect profit, cash floor, window cap, bench,
   // off hours and the coin list all hold, and the limit stays under 96.5c. One go a market: bought or refused, it is not
   // tried again, and an account that already has an order in the market is left alone. Nothing here touches paper.
-  const MPL = { id: 'mp', name: 'Mitch pick' }, mpDone = new Map();
+  const MPL = { id: 'mp', name: 'Full Signal pick' }, mpDone = new Map();
   const mpOk = (cfg, cn, now) => cfg.mpBuy === 1 && (!cfg.coins?.length || cfg.coins.includes(cn)) && !offSlots(cfg).has(slotOf(now, etHour));
   let mpBusy = false; const mpRead = new Map();
   const mpWanted = () => { const c = ctl(); return !!c.enabled && !c.autoPause && hasKeys() && ((cfgL.mpBuy === 1 && !c.paused) || books.mpAny(cfgL)); };
@@ -1322,33 +1322,33 @@ export function createKalshi(state, env, keep) {
       if (!(s.lask >= 0.85 && s.lask < 0.965 - 1e-9)) { if (s.lask >= 0.8) no(s, `the tracker has it at ${(s.lask * 100).toFixed(1)}c, outside 85c to 96.5c`); continue; }
       const same = W.filter(o => o.close === s.close && o.leader === s.leader).length; if (same < 7) { no(s, `only ${same} of ${W.filter(o => o.close === s.close).length} coins lean its way on the tracker's prices`); continue; }
       const series = liveSeries().find(x => coin(x) === s.coin) || null, p = L.get(s.tk);
-      const mainFull = books.mpFull(L, cfgL, s.close, s.tk); let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && !mainFull && (!p || !!p.skipped || books.mpMiss(p)), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk, s.close); if (!mainWants && !bkWants) { no(s, mainFull && cfgL.mpBuy === 1 ? `Mitch pick cap: Main has its ${cfgL.mpCap ?? 2} for this window (Settings, Live)` : p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
+      const mainFull = books.mpFull(L, cfgL, s.close, s.tk); let mainWants = !!series && !c.paused && mpOk(cfgL, s.coin, now) && !mainFull && (!p || !!p.skipped || books.mpMiss(p)), bkWants = books.mpOpen(s.tk, s.coin, now, cfgL, mpOk, s.close); if (!mainWants && !bkWants) { no(s, mainFull && cfgL.mpBuy === 1 ? `Full Signal pick cap: Main has its ${cfgL.mpCap ?? 2} for this window (Settings, Live)` : p && !p.skipped ? 'every account that wants it already has an order in this market' : cfgL.mpBuy === 1 && c.paused ? `Main is paused by hand ${pauseText(c.pauseTo)}` : cfgL.mpBuy === 1 && offSlots(cfgL).has(slotOf(now, etHour)) ? 'this half hour is switched off in the live schedule (Settings, Live)' : cfgL.mpBuy === 1 && !series ? 'this coin is not in the live coin list' : 'no account wants it'); continue; }
       // a 10-second look takes its own reading (the minute scan's can be most of a minute old), one a coin every 8 seconds at most
       let v = !fast && s.pbV && s.pbSide === s.leader ? s.pbV : null; if (!v) { const m = mpRead.get(s.tk + s.leader); if (m && now - m.at < 8000) v = m.v; else { if (++reads > (fast ? 4 : 6)) break; v = await volAt(s.coin, s.strike, s.leader).catch(() => null); mpRead.set(s.tk + s.leader, { at: now, v }); if (mpRead.size > 40) mpRead.clear(); } }
       if (!v || v.src === 'stale' || v.z == null) { no(s, 'no fresh price reading for this coin'); continue; } if (v.z < MPZ - 1e-9) { no(s, `cushion ${v.z} on the tracker's reading, needs ${MPZ}`); continue; } if (!(v.lk > 0)) { no(s, 'likely line is against it on the tracker\'s reading'); continue; }
-      // MC 2026-11-23 Mitchell: a Mitch pick buy needs a cushion of 1.2, not 1, on every account (MPZ, the page's KXMPZ is the
+      // MC 2026-11-23 Mitchell: a Full Signal pick buy needs a cushion of 1.2, not 1, on every account (MPZ, the page's KXMPZ is the
       // same number so the purple glow and the buy agree). On the 90 days of Edge data at $35 a buy: 1.0 gave 3,475 buys, 94.0%
       // won, $0.72 a trade; 1.2 gave 3,374, 94.3%, $0.80, and both halves of the period were better. 1.1 changed nothing and
       // 1.5 cut a sixth of the buys for the same pay a trade. An account's before-the-check setting under 1.2 now acts as 1.2.
-      // MC 2026-11-22 Mitchell, after the first Mitch pick loss (BTC bought with 12 minutes left, lost by $5.87): a setting for
-      // the cushion a Mitch pick needs when it is bought before the trade check, 1.3 unless changed (he said 1.5, then 1.3).
+      // MC 2026-11-22 Mitchell, after the first Full Signal pick loss (BTC bought with 12 minutes left, lost by $5.87): a setting for
+      // the cushion a Full Signal pick needs when it is bought before the trade check, 1.3 unless changed (he said 1.5, then 1.3).
       // Each account has its own (mpPreZ), so one may take a buy another passes on. From the trade check on the rule's own
       // cushion applies as before (1 then, 1.2 from Nov 23). A 94-day backtest of 1.3 early changed 13 buys in 6,227, so this is a guard, not an edge.
       // MC 2026-11-23 the owner moved his own to 2 after a night of watching it and asked for 2 to be the start for everyone.
       // MC 2026-11-24 Mitchell, after SOL NO was bought with 3 minutes left at 93c and lost by 0.004% on all four accounts: two
-      // time limits on a Mitch pick, each account its own. mpEnd, no buy with fewer minutes left than this (4 unless changed):
+      // time limits on a Full Signal pick, each account its own. mpEnd, no buy with fewer minutes left than this (4 unless changed):
       // the 90 days of Edge data have no buy that late at all, so it was never tested, and at 93c it risks $49 to make $3.50.
       // mpAfter, after the trade check no buy until this many minutes are left (8 unless changed, 10 is no wait): buys at 8 to
       // 9 minutes left made $0.35 a trade in the backtest against $2.47 to $2.72 either side, and live they were 26 of 32
       // markets won where 6 to 7 minutes was 26 of 28. Dropping them costs about $1 a day in the backtest.
       const okT = cfg => left >= (cfg.mpEnd ?? 4) && !(left < 10 && left >= (cfg.mpAfter ?? 8));
       // MC 2026-11-24 Mitchell, watching BNB and XRP bought 3 minutes into a window on the opening drop and then drift back to
-      // their targets: the early cushion went to 2.5 for an hour and back to 2 (note in load()), and there is a switch to buy no Mitch pick before the trade check
+      // their targets: the early cushion went to 2.5 for an hour and back to 2 (note in load()), and there is a switch to buy no Full Signal pick before the trade check
       // at all (mpNoPre, off unless turned on, each account its own). In the backtest the early buys are the best stretch
       // (95.9% won, $2.72 a trade); live so far they are 12 of 15 markets, so the switch is his call and not the default.
       const pre = left > 10, okZ = cfg => !pre || (cfg.mpNoPre !== 1 && v.z >= (cfg.mpPreZ ?? 2) - 1e-9), mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg) && okT(cfg);
-      { const mw = mainWants && okT(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw && okZ(cfgL)) { no(s, left < (cfgL.mpEnd ?? 4) ? `${left.toFixed(1)} minutes left, Mitch picks stop at ${cfgL.mpEnd ?? 4} (Settings, Live)` : `after the trade check Mitch picks wait until ${cfgL.mpAfter ?? 8} minutes are left (Settings, Live)`); continue; } if (!pre) mainWants = mw; }
-      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw) { no(s, cfgL.mpNoPre === 1 ? 'no Mitch picks before the trade check (Settings, Live); it is looked at again after' : `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
+      { const mw = mainWants && okT(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw && okZ(cfgL)) { no(s, left < (cfgL.mpEnd ?? 4) ? `${left.toFixed(1)} minutes left, Full Signal picks stop at ${cfgL.mpEnd ?? 4} (Settings, Live)` : `after the trade check Full Signal picks wait until ${cfgL.mpAfter ?? 8} minutes are left (Settings, Live)`); continue; } if (!pre) mainWants = mw; }
+      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw) { no(s, cfgL.mpNoPre === 1 ? 'no Full Signal picks before the trade check (Settings, Live); it is looked at again after' : `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
       // each account's own Check bar (mpEdge), on the tracker's reading here and again on the real offer below
       const eBar = cfg => cfg.mpEdge ?? MPE, okE = (cfg, a) => edge(a) >= eBar(cfg) - 1e-9, mpOkE = a => (cfg, cn, t) => mpOkZ(cfg, cn, t) && okE(cfg, a);
@@ -1358,15 +1358,15 @@ export function createKalshi(state, env, keep) {
       mpDone.set(s.tk, { t: s.close + 60000, why: 'order sent' }); no(s, 'order sent');
       const avgN = walk(asks, BOOK_N), ser = series || scanSeries().find(x => coin(x) === s.coin);
       const r = { lad: asks.slice(0, 10).map(([p0, q0]) => [Math.round(p0 * 1000), Math.round(q0)]), ticker: s.tk, late: 1, mp: 1, series: ser, at: Date.now(), close: s.close, left: +left.toFixed(2), side: s.leader, ask, depthAtAsk: asks[0][1], avgN: avgN == null ? null : +avgN.toFixed(4), strike: s.strike, title: rec.get(s.tk)?.title || null, ya: b.yesAsks[0]?.[0] ?? null, na: b.noAsks[0]?.[0] ?? null, depth: asks.reduce((q0, x) => q0 + x[1], 0), vol: v, src: 'cloud' };
-      say(`${s.tk} ${s.leader.toUpperCase()} at ${(ask * 100).toFixed(1)}c <- Mitch pick: ${v.z} moves clear, ${same} of ${W.filter(o => o.close === s.close).length} on its side, edge +${edge(ask).toFixed(1)}c, ${left.toFixed(1)} min left`);
+      say(`${s.tk} ${s.leader.toUpperCase()} at ${(ask * 100).toFixed(1)}c <- Full Signal pick: ${v.z} moves clear, ${same} of ${W.filter(o => o.close === s.close).length} on its side, edge +${edge(ask).toFixed(1)}c, ${left.toFixed(1)} min left`);
       const sends = [], missed = [];
       // a row Kalshi answered with nothing filled is tried again here on this look's fresh reading (books.js mpMiss, two more at most)
       if (mainWants) { const prev = L.get(s.tk), re = books.mpMiss(prev); if (!prev || prev.skipped || re) { if (prev) L.delete(s.tk);
-        try { await onRule(re ? { ...r, cidx: '-m' + ((prev.mpTry || 0) + 1) } : r, MPL, sends, missed); } catch (e) { fail('Mitch pick order error: ' + e.message); }
+        try { await onRule(re ? { ...r, cidx: '-m' + ((prev.mpTry || 0) + 1) } : r, MPL, sends, missed); } catch (e) { fail('Full Signal pick order error: ' + e.message); }
         const x = L.get(s.tk); if (!x) { if (prev) L.set(s.tk, prev); } else { x.late = 1; x.mp = 1; if (re) x.mpTry = (prev.mpTry || 0) + 1; if (prev?.skipped && !x.skipped) x.was = prev.skipped; saveL(x); } } }
-      await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('Mitch pick order error: ' + e.message)))), books.onLate(r, now, MPL, cfgL, cfg => mpOkE(ask)(cfg, s.coin, now), cfg => coldSet(now, cfg), missed, '*').catch(e => say('books error: ' + e.message))]);
+      await Promise.all([Promise.all(sends.map(f => f().catch(e => fail('Full Signal pick order error: ' + e.message)))), books.onLate(r, now, MPL, cfgL, cfg => mpOkE(ask)(cfg, s.coin, now), cfg => coldSet(now, cfg), missed, '*').catch(e => say('books error: ' + e.message))]);
       try { await missCheck(missed); } catch (e) { say('miss check error: ' + e.message); }
-      // MC 2026-11-22 the first Mitch pick loss could not be checked against the rule. The export showed cushion 1.13 for a buy
+      // MC 2026-11-22 the first Full Signal pick loss could not be checked against the rule. The export showed cushion 1.13 for a buy
       // that needed the check at +1c, and several earlier wins showed a cushion under 1. The reading on the export was the
       // market's own record (taken at the trade check or the later watch), not the one this look bought on, and the
       // sub accounts' rows kept no reading at all. Every row this buy made now keeps the look's own reading (vol, fl) and
@@ -1377,7 +1377,7 @@ export function createKalshi(state, env, keep) {
       { const x = L.get(s.tk); no(s, x?.skipped ? 'not bought: ' + x.skipped : x?.fill > 0 ? `bought ${x.fill} at ${(x.px * 100).toFixed(1)}c` : x?.err ? 'order refused: ' + x.err : x ? 'order sent, nothing filled' : mainWants ? 'no order went out' : 'sent for the subaccounts'); mpDone.get(s.tk).why = s.mpWhy; }
     }
   }
-  // MC 2026-11-22 Mitchell: once a minute is not often enough. While "Buy Mitch picks" is on for any account the tracker now
+  // MC 2026-11-22 Mitchell: once a minute is not often enough. While "Buy Full Signal picks" is on for any account the tracker now
   // looks every 10 seconds: one request refreshes Kalshi's prices for the nine markets, then the same rule and the same buy as
   // the minute look, on a reading taken then. It eases off around the trade check (from 45 seconds before it to 30 after), when
   // the check takes its own Coinbase readings and sends the playbook's orders, and it does nothing outside 13 to 2 minutes
@@ -1426,9 +1426,9 @@ export function createKalshi(state, env, keep) {
     // reading. Not read in the last 50 seconds before the check, so these calls never compete with the check's own readings;
     // the last answer is carried over.
     try { await scanPbRead(out, now); } catch (e) { say('scanner playbook read error: ' + e.message); }
-    { const was = new Map(scan.map(x => [x.tk, x])); for (const x of out) { const o = was.get(x.tk); if (o?.mpWhy && x.mpWhy == null) { x.mpWhy = o.mpWhy; x.mpAt = o.mpAt; } } }   // keep the Mitch pick look's last answer on the row
+    { const was = new Map(scan.map(x => [x.tk, x])); for (const x of out) { const o = was.get(x.tk); if (o?.mpWhy && x.mpWhy == null) { x.mpWhy = o.mpWhy; x.mpAt = o.mpAt; } } }   // keep the Full Signal pick look's last answer on the row
     scan = out; scanAt = now;
-    try { await mpLive(out, now); } catch (e) { say('Mitch pick buy error: ' + e.message); }
+    try { await mpLive(out, now); } catch (e) { say('Full Signal pick buy error: ' + e.message); }
     // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend
     // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
     const toClose = Q - (now % Q);
@@ -1546,9 +1546,9 @@ export function createKalshi(state, env, keep) {
     // the market had to be asked for directly. It is now copied from the tracker's own record when the trade settles (onSettle),
     // and a row that settled without it (Kalshi can post the result a moment before the value) is filled here afterwards.
     // MC 2026-11-22 Mitchell: the replays were gone from Trades. A live row only kept the market's target when the market had no
-    // tracker record; with a record the page took the target from it, but only from a trade-check record. Mitch picks and
+    // tracker record; with a record the page took the target from it, but only from a trade-check record. Full Signal picks and
     // later buys have a later-watch record, so the page found no target and drew no replay. The target is now kept on every
-    // live row: copied here for rows already made, set at the buy for Mitch picks, and the views fall back to the record.
+    // live row: copied here for rows already made, set at the buy for Full Signal picks, and the views fall back to the record.
     { for (const x of [...L.values(), ...books.allRows()]) { if (!(x.fill > 0) || x.strike != null || x.close < now - 7 * 86400000) continue; const k = rec.get(x.tk)?.strike ?? rec4?.get(x.tk)?.strike; if (k > 0) { x.strike = k; if (L.get(x.tk) === x) saveL(x); else books.saveAny(x); viewDirty = true; } } }
     { for (const x of [...L.values(), ...books.allRows()]) { if (!(x.fill > 0) || !x.result || x.final != null || x.close < now - 86400000) continue; const f = rec.get(x.tk)?.final; if (typeof f === 'number') { x.final = f; if (L.get(x.tk) === x) saveL(x); else books.saveAny(x); viewDirty = true; } }
       const need = [...L.values(), ...books.allRows()].filter(x => x.fill > 0 && x.result && x.final == null && !x.finTry && x.close > now - 86400000 && x.close < now - 120000).slice(0, 4);
@@ -1640,7 +1640,7 @@ export function createKalshi(state, env, keep) {
     // MC 2026-11-21 a sub account's hand buy that Main did not also make had no quick look and waited for the minute run
     for (const x of [...L.values(), ...books.allRows()]) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
     if (books.payWait() || mainWait()) t = Math.min(t, now + 10000);   // a sub account's win not paid yet: read its cash again in 10 seconds
-    coreAt = t; if (fastWant(now + 10000) || fastWant(now)) t = Math.min(t, now + 10000);   // the 10-second Mitch pick look (fastLook)
+    coreAt = t; if (fastWant(now + 10000) || fastWant(now)) t = Math.min(t, now + 10000);   // the 10-second Full Signal pick look (fastLook)
     return t;
   }
   async function alarm() {
@@ -1648,8 +1648,8 @@ export function createKalshi(state, env, keep) {
     const now = Date.now(), mk = nextMark(now) - Q;
     // MC 2026-11-22 an alarm that is only the 10-second look does that and goes back to sleep: the settle checks and the rest
     // below keep the pace they had (coreAt is when they were next due; unknown after a restart, so the full run happens)
-    if (coreAt && now < coreAt - 1500) { try { await fastLook(now); } catch (e) { say('Mitch pick look error: ' + e.message); } await state.storage.setAlarm(nextAlarm(Date.now())); if (viewDirty) await publish(true); return; }
-    try { await fastLook(now); } catch (e) { say('Mitch pick look error: ' + e.message); }
+    if (coreAt && now < coreAt - 1500) { try { await fastLook(now); } catch (e) { say('Full Signal pick look error: ' + e.message); } await state.storage.setAlarm(nextAlarm(Date.now())); if (viewDirty) await publish(true); return; }
+    try { await fastLook(now); } catch (e) { say('Full Signal pick look error: ' + e.message); }
     if (now - mk < 60000 && st.lastMark < mk) { try { await entry(now); } catch (e) { say('entry error: ' + e.message); } }
     { const c = Math.ceil(now / Q) * Q, left = c - now; if (left <= 31500 && left >= 12000 && lsDone !== c) { lsDone = c; try { await lastLook(now, c); } catch (e) { say('last look error: ' + e.message); } } }
     let moved = false; try { moved = await settleSome(now, true); } catch (e) { say('quick settle error: ' + e.message); }
@@ -1777,7 +1777,7 @@ export function createKalshi(state, env, keep) {
           // it! / $40.00 paid out · ETH 15 min · $1,713.26 target"); ours ran to four lines and the headline was cut off on the
           // lock screen before the money ("Live account: ETH No won, +$1..."). The coin and the money now come first in the
           // headline, "Live account" is dropped (paper says Paper), and the body is one line of facts and one for the day.
-          const how = x => x.mp ? ' · Mitch pick' : x.late ? ' · later buy' : '', ac = x => x.acc > 1 ? ` on ${x.acc} accounts` : '';
+          const how = x => x.mp ? ' · Full Signal pick' : x.late ? ' · later buy' : '', ac = x => x.acc > 1 ? ` on ${x.acc} accounts` : '';
           out.push({ book, kind: 'open', tag: key + 'o' + close, url: '/', title: o.length === 1 ? `${pre}Bought ${o[0].coin} ${sd(o[0].side)} at ${c1(o[0].px)}` : `${pre}Bought ${o.length}: ${o.map(x => x.coin).join(', ')}`,
             body: (o.length === 1 ? `${o[0].n} contracts${ac(o[0])} · ${usd(cost)} in${how(o[0])}` : join(o.map(x => `${x.coin} ${sd(x.side)} ${c1(x.px)}`)) + `\n${usd(cost)} in`) + ` · settles ${tm(close)}` }); }
         const d = w.filter(x => x.done && !seen[key + 's' + x.id] && now - close < 40 * 60000), all = w.every(x => x.done);

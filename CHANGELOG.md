@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.121 (Nov 24, 2026): Mitch pick is now Full Signal pick
+
+- [improved] The purple-glow rule is renamed Full Signal pick everywhere: the scanner, settings, trade rows and chips, Today, Labs and the notes on why a coin was or was not bought. The name says what it waits for: price, cushion, the Check and the other coins all agreeing.
+- [improved] Only the name changed. The rule, its settings and their values are the same, and "Buy Mitch picks" is now "Buy Full Signal picks".
+- [improved] Notes saved on trades before this update keep the old name, and so do earlier entries below.
+
 ## 1.3.120 (Nov 24, 2026): Sounds matches the new Settings page
 
 - [improved] The Sounds group was still the old card sitting inside the new one. It now has the same look as the rest of Settings, and its header says what is picked, for example "On · To the moon for a win · Rug pull for a loss".
