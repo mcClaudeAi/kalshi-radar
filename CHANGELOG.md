@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.117 (Nov 24, 2026): early Mitch picks
+
+- [improved] The cushion a Mitch pick needs before the trade check now starts at 2.5, up from 2. An account still on the old start of 2 moves to 2.5 once; any other number you set is left alone.
+- [new] "Mitch picks before the trade check" in each account's live settings. It is on to start, as before. Turn it off and that account only buys Mitch picks in the later stretch of a window.
+- [improved] The scanner note says when an early pick is being held back by either one.
+
 ## 1.3.116 (Nov 24, 2026): two time limits on Mitch picks
 
 - [new] "Mitch picks: stop with this many minutes left", 4 to start. No Mitch pick is bought later than that. A late buy pays a few cents and can lose the whole stake on a last-second move, and the 90 days of history have no buy with under 4 minutes left, so that stretch was never tested.
