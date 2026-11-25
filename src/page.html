@@ -1988,6 +1988,7 @@ select.kx-sx{display:none!important}
 .kx-hh .kx-hp.lk{border-style:dashed;cursor:not-allowed}
 @media(max-width:700px){.kx-schsc{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.kx-schsc::-webkit-scrollbar{display:none}.kx-schsc button{flex:none;height:36px;line-height:34px}}
 .kx-setw .kx-bk{align-items:flex-start}
+@media(min-width:761px){.fr-intro{margin:12px 2px 10px}.fr-intro h2{font-size:20px}.fr-side{overflow-y:auto}.fr-m{max-width:min(76%,640px)}}
 .kx-setw .kx-sg .kx-strip{border:0;background:none;box-shadow:none;margin:0;padding:12px 0 14px;border-top:1px solid color-mix(in srgb,var(--line) 85%,transparent);border-radius:0;gap:10px 18px;font-size:13px}.kx-setw .kx-sg .kx-strip::before{display:none}
 .kx-setw .kx-sg .kx-strip .kx-ss{white-space:normal}.kx-setw .kx-sg .kx-strip .kx-ss b{font-size:13px}.kx-setw .kx-sg .kx-strip .kx-feeds{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:8px}
 .kx-setw .kx-savebar{border-radius:16px;border-color:var(--line2);background:color-mix(in srgb,var(--s1) 86%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
@@ -3012,7 +3013,7 @@ function frPaint(){const w=$('#frw');if(!w)return;const L=FR.list,me=FR.me||{},H
   const sig=sel?JSON.stringify([sel.id,sel.name,sel.share,sel.live,sel.tShare,sel.tLive,sel.gone,L.reduce((a,f)=>a+(f.id===sel.id?0:f.unread||0),0)]):'none';
   if(sig!==FR.sig){const had=$('#frtxt'),foc=had&&document.activeElement===had,val=had?.value;FR.sig=sig;main.innerHTML=sel?frThreadHtml(sel,L):'<div class="fr-pick"><b>Your conversations</b>Pick a friend to open the chat.</div>';
     if(sel&&val!=null&&$('#frtxt')){$('#frtxt').value=val;if(foc)$('#frtxt').focus();frTyped($('#frtxt'))}}
-  if(sel){frMsgs();frFit()}}
+  if(sel)frMsgs();frFit()}
 function frSideHtml(L,me){return `<div class="fr-me"><span>You appear as <b>${esc(me.name)}</b></span><button class="lnk" onclick="frRename()">Change</button></div>
     ${L.length?L.map(f=>`<button class="fr-it ${FR.sel===f.id?'on':''}" onclick="frPick('${f.id}')"><i>${frIni(f.name)}</i><span><b>${esc(f.name)}</b><small>${f.gone?'Removed the connection':esc(f.lastText||(f.tShare?'Sharing their dashboard with you':'Connected. Say hello.'))}</small></span><em>${f.unread?`<u>${f.unread}</u>`:frWhen(f.last)}</em></button>`).join(''):'<div class="fr-none">No friends yet. Make an invite code and send it to someone who runs their own copy, or paste theirs.</div>'}
     <div class="fr-add"><b>Add a friend</b><div class="fr-addb"><button class="btn sm" onclick="frInvite()">Make an invite code</button></div>${FR.code?`<div class="fr-code"><code id="frcode">${esc(FR.code.code)}</code><div class="fr-row"><button class="btn sm" onclick="frCopy()">Copy</button><span>Send this to your friend. It works once, for 24 hours.</span></div></div>`:''}
@@ -3048,7 +3049,11 @@ function frMsgs(){const e=$('#frmsgs');if(!e||!FR.sel)return;const M=FR.msgs[FR.
 // a photo that finishes loading makes the list taller; stay at the newest message if that is where the reader was
 function frImgUp(img){const e=$('#frmsgs');if(e&&(FR.jump===FR.sel||e.scrollHeight-e.scrollTop-e.clientHeight<img.clientHeight+140))e.scrollTop=e.scrollHeight}
 // on a phone the open conversation is the screen: sized to what is visible, so it shrinks with the keyboard
-function frFit(){const m=$('#frmain');if(!m)return;const full=document.documentElement.classList.contains('fr-full');
+// and a title that take a third of it), so the box to type in needed a scroll to reach. On a wider screen the chat now ends
+// at the bottom of the window, measured from where it starts on the page, and the friends list beside it matches.
+function frFit(){const m=$('#frmain');if(!m)return;const full=document.documentElement.classList.contains('fr-full'),sd=$('#frside');
+  if(!full&&innerWidth>760){const top=m.getBoundingClientRect().top+scrollY,h=Math.max(420,Math.round(innerHeight-top-34))+'px';m.style.top='';m.classList.remove('kb');if(m.style.height!==h){m.style.height=h;const e=$('#frmsgs');if(e&&e.scrollHeight-e.scrollTop-e.clientHeight<200)e.scrollTop=e.scrollHeight}if(sd)sd.style.maxHeight=h;return}
+  if(sd)sd.style.maxHeight='';
   if(!full){m.style.height='';m.style.top='';m.classList.remove('kb');return}const vv=window.visualViewport;m.style.height=Math.round(vv?vv.height:innerHeight)+'px';m.style.top=Math.round(vv?vv.offsetTop:0)+'px';m.classList.toggle('kb',!!vv&&vv.height<innerHeight-120);const e=$('#frmsgs');if(e&&e.scrollHeight-e.scrollTop-e.clientHeight<160)e.scrollTop=e.scrollHeight}
 addEventListener('resize',()=>{if(ST.tab==='kchat')frPaint()});
 if(window.visualViewport){visualViewport.addEventListener('resize',()=>{if(ST.tab==='kchat')frFit()});visualViewport.addEventListener('scroll',()=>{if(ST.tab==='kchat')frFit()})}
@@ -6525,7 +6530,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.126',KR_DATE='Nov 25, 2026';
+const KR_VERSION='1.3.127',KR_DATE='Nov 25, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

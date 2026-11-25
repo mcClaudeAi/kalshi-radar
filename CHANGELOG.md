@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.127 (Nov 25, 2026): chat fits the screen on the web
+
+- [fixed] On a computer the chat ran past the bottom of the window, so you had to scroll down to reach the box to type in. It now ends at the bottom of the window whatever its size, with the message box always in view, and the friends list beside it matches its height.
+- [improved] Long messages wrap at a comfortable width on wide screens instead of running across the whole page. The title above the chat takes less room. Phones are unchanged.
+
 ## 1.3.126 (Nov 25, 2026): Full Signal picks sit out big US releases
 
 - [new] No Full Signal pick from 15 minutes before to 15 minutes after CPI, the jobs report and PPI (8:15 to 8:45 AM ET on those days), and from 1:45 to 2:45 PM on Fed decision days so the press conference is covered too. The market can jump either way the moment the numbers land.
