@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.118 (Nov 24, 2026): early cushion back to 2
+
+- [improved] The cushion a Mitch pick needs before the trade check starts at 2 again. The move to 2.5 in 1.3.117 is undone: early buys at 2 or more had not lost, and most of them sat between 2 and 2.5.
+- [improved] The "Mitch picks before the trade check" switch from 1.3.117 stays.
+
 ## 1.3.117 (Nov 24, 2026): early Mitch picks
 
 - [improved] The cushion a Mitch pick needs before the trade check now starts at 2.5, up from 2. An account still on the old start of 2 moves to 2.5 once; any other number you set is left alone.

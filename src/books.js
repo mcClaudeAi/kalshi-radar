@@ -26,7 +26,7 @@ export const BOOK_MAX = 50, BOOK_MIN = 5;
 // is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
 // day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
 // as the high does, whatever order the tiers were typed in.
-export const OWN_NEW = { mpBuy: 0, mpPreZ: 2.5, mpNoPre: 0, mpCap: 2, mpEdge: 2, mpEnd: 4, mpAfter: 8, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
+export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, mpNoPre: 0, mpCap: 2, mpEdge: 2, mpEnd: 4, mpAfter: 8, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null };
 // MC 2026-11-22 Steven asked to be able to turn protect profit off. lockOff 1 switches every step off and leaves the numbers
 // saved, so turning it back on brings the same steps back. It is off (0) unless chosen, so nothing changes for anyone else.
 export const lockTiers = c => c?.lockOff === 1 ? [] : [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
@@ -119,8 +119,8 @@ export function createBooks(D) {
     for (const r of sql.exec('SELECT bid, j FROM kb')) { try { const j = JSON.parse(r.j); (L[r.bid] = L[r.bid] || new Map()).set(j.key || j.tk, j); } catch { } }
   }
   const saveList = () => kv.put('kbooks', list);
-  // one-off for kalshi-cloud.js load(): a book whose own early cushion is the old start of 2 moves to 2.5 with the start
-  async function preZ25() { await load(); let n = 0; for (const b of list) if (b.cfg && b.cfg.mpPreZ === 2) { b.cfg.mpPreZ = 2.5; n++; } if (n) await saveList(); return n; }
+  // one-off for kalshi-cloud.js load(): undoes the hour the early cushion's start was 2.5, a book moved to 2.5 then goes back to 2
+  async function preZ20() { await load(); let n = 0; for (const b of list) if (b.cfg && b.cfg.mpPreZ === 2.5) { b.cfg.mpPreZ = 2; n++; } if (n) await saveList(); return n; }
   const saveRow = (b, x) => sql.exec('INSERT OR REPLACE INTO kb (bid, tk, at, j) VALUES (?, ?, ?, ?)', b.id, x.key || x.tk, x.at, JSON.stringify(x));
   // a sold trade set apart so the market can be bought again (addOf): kept under its own key, the market's key freed for the new one
   const setApart = (b, x) => { const Lb = L[b.id]; if (Lb.get(x.tk) === x) Lb.delete(x.tk); x.key = apartKey(x); Lb.set(x.key, x); saveRow(b, x); };
@@ -667,5 +667,5 @@ export function createBooks(D) {
   const nameOf = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) return b.name; return 'Book'; };
   const saveAny = x => { for (const b of list || []) if (L[b.id]?.get(x.tk) === x) { saveRow(b, x); return; } };
   const dueTks = now => { const o = []; for (const b of list || []) for (const x of L[b.id]?.values() || []) if (x.fill > 0 && !x.result && x.close <= now && x.close > now - 86400000 && !(x.sold && !x.sold.cash)) o.push(x.tk); return o; };
-  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, mpMiss, mpMissAny, mpFull, preZ25, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
+  return { load, onMark, onLate, lateOpen, mpAny, mpOpen, mpMiss, mpMissAny, mpFull, preZ20, onSettle, upkeep, afterSettle, payWait, view, command, pause, anyOn, warm, cashOut, setCfg, get, ownCoins, handList, heldList, handBuy, handSell, dueTks, rowsOf, allRows, saveAny, nameOf, _t: { L: id => L[id], S: id => S[id] } };
 }

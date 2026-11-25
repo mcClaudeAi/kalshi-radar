@@ -530,9 +530,10 @@ export function createKalshi(state, env, keep) {
     klogos = (await kv.get('klogos')) || {};
     const s = (await kv.get('kst')) || {}; st.sellAllDone = s.sellAllDone || 0;
     await books.load(); await vault.load();
-    // MC 2026-11-24 the early cushion's start went from 2 to 2.5 (note at mpLive1). A saved 2 was the old start, not a choice
-    // anyone can be told apart from, so it moves with it once, main account and books; any other saved number is left alone.
-    if (!(await kv.get('kmpz25'))) { if (cfgL && cfgL.mpPreZ === 2) { cfgL = { ...cfgL, mpPreZ: 2.5 }; await kv.put('kcfgL', cfgL); } await books.preZ25(); await kv.put('kmpz25', 1); }
+    // MC 2026-11-24 the early cushion's start was 2.5 for under an hour (1.3.117) and saved 2s were moved up with it. Then the
+    // export showed early buys at a cushion of 2 or more were 28 for 28 and six of those seven markets sat between 2 and 2.5,
+    // so the start is 2 again. Only a copy that ran that move (kmpz25) is moved back, once; nobody else is touched.
+    if ((await kv.get('kmpz25')) && !(await kv.get('kmpz20'))) { if (cfgL && cfgL.mpPreZ === 2.5) { cfgL = { ...cfgL, mpPreZ: 2 }; await kv.put('kcfgL', cfgL); } await books.preZ20(); await kv.put('kmpz20', 1); }
   }
   // MC 2026-11-12 the dashboard went down: "Exceeded allowed rows read in Durable Objects free tier" (5 million a day). Cloudflare
   // drops this object from memory seconds after each minute's tick when nobody has the page open, so nearly every tick started
@@ -1339,12 +1340,12 @@ export function createKalshi(state, env, keep) {
       // markets won where 6 to 7 minutes was 26 of 28. Dropping them costs about $1 a day in the backtest.
       const okT = cfg => left >= (cfg.mpEnd ?? 4) && !(left < 10 && left >= (cfg.mpAfter ?? 8));
       // MC 2026-11-24 Mitchell, watching BNB and XRP bought 3 minutes into a window on the opening drop and then drift back to
-      // their targets: the early cushion starts at 2.5 now, and there is a switch to buy no Mitch pick before the trade check
+      // their targets: the early cushion went to 2.5 for an hour and back to 2 (note in load()), and there is a switch to buy no Mitch pick before the trade check
       // at all (mpNoPre, off unless turned on, each account its own). In the backtest the early buys are the best stretch
       // (95.9% won, $2.72 a trade); live so far they are 12 of 15 markets, so the switch is his call and not the default.
-      const pre = left > 10, okZ = cfg => !pre || (cfg.mpNoPre !== 1 && v.z >= (cfg.mpPreZ ?? 2.5) - 1e-9), mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg) && okT(cfg);
+      const pre = left > 10, okZ = cfg => !pre || (cfg.mpNoPre !== 1 && v.z >= (cfg.mpPreZ ?? 2) - 1e-9), mpOkZ = (cfg, cn, t) => mpOk(cfg, cn, t) && okZ(cfg) && okT(cfg);
       { const mw = mainWants && okT(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw && okZ(cfgL)) { no(s, left < (cfgL.mpEnd ?? 4) ? `${left.toFixed(1)} minutes left, Mitch picks stop at ${cfgL.mpEnd ?? 4} (Settings, Live)` : `after the trade check Mitch picks wait until ${cfgL.mpAfter ?? 8} minutes are left (Settings, Live)`); continue; } if (!pre) mainWants = mw; }
-      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw) { no(s, cfgL.mpNoPre === 1 ? 'no Mitch picks before the trade check (Settings, Live); it is looked at again after' : `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2.5} (it is looked at again after the check)`); continue; } mainWants = mw; }
+      if (pre) { const mw = mainWants && okZ(cfgL), bw = books.mpOpen(s.tk, s.coin, now, cfgL, mpOkZ, s.close); if (!mw && !bw) { no(s, cfgL.mpNoPre === 1 ? 'no Mitch picks before the trade check (Settings, Live); it is looked at again after' : `cushion ${v.z} before the trade check, needs ${cfgL.mpPreZ ?? 2} (it is looked at again after the check)`); continue; } mainWants = mw; }
       const edge = a => hcEdge({ ask: a, z: v.z, dp: v.dp ?? null, pv: v.pv ?? null, spr: s.ya != null && s.yb != null ? (s.ya - s.yb) * 100 : null, left });
       // each account's own Check bar (mpEdge), on the tracker's reading here and again on the real offer below
       const eBar = cfg => cfg.mpEdge ?? MPE, okE = (cfg, a) => edge(a) >= eBar(cfg) - 1e-9, mpOkE = a => (cfg, cn, t) => mpOkZ(cfg, cn, t) && okE(cfg, a);
