@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.129 (Nov 25, 2026): BTC catch-up test and a clearer Paper header
+
+- [new] BTC catch-up, a paper test: when five or more other coins are at 85¢ or better on one side and BTC leans the same way but is still 80¢ to under 85¢ (cushion 0.6 or more, 3 to 8 minutes left), it logs what $50 would have bought at the real order book. It is a log only: not in the paper bank, the labs or live trading.
+- [new] Tap the BTC catch-up tile for the rule, its record so far and every pick it has logged.
+- [improved] The Paper header's Today card now splits the day: the playbook's buys at the trade check, its later buys, the BTC catch-up test on its own line, and any trades by hand.
+
 ## 1.3.128 (Nov 25, 2026): Market news
 
 - [new] Market news in the menu: the big US releases that move crypto (CPI, the jobs report, PPI and the Fed decision), with the next one at the top, when Full Signal picks pause for it and how long until then. While a pause is on, the top says so.

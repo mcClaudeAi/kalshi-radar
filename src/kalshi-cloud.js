@@ -525,7 +525,7 @@ export function createKalshi(state, env, keep) {
   sql.exec('CREATE TABLE IF NOT EXISTS k5 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // Claude's pick, high confidence: its buys after the trade check
   sql.exec('CREATE TABLE IF NOT EXISTS k4 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // Claude's pick, later watched: its buys after the trade check, same shape as k2
   sql.exec('CREATE TABLE IF NOT EXISTS k3 (tk TEXT PRIMARY KEY, close INTEGER, j TEXT)');   // every coin's price and trend at minute 10, for the Wait for the trend lab
-  let rec2 = new Map(), rec3 = new Map(), rec4 = new Map(), rec5 = new Map(), lsRows = [], lsDone = 0, xRows = [];
+  let rec2 = new Map(), rec3 = new Map(), rec4 = new Map(), rec5 = new Map(), lsRows = [], lsDone = 0, xRows = [], bRows = [];
   let cfgL = null;   // live rules (LIVE_KEYS), seeded from paper the first time
   let rec = null, L = null, cfgP = null, ctlL = null, scan = [], scanAt = 0, view = null, viewDirty = true, viewAt = 0;
   const st = { bal: null, balAt: 0, lastErr: null, errAt: 0, host: 0, sellAllDone: 0, stopped: null, keyOk: null, shard: {}, xferAt: 0, lastXfer: null, lastMark: 0 };
@@ -537,6 +537,7 @@ export function createKalshi(state, env, keep) {
     rec = loadT('kt'); rec2 = loadT('k2'); rec3 = loadT('k3'); rec4 = loadT('k4'); rec5 = loadT('k5');
     lsRows = []; for (const row of sql.exec('SELECT j FROM kls WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { lsRows.push(...JSON.parse(row.j)); } catch { } }
     xRows = []; for (const row of sql.exec('SELECT j FROM kxr WHERE d >= ?', etDay(Date.now() - 60 * 86400000))) { try { xRows.push(...JSON.parse(row.j)); } catch { } }
+    bRows = []; for (const row of sql.exec('SELECT j FROM kbc WHERE d >= ?', etDay(Date.now() - 90 * 86400000))) { try { bRows.push(...JSON.parse(row.j)); } catch { } }
     L = new Map(); for (const r of sql.exec('SELECT j FROM ko')) { try { const j = JSON.parse(r.j); L.set(j.key || j.tk, j); } catch {} }
     cfgP = { ...PAPER_DEF, ...((await kv.get('kcfg')) || {}) };
     edgeS = (await kv.get('kedge')) || { seen: {}, mon: {} }; EDGE_FOUND = edgeS.latest?.found || [];
@@ -566,6 +567,8 @@ export function createKalshi(state, env, keep) {
   const lsSave = d => sql.exec('INSERT OR REPLACE INTO kls (d, j) VALUES (?, ?)', d, JSON.stringify(lsRows.filter(r => etDay(r.close) === d)));
   // the early and later-watched paper buys of the two Claude's pick labs, kept the same way
   sql.exec('CREATE TABLE IF NOT EXISTS kxr (d TEXT PRIMARY KEY, j TEXT)');
+  sql.exec('CREATE TABLE IF NOT EXISTS kbc (d TEXT PRIMARY KEY, j TEXT)');
+  const bSave = d => sql.exec('INSERT OR REPLACE INTO kbc (d, j) VALUES (?, ?)', d, JSON.stringify(bRows.filter(r => etDay(r.close) === d)));
   const xSave = d => sql.exec('INSERT OR REPLACE INTO kxr (d, j) VALUES (?, ?)', d, JSON.stringify(xRows.filter(r => etDay(r.close) === d)));
   const H6 = 6 * 3600000, DAY = 86400000, TBL = ['kt', 'k2', 'k3', 'k4', 'k5'];
   const where = { kt: new Map(), k2: new Map(), k3: new Map(), k4: new Map(), k5: new Map() }, packs = { kt: new Map(), k2: new Map(), k3: new Map(), k4: new Map(), k5: new Map() };   // ticker -> pack id, pack id -> tickers
@@ -1308,6 +1311,39 @@ export function createKalshi(state, env, keep) {
       r.res = res; r.won = res === r.side ? 1 : 0; days.add(etDay(r.close)); }
     for (const d of days) xSave(d); if (days.size) viewDirty = true;
   }
+  // MC 2026-11-25 Mitchell asked what buying the one coin that has not followed the other eight looks like, then for a winning
+  // version of it. The cheap straggler (40c to 65c) was a coin flip at its price: 205 buys in the six days that have quotes
+  // that low, 57.1% won at 55.5c, nothing after fees, and no extra test fixed it. A laggard at 80c to 85c won about 87% on 96
+  // days of Edge data, but it won the same with no other coin agreeing, so the pack was not the reason. The one place the
+  // pack showed was BTC: five or more other coins at 85c+ on a side and BTC on the same side at 80c to under 85c, cushion 0.6
+  // or more, 3 to 8 minutes left: 532 buys, 90.6% won, +$4.37 on $50, positive in all four months (3 to 4 others strong 86.4%,
+  // 0 to 2 85.9%). The old days carry a made-up 1c spread and BTC was the best of nine coins looked at, so it is not traded:
+  // this logs what it would have bought at the real order book for $50, one a market, the first minute it passes, in its own
+  // table (kbc). It is not in the paper bank, the labs or live, and nothing reads it but the Paper header.
+  const BC = { lo: 0.8, hi: 0.85, z: 0.6, others: 5, usd: 50 };
+  async function bcLook(out, now) {
+    const s = out.find(x => x.coin === 'BTC' && x.leader && x.lask != null && x.strike > 0); if (!s) return;
+    const left = (s.close - now) / 60000; if (left < 3 || left > 8.5 || bRows.some(r => r.tk === s.tk)) return;
+    if (!(s.lask >= BC.lo && s.lask < BC.hi - 1e-9)) return;
+    const oth = out.filter(o => o !== s && o.close === s.close && o.leader === s.leader && o.lask >= 0.85).length; if (oth < BC.others) return;
+    const v = await volAt('BTC', s.strike, s.leader).catch(() => null); if (!v || v.src === 'stale' || v.z == null || v.z < BC.z - 1e-9) return;
+    const b = book(await get(`/markets/${s.tk}/orderbook`)), asks = s.leader === 'yes' ? b.yesAsks : b.noAsks, ask = asks[0]?.[0]; if (ask == null || !(ask >= BC.lo && ask < BC.hi - 1e-9)) return;
+    const n = Math.floor(BC.usd / ask), a = walk(asks, n); if (a == null || !(n > 0)) return;
+    bRows.push({ tk: s.tk, at: now, close: s.close, side: s.leader, strike: s.strike, ask, px: +a.toFixed(4), n, z: v.z, oth, left: +left.toFixed(1) }); bSave(etDay(s.close)); viewDirty = true;
+    say(`${s.tk} ${s.leader.toUpperCase()} at ${(ask * 100).toFixed(1)}c <- BTC catch-up (paper log only): ${oth} other coins at 85c+, ${v.z} moves clear, ${left.toFixed(1)} min left`);
+  }
+  async function bSettle(now) {
+    let k = 0; const days = new Set();
+    for (const r of bRows) { if (r.res || now < r.close + 30000) continue;
+      let res = rec.get(r.tk)?.result; if (!res) { if (++k > 2) break; try { res = (await get(`/markets/${r.tk}`))?.market?.result; } catch { continue; } }
+      if (res !== 'yes' && res !== 'no') { if (res === 'void' || now > r.close + 6 * 3600000) { r.res = 'void'; days.add(etDay(r.close)); } continue; }
+      r.res = res; r.won = res === r.side ? 1 : 0; days.add(etDay(r.close)); }
+    for (const d of days) bSave(d); if (days.size) viewDirty = true;
+  }
+  const bcPnl = r => +((r.won ? r.n * (1 - r.px) : -r.n * r.px) - fee(r.px, r.n)).toFixed(2);
+  function bcView() { const d0 = etDay(Date.now()), done = bRows.filter(r => r.res === 'yes' || r.res === 'no'), S = h => ({ n: h.length, won: h.filter(r => r.won).length, net: +h.reduce((x, r) => x + bcPnl(r), 0).toFixed(2) });
+    return { today: { ...S(done.filter(r => etDay(r.close) === d0)), open: bRows.filter(r => !r.res).length }, all: S(done), since: bRows[0]?.at || null, rule: BC,
+      rows: bRows.slice(-60).reverse().map(r => ({ tk: r.tk, at: r.at, close: r.close, side: r.side, px: r.px, n: r.n, z: r.z, oth: r.oth, left: r.left, res: r.res || null, won: r.won ?? null, pnl: r.res === 'yes' || r.res === 'no' ? bcPnl(r) : null })) }; }
   // MC 2026-11-22 Mitchell asked for a switch that buys a Full Signal pick (the scanner's purple glow) with real money, on top of the
   // playbook the account runs. Off unless turned on (live setting mpBuy; a book with its own rules has its own). The rule, the
   // one backtested the same day: leader at 85c to under 96.5c, 13 down to 2 minutes left, cushion 1 or more, likely line on
@@ -1450,6 +1486,7 @@ export function createKalshi(state, env, keep) {
     { const was = new Map(scan.map(x => [x.tk, x])); for (const x of out) { const o = was.get(x.tk); if (o?.mpWhy && x.mpWhy == null) { x.mpWhy = o.mpWhy; x.mpAt = o.mpAt; } } }   // keep the Full Signal pick look's last answer on the row
     scan = out; scanAt = now;
     try { await mpLive(out, now); } catch (e) { say('Full Signal pick buy error: ' + e.message); }
+    try { await bcLook(out, now); } catch (e) { say('BTC catch-up log error: ' + e.message); }
     // MC 2026-11-14 the path capture and the volatility repair stand aside from 7 to 3 minutes before each close, when the trend
     // check reads Coinbase (they were using up Coinbase's allowance and the trend check got 429s on most coins)
     const toClose = Q - (now % Q);
@@ -1462,6 +1499,7 @@ export function createKalshi(state, env, keep) {
     await settleSome(now, false);
     try { await lsSettle(now); } catch (e) { say('last look settle error: ' + e.message); }
     try { await xSettle(now); } catch (e) { say('early/late lab settle error: ' + e.message); }
+    try { await bSettle(now); } catch (e) { say('BTC catch-up settle error: ' + e.message); }
     try { await trendCheck(now); } catch (e) { say('trend check error: ' + e.message); }
     try { await minute10(now, out); } catch (e) { say('minute 10 error: ' + e.message); }
     try { await keepFill(now); } catch (e) { say('share fill error: ' + e.message); }
@@ -2403,7 +2441,11 @@ export function createKalshi(state, env, keep) {
       byHour, byHalf, bySide, byPx, bySame, sameMin, daily, roll, breakEven, halves, checks, all, live: { at: scanAt, scan, live: liveView() }, keys, wr300: +(wr300 * 100).toFixed(1), worstDay, dd: +(peak - bal).toFixed(2),
       bounds: BOUNDS, coinsAll: COINS, cfg: K, balance: +bal.toFixed(2), net: +(bal - K.startUsd).toFixed(2), inPlay: +open.toFixed(2), maxDd: +maxDd.toFixed(2),
       popen: trades.filter(t => !t.capped && !t.done && t.close > Date.now()).map(t => ({ tk: t.mk, coin: t.coin, side: t.side, px: t.px, n: t.n, cost: t.cost, hand: t.hand || 0 })),
+      // MC 2026-11-25 Mitchell asked for the Paper header to tell the playbook's trade-check buys from its later buys and from
+      // the BTC catch-up log. late and hand are today's paper trades of each kind (the rest are trade-check buys); bcu is the log.
+      bcu: bcView(),
       n: done.length, won: done.filter(t => t.won).length, today: { n: today.length, won: today.filter(t => t.won).length, net: sum(today),
+        late: (h => ({ n: h.length, won: h.filter(t => t.won).length, net: sum(h) }))(today.filter(t => t.late && !t.hand)), hand: (h => ({ n: h.length, won: h.filter(t => t.won).length, net: sum(h) }))(today.filter(t => t.hand)),
         // MC 2026-11-10 what the playbook passed on today and how those would have gone, so a filter can be judged at a glance
         ...(() => { const ps = trades.filter(t => t.strat && t.run && etDay(t.close) === etDay(Date.now())), pd = ps.filter(t => t.done); return { passed: ps.length, pWon: pd.filter(t => t.won).length, pLost: pd.filter(t => !t.won).length }; })(),
         ...(() => { const sk = trades.filter(t => t.ifPnl != null && t.run && etDay(t.close) === etDay(Date.now())); if (!sk.length) return {}; const x = +sk.reduce((a, t) => a + t.ifPnl, 0).toFixed(2); return { stop: { n: sk.length, won: sk.filter(t => t.ifPnl > 0).length, net: x, ifNet: +(sum(today) + x).toFixed(2) } }; })() },
