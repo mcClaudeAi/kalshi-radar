@@ -72,7 +72,8 @@ const NEWS = [[1796391000000, 'Jobs'], [1796842800000, 'Fed'], [1796909400000, '
 const NEWS_NAME = { CPI: 'CPI', Jobs: 'the jobs report', PPI: 'PPI', Fed: 'the Fed decision' };
 const newsSpan = ([t, k]) => [t - 900000, t + (k === 'Fed' ? 45 : 15) * 60000];
 export const newsAt = close => { if (close == null) return null; for (const e of NEWS) { const [a, b] = newsSpan(e); if (close > a && close - 900000 < b) return e; } return null; };
-const newsNext = now => NEWS.filter(e => newsSpan(e)[1] > now).slice(0, 4).map(e => [e[0], e[1], ...newsSpan(e)]);
+// every date still to come (48 at most), for the Market news page; Settings shows the first few
+const newsNext = now => NEWS.filter(e => newsSpan(e)[1] > now).map(e => [e[0], e[1], ...newsSpan(e)]);
 export const NEWS_LIST = NEWS;
 const etHm = t => new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
 // MC 2026-11-24 the Check a Full Signal pick needs. It was +1c in the rule, then +1.3c for everyone this morning, and an hour later
@@ -2409,7 +2410,7 @@ export function createKalshi(state, env, keep) {
       avg: done.length ? +(sum(done) / done.length).toFixed(2) : 0, streak, uncappedNet: +(balU - K.startUsd).toFixed(2), capped: trades.filter(t => t.capped).length,
       runFrom: runFrom || null, runN: done.length, prevN: doneAll.length - done.length, worstWin: Math.max(0, ...Object.values(winLoss)), halts: trades.filter(t => t.halted).length, seen, rule, since: (runFrom ? (done[0]?.t || runFrom) : rows[0]?.at) || null, last: rows[rows.length - 1]?.at || null,
       under: { n: under.length, won: under.filter(r => r.won).length, c: under.length ? +(under.reduce((a, r) => a + (r.pnl1 || 0), 0) / under.length * 100).toFixed(2) : 0 },
-      eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K), paid: PAID, paidSee,
+      eq: eq.filter((x, i) => i % step === 0 || i === eq.length - 1), byCoin: Object.values(byCoin).sort((a, b) => b.net - a.net), room: roomOf(rows, K), paid: PAID, paidSee, news: newsNext(Date.now()), newsEnd: NEWS[NEWS.length - 1][0],
       cold: K.coldDays > 0 ? Object.fromEntries([...new Set(trades.map(t => t.coin))].map(c => [c, +net30(c, Date.now()).x.toFixed(2)])) : null, coldSkips: trades.filter(t => t.cold).length,
       look2sum: l2sum ? { since: l2sum.since, size: +cfgP.sizeUsd || 50, h: Object.entries(l2sum.h).map(([k, v]) => [+k, ...v]).sort((a, b) => a[0] - b[0]), d: Object.entries(l2sum.d).map(([k, v]) => [k, ...v]).sort((a, b) => a[0] < b[0] ? -1 : 1) } : null,
       look2: Object.entries(l2log || {}).map(([tk, x]) => ({ tk, ...x, res: rec2.get(tk)?.result || rec.get(tk)?.result || x.res || null, won: rec2.get(tk)?.result ? !!rec2.get(tk).won : null, final: (rec.get(tk)?.result || x.res) ? ((rec.get(tk)?.result || x.res) === x.side) : null })).sort((a, b) => b.close - a.close || (a.coin < b.coin ? -1 : 1)), trendx: trendStats(K), chartfill: (() => { const now = Date.now(); let left = 0, oldest = null; for (const r of rec.values()) { if (!r.vol || !(r.strike > 0) || r.at < now - 21 * 86400000 || r.at > now - 120000) continue; if (r.vol.dp === undefined && (r.vol.tlTry || 0) < 2) left++; else if (r.vol.dp != null && (oldest == null || r.at < oldest)) oldest = r.at; } return { left, oldest }; })(),

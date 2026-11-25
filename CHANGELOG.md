@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.128 (Nov 25, 2026): Market news
+
+- [new] Market news in the menu: the big US releases that move crypto (CPI, the jobs report, PPI and the Fed decision), with the next one at the top, when Full Signal picks pause for it and how long until then. While a pause is on, the top says so.
+- [new] It shows which of your accounts sit releases out, which trade through, and which have Full Signal off, with a link to change it.
+- [new] The calendar lists this week first, then the next two months; the rest of the year folds under a link.
+- [improved] The chip on Home before a release and the date list in Live settings both open Market news.
+
 ## 1.3.127 (Nov 25, 2026): chat fits the screen on the web
 
 - [fixed] On a computer the chat ran past the bottom of the window, so you had to scroll down to reach the box to type in. It now ends at the bottom of the window whatever its size, with the message box always in view, and the friends list beside it matches its height.
