@@ -2,6 +2,16 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.119 (Nov 24, 2026): a new Settings page, and Today split four ways
+
+- [new] Settings are regrouped by what they decide: Money, Orders and fills, The rule, Mitch picks, Later buys, Protect the day, Cash out early, Your mix, Schedule and Sounds. Each group is a card that folds, with its own colour and a one-line summary of what it is set to right now.
+- [new] Mitch picks have their own group with a bar of the 15-minute window that lights up the stretches when that account can buy, and updates as you change the settings. Its settings are sorted into how strong a pick has to be, early buys and late buys.
+- [new] On/off settings are two-button switches. A setting that does nothing while its switch is off is dimmed and says which switch it is waiting on.
+- [new] "Find a setting" filters the page as you type, and the section list follows where you are on the page.
+- [improved] Long notes show their first sentence with a More link for the rest. On a phone the groups start folded so the page is short, and the save bar only appears when there is something to save.
+- [improved] Nothing about how settings save has changed, and no setting was moved to a different value.
+- [new] Home's Today card splits the automatic trades four ways: Claude's pick at the trade check, Claude's pick late, Mitch pick early and Mitch pick late.
+
 ## 1.3.118 (Nov 24, 2026): early cushion back to 2
 
 - [improved] The cushion a Mitch pick needs before the trade check starts at 2 again. The move to 2.5 in 1.3.117 is undone: early buys at 2 or more had not lost, and most of them sat between 2 and 2.5.

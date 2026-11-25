@@ -508,6 +508,7 @@ export function createBooks(D) {
         // MC 2026-11-20 the same split Main sends (by hand, later buys, passed) so Today on Home can show any one account
         today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length,
           hand: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => x.hand)),
+          mpe: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => !x.hand && x.strat === 'mp' && x.close - x.at > 600000)), mpl: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => !x.hand && x.strat === 'mp' && !(x.close - x.at > 600000))),
           late: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => !x.hand && x.late)),
           ...(() => { const ps = today(b).filter(x => x.skipped && x.strat && !(x.fill > 0)), rs = ps.map(x => [x, D.resOf ? D.resOf(x.tk) : null]).filter(z => z[1]); return { passed: ps.length, pWon: rs.filter(z => z[1] === z[0].side).length, pLost: rs.filter(z => z[1] !== z[0].side).length }; })() },
         total: { n: all.filter(x => x.result && x.fill > 0).length, won: all.filter(x => x.won && x.fill > 0).length, net: +realized(all.filter(x => x.fill > 0)).toFixed(2) },
