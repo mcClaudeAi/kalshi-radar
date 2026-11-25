@@ -1539,6 +1539,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.kx-bkr td,.kx-bkr td *
 .lh-tl2{margin-top:8px;display:grid;gap:5px}
 .lh-spr{margin:2px 0 4px;grid-template-columns:1fr!important}.lh-spr>em{display:none}.lh-spw{display:grid!important;grid-template-columns:1fr 1fr;gap:6px!important;width:100%;container-type:inline-size}
 .lh-sp{position:relative;padding:7px 10px 7px;border-radius:11px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 10%,transparent),color-mix(in srgb,var(--c) 3%,transparent));border:1px solid color-mix(in srgb,var(--c) 28%,var(--line));min-width:0;display:grid;grid-template-columns:1fr auto;align-items:end;gap:1px 8px}
+.lh-hl{display:flex;flex-wrap:wrap;gap:4px 18px;margin:2px 0 10px;font-size:12.5px;color:var(--mute)}.lh-hl b{font-family:var(--mono);font-weight:700;font-size:13px;margin-left:3px}.lh-hl small{font-size:11px;color:var(--faint);margin-left:4px}
 .lh-sp.tc{--c:var(--proven)}.lh-sp.lt{--c:#B79CFF}.lh-sp.cl{--c:#7CF5C8}.lh-sp.me{--c:#B79CFF}.lh-sp.ml{--c:#E29CFF}
 .lh-spbar i.tc{background:var(--proven)!important}.lh-spbar i.cl{background:#7CF5C8!important}.lh-spbar i.me{background:#B79CFF!important}.lh-spbar i.ml{background:#E29CFF!important}
 .lh-sp>span{grid-column:1/-1;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;font-size:10px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--c) 70%,var(--ink2))}.lh-sp>span i{width:6px;height:6px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
@@ -4902,6 +4903,11 @@ function kxAllBoxH(){const A=kxAccts();if(A.length<2)return '';const sel=kxLhSel
 function kxLvAll(kl){if(kxAccts().length<2)return {lab:'Live today',labS:'Live today',net:kl?.today?.net||0,cc:null};const T=kxLhToday(kl,'all');return {lab:'Live today · all',labS:'Live today',n:kxAccts().length,net:T.t.net||0,cc:T.cc}}
 function kxLhSel(A=kxAccts()){const v=KXSEG.lhAcc||'main';return v==='all'||A.some(x=>x.id===v)?v:'main'}
 // today for the account picked above, or every account added together
+// they closed, for the account the card is showing (all of them added together under All accounts, which is not the sum of
+// each account's own high). Starts from $0 at midnight Eastern, so a day that never went red has a low of $0.
+function kxDayHL(sel,net){const A=kxAccts().filter(a=>sel==='all'||a.id===sel),day=kxToday(),R=[];for(const a of A)for(const r of a.hist||[])if(kxDay(r[0])===day)R.push(r);if(!R.length)return null;
+  R.sort((a,b)=>a[0]-b[0]);let run=0,hi=0,lo=0,hiAt=null,loAt=null;for(const r of R){run+=+r[5]||0;if(run>hi){hi=run;hiAt=r[0]}if(run<lo){lo=run;loAt=r[0]}}
+  if(net>hi){hi=net;hiAt=R[R.length-1][0]}if(net<lo){lo=net;loAt=R[R.length-1][0]}return {hi,lo,hiAt,loAt}}
 function kxLhToday(lv,force){const A=kxAccts(),sel=A.length<2?'main':force||kxLhSel(A),base=lv?.cfg||{};
   if(sel==='main')return {name:A.length<2?'':'Main',t:lv?.today||{},cc:null,main:1};
   if(sel!=='all'){const x=A.find(a=>a.id===sel),b=typeof kbB==='function'?kbB(sel):null;return {name:x.name,t:x.today||{},cc:kxBkCfg(base,b?.cfg||x.cfg),stopped:x.stopped}}
@@ -5545,7 +5551,7 @@ function kxLiveHero(K,lv){if(lv?.hidden)return `<section class="kx-hero2"><div c
     <div class="kx-next" id="kxnext"><div class="kx-ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" style="stroke-dashoffset:176"/></svg><b>–</b></div><div><small>Next trade check</small><span>at :05, :20, :35 and :50</span></div></div></div>
    ${warn?`<div class="lh-warn${soft?' soft':''}${warnM?' multi':''}"><i></i>${warn}</div>`:''}
    <div class="lh-main"><div class="lh-cash"><div class="kx-ml">Kalshi cash${bk.length?` · ${bk.length+1} accounts`:''}</div><div class="kx-bal" data-kxtot>${kxTotH()}</div><div class="lh-accs" data-kxall>${kxAllBoxH()}</div></div>
-    ${(()=>{const T=kxLhToday(lv),u=T.t;return `<div class="lh-today"><div class="lh-th"><span class="kx-ml">Today${T.name?' · '+esc(T.name):''}</span>${T.main&&stopPct>=1?'<em class="neg">stop hit</em>':u.open?`<em>${u.open} open</em>`:''}</div><b class="${cls(u.net)}">${usd(u.net||0)}</b>
+    ${(()=>{const T=kxLhToday(lv),u=T.t;return `<div class="lh-today"><div class="lh-th"><span class="kx-ml">Today${T.name?' · '+esc(T.name):''}</span>${T.main&&stopPct>=1?'<em class="neg">stop hit</em>':u.open?`<em>${u.open} open</em>`:''}</div><b class="${cls(u.net)}">${usd(u.net||0)}</b>${(()=>{const h=kxDayHL(T.name==='All accounts'?'all':T.main?'main':(kxAccts().find(a=>a.name===T.name)?.id||'main'),u.net||0);return h?`<div class="lh-hl"><span>High <b class="${cls(h.hi)}">${usd(h.hi)}</b>${h.hiAt?` <small>${tm(h.hiAt/1000)}</small>`:''}</span><span>Low <b class="${cls(h.lo)}">${usd(h.lo)}</b>${h.loAt?` <small>${tm(h.loAt/1000)}</small>`:''}</span></div>`:''})()}
      ${kxTodayRec(u)}${kxGoal(u.net||0,0,1,T.cc)}</div>`})()}</div>
    <div class="lh-ledger" data-kxmoney>${kxLedgerH()}</div>
    <div class="kx-st">
@@ -6508,7 +6514,7 @@ function kxAutoUpd(){let repo='';try{repo=localStorage.getItem('kr-repo')||''}ca
     try{localStorage.setItem('kr-repo',r)}catch{}window.open(`https://github.com/${r}/new/main?filename=${encodeURIComponent('.github/workflows/update.yml')}&value=${encodeURIComponent(KR_WF)}`,'_blank','noopener');closeModal()}}
 // MC 2026-11-08 version and update check. Each copy updates itself once a day from the stable branch (GitHub Action in the repo);
 // this only tells the owner whether a newer release is out and when it will arrive.
-const KR_VERSION='1.3.124',KR_DATE='Nov 24, 2026';
+const KR_VERSION='1.3.125',KR_DATE='Nov 24, 2026';
 async function kxVerCheck(){const e=$('#kxver');if(!e)return;try{const r=await fetch('https://raw.githubusercontent.com/mcClaudeAi/kalshi-radar/stable/VERSION',{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   const cmp=(a,b)=>{const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0};
   e.innerHTML=cmp(v,KR_VERSION)>0?`<span class="warn">Version ${esc(v)} is out.</span> It installs on its own within the hour. <a href="#" onclick="kxUpdNow();return false">Update now</a>`:`released ${KR_DATE} · up to date`}catch{}}

@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.125 (Nov 24, 2026): the day's high and low
+
+- [new] Home's Today card shows the day's high and low under the total, with the time each was reached. It is the running total of today's settled trades in the order they closed, for whichever account the card is showing.
+- [improved] Under All accounts it follows every account added together, trade by trade. The day starts from $0 at midnight Eastern, so a day that never went red shows a low of $0.
+
 ## 1.3.124 (Nov 24, 2026): the status strip moved to Settings
 
 - [improved] The strip that sat at the top of Home (each account's playbook, the daily stop, trades so far, and the Tracker, Prices and Cloudflare lights) is now a System status group at the bottom of Settings, on both the live and the paper page. Home starts with the account switch and your trades.
