@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.132 (Nov 25, 2026): paper as up to four accounts
+
+- [new] Paper can buy as up to four accounts at once, the way live does with Main and its subaccounts. Tap the trade-size chip at the top of the Paper header to pick 1 to 4.
+- [new] Each account buys the paper trade size of the same coin in the same second, and every trade is priced off the order book for all of them together, so a bigger combined order pays the worse prices it would in real life.
+- [improved] The stops are each account's: the daily stop, profit target and protect profit levels count once per account, and the Paper header shows them that way.
+- [improved] It applies from the next trade. Trades already booked stay as they were, and it starts at one account.
+
 ## 1.3.131 (Nov 25, 2026): Full Signal and BTC catch-up on paper
 
 - [new] Full Signal picks can run on paper, on top of the paper playbook. Paper buys the picks live would, at paper's trade size and the real order book, and follows the Main account's live Full Signal settings as they stand (Check, picks a window, early buys, the wait after the check, the last minute and the release blackout).
