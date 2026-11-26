@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.136 (Nov 26, 2026): no sideways scroll on the menu
+
+- [fixed] The left menu no longer scrolls sideways in a small window. The mode badge drops under the name when there is no room beside it, and the menu's own scrollbar is thinner.
+
 ## 1.3.135 (Nov 26, 2026): Check box fix
 
 - [fixed] In Settings, the "≥ +" in front of the Least Check number sat on top of the first digit. The box now leaves room for it.
