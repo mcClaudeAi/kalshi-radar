@@ -2,6 +2,14 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.134 (Nov 26, 2026): Full Signal cushion and price floors
+
+- [new] Least cushion for Full Signal picks, a setting for each account (1.3 to 3). On the first live picks, the ones with a cushion under 2 won far less often than the ones at 2 or more.
+- [new] Lowest price for Full Signal picks, a setting for each account (85¢ to 94¢). Picks under 88¢ lost money live and in both halves of 98 days of history.
+- [improved] Both start at what every account had (1.3 and 85¢), so nothing changes until you move them. They sit under "How strong a pick has to be" in Settings.
+- [improved] The purple glow uses the lowest floors among the accounts buying Full Signal picks, and Full Signal on paper follows the Main account's floors.
+- [improved] A pick passed for either reason says so in Trades.
+
 ## 1.3.133 (Nov 26, 2026): sit out US holidays
 
 - [new] Sit out US holidays, a switch in Settings under Schedule for every account and for paper. On a holiday the account makes no buys of any kind, midnight to midnight Eastern: the trade check, later buys and Full Signal picks all pass. Positions already open still settle.
