@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.135 (Nov 26, 2026): Check box fix
+
+- [fixed] In Settings, the "≥ +" in front of the Least Check number sat on top of the first digit. The box now leaves room for it.
+
 ## 1.3.134 (Nov 26, 2026): Full Signal cushion and price floors
 
 - [new] Least cushion for Full Signal picks, a setting for each account (1.3 to 3). On the first live picks, the ones with a cushion under 2 won far less often than the ones at 2 or more.
