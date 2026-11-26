@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.139 (Nov 26, 2026): "Off now" on the Home tiles
+
+- [improved] Home: a Full Signal tile whose buying has been switched off since it traded today keeps its numbers and adds "Off now, bought earlier". With no trades today it still just says Off.
+
 ## 1.3.138 (Nov 26, 2026): settings notes that follow your settings
 
 - [new] In Settings, each Full Signal setting now has a line above its note that says what the current value means in plain numbers, and it rewrites itself as you type, before you save. The price settings show the band you are buying, what a win pays and a loss costs at that price, and the win rate needed to break even.
