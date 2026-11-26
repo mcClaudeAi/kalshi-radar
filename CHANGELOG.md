@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.137 (Nov 26, 2026): highest price for Full Signal picks
+
+- [new] Highest price for Full Signal picks, a setting for each account (90¢ to 96.5¢), next to Lowest price in Settings.
+- [improved] It starts at 96¢ for every account. Until now the top of the band was fixed at 96.5¢, so picks between 96¢ and 96.5¢ are passed unless you raise it.
+- [improved] The purple glow, Full Signal on paper and the reason shown in Trades all follow it.
+
 ## 1.3.136 (Nov 26, 2026): no sideways scroll on the menu
 
 - [fixed] The left menu no longer scrolls sideways in a small window. The mode badge drops under the name when there is no room beside it, and the menu's own scrollbar is thinner.
