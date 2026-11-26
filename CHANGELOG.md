@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.133 (Nov 26, 2026): sit out US holidays
+
+- [new] Sit out US holidays, a switch in Settings under Schedule for every account and for paper. On a holiday the account makes no buys of any kind, midnight to midnight Eastern: the trade check, later buys and Full Signal picks all pass. Positions already open still settle.
+- [new] The days covered are listed under the switch: the US market holidays plus the thin days beside them (the day after Thanksgiving, Christmas Eve, New Year's Eve).
+- [improved] A buy passed for this reason says which holiday in Trades.
+- [improved] It starts off for every account. An account with its own settings has its own switch.
+
 ## 1.3.132 (Nov 25, 2026): paper as up to four accounts
 
 - [new] Paper can buy as up to four accounts at once, the way live does with Main and its subaccounts. Tap the trade-size chip at the top of the Paper header to pick 1 to 4.

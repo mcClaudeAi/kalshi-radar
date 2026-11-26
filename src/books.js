@@ -26,7 +26,7 @@ export const BOOK_MAX = 50, BOOK_MIN = 5;
 // is the old lockAt/lockKeep, tiers two and three are lockAt2/lockKeep2 and lockAt3/lockKeep3, a "from" of 0 is unused. Once the
 // day's high reaches a tier, the level kept is that high times the largest keep % of every tier reached, so it only ever rises
 // as the high does, whatever order the tiers were typed in.
-export const OWN_NEW = { mpBuy: 0, mpPreZ: 2, mpNoPre: 0, mpNews: 1, mpCap: 2, mpEdge: 2, mpEnd: 4, mpAfter: 8, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null, skipDays: null };
+export const OWN_NEW = { hol: 0, mpBuy: 0, mpPreZ: 2, mpNoPre: 0, mpNews: 1, mpCap: 2, mpEdge: 2, mpEnd: 4, mpAfter: 8, lockOff: 0, lockAt2: 0, lockKeep2: 0, lockAt3: 0, lockKeep3: 0, lossTaper: 0, skipSlots: null, skipDays: null };
 // MC 2026-11-22 Steven asked to be able to turn protect profit off. lockOff 1 switches every step off and leaves the numbers
 // saved, so turning it back on brings the same steps back. It is off (0) unless chosen, so nothing changes for anyone else.
 export const lockTiers = c => c?.lockOff === 1 ? [] : [[c?.lockAt, c?.lockKeep], [c?.lockAt2, c?.lockKeep2], [c?.lockAt3, c?.lockKeep3]].map(([a, k]) => [+a || 0, Math.min(90, Math.max(0, +k || 0))]).filter(([a]) => a > 0).sort((x, y) => x[0] - y[0]);
@@ -62,7 +62,16 @@ export const slotOf = (t, etHour) => etHour(t) * 2 + (new Date(t).getUTCMinutes(
 // half hours, Sunday first, off on that day of the week on top of skipSlots (off every day). The day is the Eastern one: the
 // gap between the UTC hour and etHour is the offset, so no second date formatter is needed. offAt is the one test to use.
 export const dayOff = (c, t, etHour) => { const D = c?.skipDays; if (!Array.isArray(D)) return false; const gap = (new Date(t).getUTCHours() - etHour(t) + 24) % 24, a = D[new Date(t - gap * 3600000).getUTCDay()]; return Array.isArray(a) && a.includes(slotOf(t, etHour)); };
-export const offAt = (c, t, etHour) => offSlots(c).has(slotOf(t, etHour)) || dayOff(c, t, etHour);
+// MC 2026-11-26 Mitchell, Thanksgiving morning: "put in a feature for all accounts to turn on and turn off holiday days, we got
+// whacked today". hol (0 or 1, off unless turned on, each account's own like the schedule) sits the account out for the whole
+// Eastern day on a US holiday: no buy of any kind, the same as an off half hour. Open positions still settle. The backtest
+// two days earlier had said holidays were fine (three of them in the data, all green), which was too few days to lean on.
+// The list is the US market holidays and the thin days beside them, through New Year 2028; add to it each year.
+export const HOLS = [['2026-11-26', "Thanksgiving"], ['2026-11-27', "Day after Thanksgiving"], ['2026-12-24', "Christmas Eve"], ['2026-12-25', "Christmas Day"], ['2026-12-31', "New Year's Eve"], ['2027-01-01', "New Year's Day"], ['2027-01-18', "Martin Luther King Jr. Day"], ['2027-02-15', "Presidents Day"], ['2027-03-26', "Good Friday"], ['2027-05-31', "Memorial Day"], ['2027-06-18', "Juneteenth (observed)"], ['2027-07-04', "Independence Day"], ['2027-07-05', "Independence Day (observed)"], ['2027-09-06', "Labor Day"], ['2027-11-25', "Thanksgiving"], ['2027-11-26', "Day after Thanksgiving"], ['2027-12-24', "Christmas Eve"], ['2027-12-25', "Christmas Day"], ['2027-12-31', "New Year's Eve"], ['2028-01-01', "New Year's Day"]];
+const HOLM = new Map(HOLS);
+export const holName = (t, etHour) => { const gap = (new Date(t).getUTCHours() - etHour(t) + 24) % 24; return HOLM.get(new Date(t - gap * 3600000).toISOString().slice(0, 10)) || null; };
+export const holOff = (c, t, etHour) => c?.hol === 1 && !!holName(t, etHour);
+export const offAt = (c, t, etHour) => offSlots(c).has(slotOf(t, etHour)) || dayOff(c, t, etHour) || holOff(c, t, etHour);
 export const slotName = s => `${(Math.floor(s / 2) % 12) || 12}:${s % 2 ? '30' : '00'} ${s < 24 ? 'AM' : 'PM'}`;
 // MC 2026-11-21 a hand buy filled 1 of 40 and nothing could buy the rest; selling that one to start again left the market
 // counted as held, so it could not be bought at all. addOf(x, side, size) reads the row an account already has for a market:
@@ -312,7 +321,7 @@ export function createBooks(D) {
       if (paused(b)) { for (const r of hits) skip(b, r, pausedWhy(b), true); return; }   // written down like Main's pause, so Trades says why
       try {
         for (const r of hits) {
-          if (offNow) { skip(b, r, `off schedule (${slotName(sl)} ET half hour)`); continue; }
+          if (offNow) { skip(b, r, holOff(cfgP, now, D.etHour) ? `sitting out ${holName(now, D.etHour)} (holidays off, Settings, Schedule)` : `off schedule (${slotName(sl)} ET half hour)`); continue; }
           const g = gate(sid, r); if (!g.ok) { skip(b, r, g.why); continue; }
           try { await buy(b, r, g.lab, cfgP, bench, sends, missed); } catch (e) { fail(b, 'order error: ' + e.message); }
         }
