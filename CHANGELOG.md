@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.145 (Nov 27, 2026): Clearer no-fill note
+
+- [fixed] A missed order whose price came back under the limit read "-2.6¢ over the limit". It now says "2.6¢ under the limit" and that the price had dropped back after the order missed.
+
 ## 1.3.144 (Nov 26, 2026): A cleaner summary on Live and Paper settings
 
 - [improved] "What live takes right now" is a short list instead of one long paragraph: playbook, what it buys, price, trades a window, hours it sits out, size, day stops, profit protection and orders, one a row.
