@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.144 (Nov 26, 2026): A cleaner summary on Live and Paper settings
+
+- [improved] "What live takes right now" is a short list instead of one long paragraph: playbook, what it buys, price, trades a window, hours it sits out, size, day stops, profit protection and orders, one a row.
+- [improved] Days with the same off hours are joined, so five weekday lines read "Mon to Fri 9:00 AM to 9:30 AM".
+- [improved] On a phone, the "Different from paper" chips fold into one line with a count. Tap it to see the list.
+- [improved] On a phone, the buttons under the summary sit in a tidy grid instead of running off the card.
+
 ## 1.3.143 (Nov 26, 2026): Copy Main's settings, and make accounts even
 
 - [new] Copy all of Main's settings to a sub account in one go. On Live settings, a sub account's card has "Copy all of Main's settings", and Main's card has "Copy to every sub account". It copies the live rules, playbook, trade size and daily loss cap. Each account keeps its own cash floor, no account is switched on or off, and no money moves. You see what will change first and hold to confirm.
