@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.143 (Nov 26, 2026): Copy Main's settings, and make accounts even
+
+- [new] Copy all of Main's settings to a sub account in one go. On Live settings, a sub account's card has "Copy all of Main's settings", and Main's card has "Copy to every sub account". It copies the live rules, playbook, trade size and daily loss cap. Each account keeps its own cash floor, no account is switched on or off, and no money moves. You see what will change first and hold to confirm.
+- [new] Make even, next to Move money on the Accounts card. It adds up the cash on the accounts you tick and brings each to the same amount. The form shows every account's cash now, after, and the change before anything moves, then you hold to confirm.
+- [improved] Make even will not run while an account in the split has a trade open, leaves differences under $1 alone, and if a step fails part way it stops and says what had already moved so you can run it again.
+
 ## 1.3.142 (Nov 26, 2026): the settling line follows the cash
 
 - [fixed] Home: when Kalshi paid a win before the tracker had read the result, the line went on saying "Settling", then "Paying out" for money that was already in the cash figure. It now checks the cash from before the close first and says nothing once the money is there.

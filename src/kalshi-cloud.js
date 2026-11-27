@@ -2875,6 +2875,7 @@ export function createKalshi(state, env, keep) {
     }
     if (type === 'kalshiBook') {
       if (who.locked) return { ok: false, msg: 'Live books need an unlocked device.' };
+      if (a?.op === 'even') { st.balAt = 0; a.mainBal = await balance(true); a.mainOpen = [...L.values()].some(x => x.fill > 0 && !x.result && x.close > Date.now() - 86400000); }
       if (a?.op === 'match') { const c = ctl(); a.main = { strat: stratAt(c.strat, Date.now()), size: c.sizeUsd, loss: c.dailyLossUsd, floor: c.minBank ?? HARD.minBank }; }
       const r = await books.command(a || {}, LAB_IDS.filter(id => { const l = labDefs(cfgP).find(l => l.id === id); return !l.m10Only && !l.ep && !l.bc && !(l.x && !l.run); })); viewDirty = true; await publish(true); return r;
     }

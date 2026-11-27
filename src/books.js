@@ -575,6 +575,31 @@ export function createBooks(D) {
       await kv.put('kbk:' + bk.id, await seal({ id, pem })); list.push(bk); await saveList();
       return { ok: true, msg: `${name} is linked to subaccount ${sub}. Cash there: $${bal.toFixed(2)}.`, id: bk.id };
     }
+    // MC 2026-11-26 Mitchell, with a new fifth account at $0: "a button to make all accounts even, that way it can disperse
+    // equally, a preview before doing it as well". ids are the accounts to share between (Main is always one of them). The cash
+    // of those accounts is added up and each is brought to the same figure: accounts over it send the extra to Main first, then
+    // Main sends each account under it what it is short. It uses the same withdraw and fund steps as Move money, one after
+    // another, and stops at the first that fails, saying what had already moved. It will not run while any of the accounts has
+    // a trade open (cash is tied up and still changing), and a difference under $1 is left alone (Kalshi's least move here).
+    // dry returns the plan and moves nothing: the page shows it before the hold to confirm.
+    if (op === 'even') {
+      if (!D.mainKeys()) return { ok: false, msg: 'Money moves with the main Kalshi key, and it is not connected.' };
+      const ids = Array.isArray(a.ids) ? a.ids.map(String) : list.map(x => x.id), G = list.filter(x => ids.includes(x.id)); if (!G.length) return { ok: false, msg: 'Pick at least one sub account to share with.' };
+      const openIn = G.filter(k => [...L[k.id].values()].some(x => x.fill > 0 && !x.result)).map(k => k.name); if (a.mainOpen) openIn.unshift('Main');
+      if (openIn.length) return { ok: false, msg: `${openIn.join(', ')} ${openIn.length === 1 ? 'has' : 'have'} a trade open. Even the accounts out when nothing is open, so the cash is not still moving.` };
+      for (const k of G) { S[k.id].balAt = 0; await balance(k, true); if (S[k.id].bal == null) return { ok: false, msg: `Could not read ${k.name}'s cash, so nothing was moved.` }; }
+      const mb = +a.mainBal; if (!isFinite(mb)) return { ok: false, msg: 'Could not read the main account\'s cash, so nothing was moved.' };
+      const total = Math.round(mb * 100) + G.reduce((x, k) => x + Math.round(S[k.id].bal * 100), 0), each = Math.floor(total / (G.length + 1));
+      const plan = G.map(k => ({ id: k.id, name: k.name, bal: Math.round(S[k.id].bal * 100), d: each - Math.round(S[k.id].bal * 100) })).filter(p => Math.abs(p.d) >= 100);
+      if (a.dry) return { ok: true, dry: 1, each: each / 100, total: total / 100, plan };
+      if (!plan.length) return { ok: false, msg: `The accounts are already even, within $1 of $${(each / 100).toFixed(2)} each.` };
+      const done = [];
+      for (const p of [...plan.filter(p => p.d < 0), ...plan.filter(p => p.d > 0)]) { const amt = Math.abs(p.d) / 100, r = await command({ op: p.d < 0 ? 'withdraw' : 'fund', id: p.id, amount: amt }, labIds);
+        if (!r.ok) return { ok: false, msg: `${done.length ? `Moved so far: ${done.join('; ')}. Then ` : ''}${p.d < 0 ? `taking $${amt.toFixed(2)} out of ${p.name}` : `sending $${amt.toFixed(2)} to ${p.name}`} did not go through: ${r.msg} Nothing is lost; the money already moved is on the accounts named. Run it again to finish.` };
+        done.push(p.d < 0 ? `$${amt.toFixed(2)} out of ${p.name}` : `$${amt.toFixed(2)} to ${p.name}`); }
+      D.say(`BOOKS evened out at about $${(each / 100).toFixed(2)} each: ${done.join('; ')}`);
+      return { ok: true, msg: `Evened out at about $${(each / 100).toFixed(2)} each: ${done.join('; ')}.` };
+    }
     // MC 2026-11-15 Steven: when a live setting changes on the main account, ask whether to carry it to every subaccount, then
     // update them all. The rule settings (coins, price band, schedule, window cap, profit target, price room) were already
     // shared: every book reads live's. What each book keeps for itself is its playbook, $ a trade, daily loss cap and cash
@@ -582,16 +607,22 @@ export function createBooks(D) {
     // depends on the money in that account, and the main account's floor on a small subaccount would stop it trading. With dry
     // it only lists what would change. It never switches a book on or off and never moves money.
     if (op === 'match') {
-      const m = a.main || {}, out = [];
-      for (const k of list) { const ch = [];
+      // MC 2026-11-26 Mitchell, after adding a fifth account: "i want a way to copy all of mains settings in sub accnts". The match
+      // only ever carried the playbook, size and daily loss cap, to every account at once, and left an account's own copy of
+      // the live rules alone. With all it also drops the account's own rules (so it follows Main again); with id it does one
+      // account. The cash floor stays each account's own: Main's is sized for Main's money, and copied onto a smaller account it
+      // would sit above the cash there and stop it trading (tried, then taken out). It never switches an account on or off or moves money.
+      const m = a.main || {}, out = [], todo = a.id ? list.filter(x => x.id === a.id) : list; if (a.id && !todo.length) return { ok: false, msg: 'No such account.' };
+      for (const k of todo) { const ch = [];
+        if (a.all && k.cfg) { ch.push('live rules: follows Main again'); if (!a.dry) delete k.cfg; }
         if (m.strat && labIds.includes(m.strat) && D.stratAt(k.strat, Date.now()) !== m.strat) { ch.push(`playbook ${D.labName(m.strat)}`); if (!a.dry) k.strat = [...(k.strat || []), { at: Date.now(), id: m.strat, by: 'match' }].slice(-60); }
         if (isFinite(+m.size)) { const v = Math.min(BOOK_MAX, Math.max(BOOK_MIN, Math.round(+m.size))); if (v !== k.size) { ch.push(`$${k.size} -> $${v} a trade`); if (!a.dry) k.size = v; } }
         if (isFinite(+m.loss)) { const v = Math.min(1000, Math.max(10, Math.round(+m.loss))); if (v !== k.loss) { ch.push(`daily loss cap $${k.loss} -> $${v}`); if (!a.dry) k.loss = v; } }
         if (ch.length) out.push({ name: k.name, ch }); }
       if (a.dry) return { ok: true, dry: 1, books: list.length, changes: out };
-      if (!out.length) return { ok: false, msg: list.length ? 'Every book already matches the main account.' : 'There are no books yet.' };
+      if (!out.length) return { ok: false, msg: list.length ? (a.id ? `${todo[0].name} already matches the main account.` : 'Every account already matches the main account.') : 'There are no sub accounts yet.' };
       await saveList(); D.say(`BOOKS matched to main: ${out.map(o => `${o.name} (${o.ch.join(', ')})`).join('; ')}`);
-      return { ok: true, msg: `${out.length} book${out.length === 1 ? '' : 's'} now match${out.length === 1 ? 'es' : ''} the main account.` };
+      return { ok: true, msg: out.length === 1 ? `${out[0].name} now matches the main account: ${out[0].ch.join(', ')}.` : `${out.length} accounts now match the main account.` };
     }
     if (!b) return { ok: false, msg: 'No such book.' };
     if (op === 'follow') { if (!b.cfg) return { ok: false, msg: `${b.name} already follows the main account.` }; delete b.cfg; await saveList(); D.say(`BOOK ${b.name} follows the main account's live rules again`); return { ok: true, msg: `${b.name} follows the main account's live rules again, from the next trade check.` }; }
