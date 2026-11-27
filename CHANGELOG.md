@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.141 (Nov 26, 2026): room above the settling line
+
+- [fixed] Home: the "Settling" line sat tight under the cash figure and touched it on a phone. It now has space above it.
+
 ## 1.3.140 (Nov 26, 2026): what is settling, under your cash
 
 - [new] Home, under Kalshi cash: a line that says what is in flight after a window closes. "Settling 4 positions, $216.00 if they win" while Kalshi has not posted results yet, then "Paying out +$54.00" once a win is called and the cash is on its way. It clears when the cash arrives.
