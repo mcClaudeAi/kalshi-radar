@@ -516,7 +516,7 @@ export function createBooks(D) {
   function view() {
     if (!list) return [];
     return list.map(b => { const s = S[b.id], all = [...L[b.id].values()].sort((a, z) => z.at - a.at), t = today(b).filter(x => x.fill > 0), done = t.filter(x => x.result);
-      return { id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, paused: paused(b), pauseTo: paused(b) ? +b.pauseTo : 0, pauseTxt: paused(b) ? D.pauseText(+b.pauseTo) : null, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
+      return { pend: D.pendOf ? D.pendOf(L[b.id].values(), s.payExp > 0 && s.payAt && Date.now() - s.payAt <= 120000 ? s.payExp : 0) : null, id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, paused: paused(b), pauseTo: paused(b) ? +b.pauseTo : 0, pauseTxt: paused(b) ? D.pauseText(+b.pauseTo) : null, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
         bal: s.bal, balAt: s.balAt || null, crypto: s.shard[D.XI] ?? null, keyOk: s.keyOk, err: s.err && Date.now() - s.errAt < 3600000 ? s.err : null, stopped: s.stopped && (!s.stoppedTo || Date.now() < s.stoppedTo) ? s.stopped : null, stoppedDay: !!s.stoppedDay, xfer: s.lastXfer,
         playbook: { id: D.stratAt(b.strat, Date.now()), since: D.stratSince(b.strat, Date.now()) },
         // MC 2026-11-20 the same split Main sends (by hand, later buys, passed) so Today on Home can show any one account

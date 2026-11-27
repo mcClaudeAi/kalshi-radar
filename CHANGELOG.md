@@ -2,6 +2,13 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.140 (Nov 26, 2026): what is settling, under your cash
+
+- [new] Home, under Kalshi cash: a line that says what is in flight after a window closes. "Settling 4 positions, $216.00 if they win" while Kalshi has not posted results yet, then "Paying out +$54.00" once a win is called and the cash is on its way. It clears when the cash arrives.
+- [new] An account's cash figure pulses while it is waiting on a result or a payout, so you can see which numbers are about to change.
+- [improved] The tracker now looks for Kalshi's result every 10 seconds for the first three minutes after a close. It was every 20.
+- [improved] Kalshi posts a result a minute or two after the close and pays a little after that. That part of the wait is on their side and cannot be shortened.
+
 ## 1.3.139 (Nov 26, 2026): "Off now" on the Home tiles
 
 - [improved] Home: a Full Signal tile whose buying has been switched off since it traded today keeps its numbers and adds "Off now, bought earlier". With no trades today it still just says Off.

@@ -664,7 +664,7 @@ export function createKalshi(state, env, keep) {
   async function kreq(method, p, body) { for (let a = 0; a < 4; a++) { const r = await kreq1(method, p, body); if (r?.status !== 429 || a === 3) return r; await sleep(700 * (a + 1)); } }
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
   // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
-  const books = createBooks({ state, env, say, HOSTS, API, XI, coin, etDay, etHour, pauseOn, pauseText, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, strikeOf: tk => rec.get(tk)?.strike ?? rec4?.get(tk)?.strike ?? null, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
+  const books = createBooks({ pendOf: (rows, pay) => pendOf(rows, pay), state, env, say, HOSTS, API, XI, coin, etDay, etHour, pauseOn, pauseText, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, strikeOf: tk => rec.get(tk)?.strike ?? rec4?.get(tk)?.strike ?? null, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
   const vq = [];   // vault notices waiting for the next push
   const vault = createVault({ kv, say, XI, etDay, etHour, fail, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(),
@@ -688,6 +688,12 @@ export function createKalshi(state, env, keep) {
   // wait for their payout (books.js payExp); Main now does the same: a win notes what is due (mainPay), the balance is read
   // again every 10 seconds until it shows, two minutes at most, and the settle notification is held until Main and every
   // book have caught up (events, below) so its cash line is the real total.
+  // MC 2026-11-26 Mitchell: "my accounts still seem to take a while to load after a win". The wait is Kalshi's: it posts the result
+  // a minute or two after the close and pays a little after that, and until then the cash on Home is the old figure with nothing
+  // to say more is coming. Two changes. The look for a result is every 10 seconds for the first three minutes after a close (it
+  // was every 20). And the view carries what is in flight for each account (pendOf): positions past their close with no result
+  // yet and what they pay if they win, and winnings Kalshi has called but not paid, so Home can show it under the cash.
+  const pendOf = (rows, pay) => { const now = Date.now(); let n = 0, usd = 0; for (const x of rows) { if (x.result || !(x.fill > 0) || now < x.close || now > x.close + 900000) continue; const keep = x.fill - (x.sold?.fill || 0); if (keep > 0) { n++; usd += keep; } } return { n, usd: +usd.toFixed(2), pay: +(pay || 0).toFixed(2) }; };
   let mainPay = null;
   const mainWait = () => !!mainPay && Date.now() - mainPay.at <= 120000;
   async function mainPayRead() { if (!mainPay) return; if (!mainWait()) { mainPay = null; return; } st.balAt = 0; try { await balance(); } catch { } if (st.bal != null && mainPay.was != null && st.bal >= mainPay.was + mainPay.exp / 2) mainPay = null; }
@@ -1019,7 +1025,7 @@ export function createKalshi(state, env, keep) {
   const logoOf = async id => { await load(); const x = klogos[String(id || '')]; if (!x) return null; const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(x.d); return m ? { type: m[1], b64: m[2] } : null; };
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
-    return { news: newsNext(Date.now()), newsEnd: NEWS[NEWS.length - 1][0], on: c.enabled, autoPause: c.autoPause, pauseToday: c.pauseToday, paused: c.paused, pauseTo: c.paused ? c.pauseTo : 0, pauseTxt: c.paused ? pauseText(c.pauseTo) : null, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
+    return { pend: pendOf(L.values(), mainWait() ? mainPay.exp : 0), news: newsNext(Date.now()), newsEnd: NEWS[NEWS.length - 1][0], on: c.enabled, autoPause: c.autoPause, pauseToday: c.pauseToday, paused: c.paused, pauseTo: c.paused ? c.pauseTo : 0, pauseTxt: c.paused ? pauseText(c.pauseTo) : null, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, hand: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => x.hand)),
@@ -1752,11 +1758,11 @@ export function createKalshi(state, env, keep) {
     { const c = Math.ceil((now + 1000) / Q) * Q, at = c - 30000; if (lsDone !== c && now < at) t = Math.min(t, at); }
     for (const r of rec.values()) {
       if (r.result || !ours(r) || now > r.close + 600000) continue;
-      t = Math.min(t, now < r.close + 15000 ? r.close + 15000 : now + 20000);
+      t = Math.min(t, now < r.close + 15000 ? r.close + 15000 : now + (now < r.close + 180000 ? 10000 : 20000));
     }
     // live positions with no tracker record (hand buys) get the same quick look after their close
     // MC 2026-11-21 a sub account's hand buy that Main did not also make had no quick look and waited for the minute run
-    for (const x of [...L.values(), ...books.allRows()]) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + 20000); }
+    for (const x of [...L.values(), ...books.allRows()]) { if (x.result || !(x.fill > 0) || rec.has(x.tk) || now > x.close + 600000) continue; t = Math.min(t, now < x.close + 15000 ? x.close + 15000 : now + (now < x.close + 180000 ? 10000 : 20000)); }
     if (books.payWait() || mainWait()) t = Math.min(t, now + 10000);   // a sub account's win not paid yet: read its cash again in 10 seconds
     coreAt = t; if (fastWant(now + 10000) || fastWant(now)) t = Math.min(t, now + 10000);   // the 10-second Full Signal pick look (fastLook)
     return t;
