@@ -2,6 +2,10 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.147 (Nov 27, 2026): Best day and worst day on Analytics
+
+- [new] Analytics has two more tiles after Green days: Best day and Worst day, each with the result, the date and how many trades won. They follow the range, accounts and paper or live view you have picked.
+
 ## 1.3.146 (Nov 27, 2026): A new lab, Claude's pick, likely line clear
 
 - [new] Labs has a test line: Claude's pick, later watched, where a trade-check buy also needs the likely line to land at least 0.6% clear of the target. Later buys are unchanged. Labs only; it can't be picked as a paper or live playbook.
