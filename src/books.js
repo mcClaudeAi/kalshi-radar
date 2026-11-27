@@ -173,7 +173,7 @@ export function createBooks(D) {
     // figures stay and the next run reads again.
     const stale = !s.balAt, was = s.bal, keep = s.shard;
     const r = await breq(b, 'GET', '/portfolio/balance');
-    if (r?.ok) { const j = r.j || {}; s.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; s.balAt = Date.now(); s.keyOk = true; if (/^balance check failed/.test(s.err || '')) s.err = null; s.shard = {}; for (const x of j.balance_breakdown || []) s.shard[x.exchange_index] = +x.balance;
+    if (r?.ok) { const j = r.j || {}; s.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; s.balAt = Date.now(); if (s.bal != null) { (s.hist = s.hist || []).push([s.balAt, s.bal]); if (s.hist.length > 14) s.hist.shift(); } s.keyOk = true; if (/^balance check failed/.test(s.err || '')) s.err = null; s.shard = {}; for (const x of j.balance_breakdown || []) s.shard[x.exchange_index] = +x.balance;
       // MC 2026-11-15 Kalshi leaves balance_breakdown out for a key locked to one subaccount, which is every book's key. With no
       // breakdown the book saw nothing on either shard, so it never moved money to the crypto shard and its orders had no cash
       // behind them. Each shard is now asked for by itself with exchange_index whenever the breakdown is missing or does not
@@ -480,7 +480,7 @@ export function createBooks(D) {
   }
   function onSettle(r) {
     if (!list) return;
-    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveRow(b, x); S[b.id].balAt = 0; if (x.won && keep > 0) { S[b.id].payExp = +((S[b.id].payExp || 0) + keep).toFixed(2); if (!S[b.id].payAt) S[b.id].payWas = S[b.id].bal; S[b.id].payAt = S[b.id].payAt || Date.now(); } D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
+    for (const b of list) { const x = L[b.id]?.get(r.ticker); if (!x || x.result || !(x.fill > 0) || (x.sold && !x.sold.cash)) continue; const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0; x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveRow(b, x); S[b.id].balAt = 0; if (x.won && keep > 0 && !(D.paidAlready && D.paidAlready(S[b.id].hist, S[b.id].bal, x.close, keep))) { S[b.id].payExp = +((S[b.id].payExp || 0) + keep).toFixed(2); if (!S[b.id].payAt) S[b.id].payWas = S[b.id].bal; S[b.id].payAt = S[b.id].payAt || Date.now(); } D.say(`BOOK ${b.name} settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl}`); }
   }
   // MC 2026-11-18 right after a win Main's cash was up to date and the sub accounts' was not, for up to a minute. The quick look
   // that settles a trade seconds after its close read Main's balance again but left the books for the next minute run.
@@ -516,7 +516,7 @@ export function createBooks(D) {
   function view() {
     if (!list) return [];
     return list.map(b => { const s = S[b.id], all = [...L[b.id].values()].sort((a, z) => z.at - a.at), t = today(b).filter(x => x.fill > 0), done = t.filter(x => x.result);
-      return { pend: D.pendOf ? D.pendOf(L[b.id].values(), s.payExp > 0 && s.payAt && Date.now() - s.payAt <= 120000 ? s.payExp : 0) : null, id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, paused: paused(b), pauseTo: paused(b) ? +b.pauseTo : 0, pauseTxt: paused(b) ? D.pauseText(+b.pauseTo) : null, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
+      return { pend: D.pendOf ? D.pendOf(L[b.id].values(), s.payExp > 0 && s.payAt && Date.now() - s.payAt <= 120000 ? s.payExp : 0, s.hist, s.bal) : null, id: b.id, name: b.name, sub: b.sub, keyEnd: b.keyEnd || null, made: b.made || 'linked', on: !!b.on, paused: paused(b), pauseTo: paused(b) ? +b.pauseTo : 0, pauseTxt: paused(b) ? D.pauseText(+b.pauseTo) : null, size: b.size, loss: b.loss, floor: b.floor, since: b.at || null, cfg: b.cfg || null,
         bal: s.bal, balAt: s.balAt || null, crypto: s.shard[D.XI] ?? null, keyOk: s.keyOk, err: s.err && Date.now() - s.errAt < 3600000 ? s.err : null, stopped: s.stopped && (!s.stoppedTo || Date.now() < s.stoppedTo) ? s.stopped : null, stoppedDay: !!s.stoppedDay, xfer: s.lastXfer,
         playbook: { id: D.stratAt(b.strat, Date.now()), since: D.stratSince(b.strat, Date.now()) },
         // MC 2026-11-20 the same split Main sends (by hand, later buys, passed) so Today on Home can show any one account

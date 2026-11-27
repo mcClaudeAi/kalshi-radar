@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.142 (Nov 26, 2026): the settling line follows the cash
+
+- [fixed] Home: when Kalshi paid a win before the tracker had read the result, the line went on saying "Settling", then "Paying out" for money that was already in the cash figure. It now checks the cash from before the close first and says nothing once the money is there.
+- [fixed] A position held only by a sub account (its own settings, or a hand buy) waited up to a minute longer for its result than the others. It now gets the same 10-second look.
+
 ## 1.3.141 (Nov 26, 2026): room above the settling line
 
 - [fixed] Home: the "Settling" line sat tight under the cash figure and touched it on a phone. It now has space above it.

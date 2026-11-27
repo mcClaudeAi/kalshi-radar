@@ -664,7 +664,7 @@ export function createKalshi(state, env, keep) {
   async function kreq(method, p, body) { for (let a = 0; a < 4; a++) { const r = await kreq1(method, p, body); if (r?.status !== 429 || a === 3) return r; await sleep(700 * (a + 1)); } }
   const errOf = r => r?.j?.error?.message || r?.j?.message || r?.j?.error || r?.t || 'no answer';
   // MC 2026-11-11 live books on subaccounts (books.js): each with its own locked key, made and funded with the main key
-  const books = createBooks({ pendOf: (rows, pay) => pendOf(rows, pay), state, env, say, HOSTS, API, XI, coin, etDay, etHour, pauseOn, pauseText, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, strikeOf: tk => rec.get(tk)?.strike ?? rec4?.get(tk)?.strike ?? null, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
+  const books = createBooks({ pendOf: (rows, pay, h, b) => pendOf(rows, pay, h, b), paidAlready: (h, b, c, k) => paidAlready(h, b, c, k), state, env, say, HOSTS, API, XI, coin, etDay, etHour, pauseOn, pauseText, fee, stratAt, stratSince, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(), mainShards: async () => { st.balAt = 0; const b = await balance(true); return b == null ? null : st.shard; }, orderLimit, fillMerge, resOf: tk => { const r = rec.get(tk)?.result; return r === 'yes' || r === 'no' ? r : null; }, strikeOf: tk => rec.get(tk)?.strike ?? rec4?.get(tk)?.strike ?? null, flOf: tk => { try { return flTk(tk); } catch { return null; } }, labName: id => labDefs(cfgP).find(l => l.id === id)?.name || id });
   const fail = m => { st.lastErr = m; st.errAt = Date.now(); say('LIVE ' + m); };
   const vq = [];   // vault notices waiting for the next push
   const vault = createVault({ kv, say, XI, etDay, etHour, fail, mainReq: (m, p, b) => kreq(m, p, b), mainKeys: () => hasKeys(),
@@ -693,7 +693,9 @@ export function createKalshi(state, env, keep) {
   // to say more is coming. Two changes. The look for a result is every 10 seconds for the first three minutes after a close (it
   // was every 20). And the view carries what is in flight for each account (pendOf): positions past their close with no result
   // yet and what they pay if they win, and winnings Kalshi has called but not paid, so Home can show it under the cash.
-  const pendOf = (rows, pay) => { const now = Date.now(); let n = 0, usd = 0; for (const x of rows) { if (x.result || !(x.fill > 0) || now < x.close || now > x.close + 900000) continue; const keep = x.fill - (x.sold?.fill || 0); if (keep > 0) { n++; usd += keep; } } return { n, usd: +usd.toFixed(2), pay: +(pay || 0).toFixed(2) }; };
+  // cash from the last read before a market closed against the cash now: up by half the payout or more means Kalshi has paid
+  const paidAlready = (hist, bal, close, keep) => { let base = null; for (const h of hist || []) { if (h[0] < close + 5000) base = h[1]; else break; } return base != null && bal != null && bal >= base + keep / 2; };
+  const pendOf = (rows, pay, hist, bal) => { const now = Date.now(); let n = 0, usd = 0; for (const x of rows) { if (x.result || !(x.fill > 0) || now < x.close || now > x.close + 900000) continue; const keep = x.fill - (x.sold?.fill || 0); if (keep > 0 && !paidAlready(hist, bal, x.close, keep)) { n++; usd += keep; } } return { n, usd: +usd.toFixed(2), pay: +(pay || 0).toFixed(2) }; };
   let mainPay = null;
   const mainWait = () => !!mainPay && Date.now() - mainPay.at <= 120000;
   async function mainPayRead() { if (!mainPay) return; if (!mainWait()) { mainPay = null; return; } st.balAt = 0; try { await balance(); } catch { } if (st.bal != null && mainPay.was != null && st.bal >= mainPay.was + mainPay.exp / 2) mainPay = null; }
@@ -704,7 +706,7 @@ export function createKalshi(state, env, keep) {
     // or after 10 minutes; otherwise the last split is kept. See books.js balance() for the same change.
     const stale = !st.balAt, was = st.bal, keep = st.shard;
     const r = await kreq('GET', '/portfolio/balance');
-    if (r?.ok) { const j = r.j || {}; st.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; st.balAt = Date.now(); st.keyOk = true; st.shard = {}; for (const b of j.balance_breakdown || []) st.shard[b.exchange_index] = +b.balance;
+    if (r?.ok) { const j = r.j || {}; st.bal = j.balance_dollars != null ? +j.balance_dollars : j.balance != null ? j.balance / 100 : null; st.balAt = Date.now(); if (st.bal != null) { (st.hist = st.hist || []).push([st.balAt, st.bal]); if (st.hist.length > 14) st.hist.shift(); } st.keyOk = true; st.shard = {}; for (const b of j.balance_breakdown || []) st.shard[b.exchange_index] = +b.balance;
       // MC 2026-11-15 Steven's live orders were all refused and the top-up kept failing with "could not move $600.00 ... insufficient
       // balance" while his main account held $420.76, after he put money into subaccounts. The top-up trusted balance_breakdown
       // for what sits on shard 0, and Kalshi's docs do not say that breakdown is limited to the account asked about; his numbers
@@ -994,7 +996,7 @@ export function createKalshi(state, env, keep) {
     // the rest of a partly cashed-out position settles here, with the sale counted in
     const keep = x.fill - (x.sold?.fill || 0), sale = x.sold ? x.sold.fill * x.sold.px - (x.sold.fee || 0) : 0;
     x.result = r.result; x.won = r.result === x.side; x.pnl = +((x.won ? keep : 0) + sale - (x.cost ?? 0)).toFixed(2); if (x.final == null && typeof r.final === 'number') x.final = r.final; saveL(x); st.balAt = 0;
-    if (x.won && keep > 0) mainPay = { exp: (mainPay?.exp || 0) + keep, at: Date.now(), was: mainPay?.was ?? st.bal };
+    if (x.won && keep > 0 && !paidAlready(st.hist, st.bal, x.close, keep)) mainPay = { exp: (mainPay?.exp || 0) + keep, at: Date.now(), was: mainPay?.was ?? st.bal };
     say(`LIVE settled ${r.ticker}: ${x.won ? 'won' : 'LOST'} ${x.pnl >= 0 ? '+' : ''}$${x.pnl}`);
   }
   async function sellAll() {
@@ -1025,7 +1027,7 @@ export function createKalshi(state, env, keep) {
   const logoOf = async id => { await load(); const x = klogos[String(id || '')]; if (!x) return null; const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(x.d); return m ? { type: m[1], b64: m[2] } : null; };
   function liveView() {
     const c = ctl(), t = todayL().filter(x => x.fill > 0), done = t.filter(x => x.result), all = [...L.values()].sort((a, b) => b.at - a.at);
-    return { pend: pendOf(L.values(), mainWait() ? mainPay.exp : 0), news: newsNext(Date.now()), newsEnd: NEWS[NEWS.length - 1][0], on: c.enabled, autoPause: c.autoPause, pauseToday: c.pauseToday, paused: c.paused, pauseTo: c.paused ? c.pauseTo : 0, pauseTxt: c.paused ? pauseText(c.pauseTo) : null, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
+    return { pend: pendOf(L.values(), mainWait() ? mainPay.exp : 0, st.hist, st.bal), news: newsNext(Date.now()), newsEnd: NEWS[NEWS.length - 1][0], on: c.enabled, autoPause: c.autoPause, pauseToday: c.pauseToday, paused: c.paused, pauseTo: c.paused ? c.pauseTo : 0, pauseTxt: c.paused ? pauseText(c.pauseTo) : null, money: (kmoney?.list?.length ? kmoney.list : Array.isArray(ctlL.money) ? ctlL.money : []).filter(x => !(ctlL.moneyHide || []).includes(x.id)), moneyOut: kmoney?.list?.length ? kmoney.list.filter(x => (ctlL.moneyHide || []).includes(x.id)) : [], moneySrc: kmoney?.list?.length ? 'kalshi' : 'manual', moneyHand: Array.isArray(ctlL.money) ? ctlL.money : [], moneyAt: kmoney?.at || null, moneyErr: kmoney?.err || null, moneyPend: kmoney?.pend || 0, size: c.sizeUsd, dailyLossUsd: c.dailyLossUsd, since: c.at || null, keys: hasKeys(), keyOk: st.keyOk, bal: st.bal, balAt: st.balAt || null, shard: st.shard, crypto: st.shard[XI] ?? null, xfer: st.lastXfer, err: st.lastErr && Date.now() - st.errAt < 3600000 ? st.lastErr : null, stopped: st.stopped && (!st.stoppedTo || Date.now() < st.stoppedTo) ? st.stopped : null, stoppedDay: !!st.stoppedDay,
       hard: { ...HARD, minBank: c.minBank }, // MC 2026-11-15 paper's Today line says how many trades its playbook passed on and how they went (5-1); live had no such count.
       // Same idea for live: today's markets the live playbook skipped, scored by how the market settled.
       today: { n: done.length, won: done.filter(x => x.won).length, net: +realized(done).toFixed(2), open: t.filter(x => !x.result).length, hand: (h => ({ n: h.length, won: h.filter(x => x.won).length, net: +realized(h).toFixed(2) }))(done.filter(x => x.hand)),
@@ -1635,7 +1637,12 @@ export function createKalshi(state, env, keep) {
   }
   // MC 2026-11-14 a row counts as ours for the fast settle when paper or live would take it at its price (live's band can start
   // lower than paper's), or when the live account holds it
-  const ours = r => r.ask >= Math.min(cfgP.minAsk, cfgL?.minAsk ?? 1) || L.has(r.ticker);
+  // MC 2026-11-26 Mitchell's screenshots a minute apart: the cash had already gone up by a win while Home still said "Settling",
+  // then it said "Paying out" for cash that was already there. Two causes. A market that only a sub account held (its own
+  // settings, or a hand buy) did not get the quick look for its result, so it waited for the minute run and Kalshi had paid
+  // by then: it gets the quick look now. And a win's payout was awaited from whatever the balance was when the result was
+  // read, even when that balance already had the money in it: paidAlready (below) checks the cash from before the close first.
+  const ours = r => r.ask >= Math.min(cfgP.minAsk, cfgL?.minAsk ?? 1) || L.has(r.ticker) || books.rowsOf(r.ticker).some(x => x.fill > 0);
   async function settleSome(now, quick) {
     let k = 0, any = false;
     for (const r of rec.values()) {
