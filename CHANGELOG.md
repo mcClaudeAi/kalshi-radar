@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.148 (Nov 27, 2026): Sweep to Main
+
+- [new] Sweep to Main, next to Make even on the Accounts card. Set how much to leave in each account (it starts at \$300 and remembers your figure on this device) and everything above it goes back to Main.
+- [new] The form is the preview: every account's cash now, after, and the amount swept, redrawn as you type or tick accounts in or out. Then hold to confirm.
+- [improved] An account with a trade open is passed over and the rest still sweep. Amounts under \$1 over are left alone, and if a step fails part way it stops and says what had already moved.
+
 ## 1.3.147 (Nov 27, 2026): Best day and worst day on Analytics
 
 - [new] Analytics has two more tiles after Green days: Best day and Worst day, each with the result, the date and how many trades won. They follow the range, accounts and paper or live view you have picked.

@@ -600,6 +600,29 @@ export function createBooks(D) {
       D.say(`BOOKS evened out at about $${(each / 100).toFixed(2)} each: ${done.join('; ')}`);
       return { ok: true, msg: `Evened out at about $${(each / 100).toFixed(2)} each: ${done.join('; ')}.` };
     }
+    // MC 2026-11-27 Steven: "a sweep of all accounts back to main, sweeping anything over xxx dollars back to main. I always want
+    // to leave $300 in all the accounts". keep is the dollars to leave on each sub account; everything above it goes to Main with
+    // the same withdraw step Move money uses. An account with a trade open is passed over, not failed: part of its cash sits on
+    // the crypto shard and cannot come back until the trade settles, so it is swept next time. Under $1 over is left alone.
+    // dry returns the plan and moves nothing; a failed step stops it and says what had already moved.
+    if (op === 'sweep') {
+      if (!D.mainKeys()) return { ok: false, msg: 'Money moves with the main Kalshi key, and it is not connected.' };
+      const keep = Math.round(+a.keep * 100); if (!isFinite(keep) || keep < 0) return { ok: false, msg: 'Enter how much to leave in each account, $0 or more.' };
+      const ids = Array.isArray(a.ids) ? a.ids.map(String) : list.map(x => x.id), G = list.filter(x => ids.includes(x.id)); if (!G.length) return { ok: false, msg: 'Pick at least one sub account to sweep.' };
+      const busy = [], plan = [];
+      for (const k of G) { if ([...L[k.id].values()].some(x => x.fill > 0 && !x.result)) { busy.push(k.name); continue; }
+        S[k.id].balAt = 0; await balance(k, true); if (S[k.id].bal == null) return { ok: false, msg: `Could not read ${k.name}'s cash, so nothing was moved.` };
+        const d = Math.round(S[k.id].bal * 100) - keep; if (d >= 100) plan.push({ id: k.id, name: k.name, bal: Math.round(S[k.id].bal * 100), d }); }
+      const skip = busy.length ? ` ${busy.join(', ')} ${busy.length === 1 ? 'has' : 'have'} a trade open and ${busy.length === 1 ? 'was' : 'were'} left for next time.` : '';
+      if (a.dry) return { ok: true, dry: 1, keep: keep / 100, plan, busy };
+      if (!plan.length) return { ok: false, msg: `Nothing to sweep: no account holds $1 or more over $${(keep / 100).toFixed(2)}.${skip}` };
+      const done = [];
+      for (const p of plan) { const amt = p.d / 100, r = await command({ op: 'withdraw', id: p.id, amount: amt }, labIds);
+        if (!r.ok) return { ok: false, msg: `${done.length ? `Swept so far: ${done.join('; ')}. Then ` : ''}taking $${amt.toFixed(2)} out of ${p.name} did not go through: ${r.msg} Nothing is lost; run it again to finish.` };
+        done.push(`$${amt.toFixed(2)} from ${p.name}`); }
+      D.say(`BOOKS swept to Main, leaving $${(keep / 100).toFixed(2)} each: ${done.join('; ')}`);
+      return { ok: true, msg: `Swept $${(plan.reduce((t, p) => t + p.d, 0) / 100).toFixed(2)} to Main, leaving $${(keep / 100).toFixed(2)} each: ${done.join('; ')}.${skip}` };
+    }
     // MC 2026-11-15 Steven: when a live setting changes on the main account, ask whether to carry it to every subaccount, then
     // update them all. The rule settings (coins, price band, schedule, window cap, profit target, price room) were already
     // shared: every book reads live's. What each book keeps for itself is its playbook, $ a trade, daily loss cap and cash
