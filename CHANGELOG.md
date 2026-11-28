@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.151 (Nov 28, 2026): See a friend's settings, read only
+
+- [new] When you open a friend's dashboard, Paper settings and Live settings are now in the menu. Every field, switch and button on them is dead: you can open the groups and read, and nothing can be changed.
+- [new] Live settings show only if your friend has "share my live account" on, the same switch that already shares their live account.
+- [improved] While you are on a friend's dashboard, their entry in the menu reads "Back to mine" and takes you home.
+
 ## 1.3.150 (Nov 28, 2026): Home stays where you are reading on a phone
 
 - [fixed] On a phone, Home kept jumping while you read below the Live board. The board grows by a tall card each time a trade is bought and shrinks when the window settles, and iPhone Safari does not hold your place when that happens, so the page slid by the difference. The page now holds the spot you are reading through those changes.
