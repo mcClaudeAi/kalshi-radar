@@ -2,6 +2,11 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.149 (Nov 27, 2026): Pages on the paper pick lists
+
+- [improved] The BTC catch-up dialog lists its buys 8 a page, newest first, with Newer and Older buttons and a count, instead of one long scrolling box.
+- [improved] The Full Signal on paper dialog pages the same way.
+
 ## 1.3.148 (Nov 27, 2026): Sweep to Main
 
 - [new] Sweep to Main, next to Make even on the Accounts card. Set how much to leave in each account (it starts at $300 and remembers your figure on this device) and everything above it goes back to Main.
