@@ -2,6 +2,12 @@
 
 <!-- Format, read by the Release notes page: "## version (date): title", one summary line, then bullets tagged [new], [improved] or [fixed]. -->
 
+## 1.3.150 (Nov 28, 2026): Home stays where you are reading on a phone
+
+- [fixed] On a phone, Home kept jumping while you read below the Live board. The board grows by a tall card each time a trade is bought and shrinks when the window settles, and iPhone Safari does not hold your place when that happens, so the page slid by the difference. The page now holds the spot you are reading through those changes.
+- [fixed] The same hold covers the account strip gaining and losing its payout lines, the scanner, and the page's regular refresh.
+- [improved] At the very top of Home nothing is held, so a new trade still appears at once when you are watching the board.
+
 ## 1.3.149 (Nov 27, 2026): Pages on the paper pick lists
 
 - [improved] The BTC catch-up dialog lists its buys 8 a page, newest first, with Newer and Older buttons and a count, instead of one long scrolling box.
